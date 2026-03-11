@@ -9,11 +9,11 @@
     <title>PARADISE - Hotel and Bed&Breakfast Site Template</title>
     
     <!-- Favicons-->
-    <link rel="shortcut icon" href="src/img/favicon.ico" type="image/x-icon">
-    <link rel="apple-touch-icon" type="image/x-icon" href="src/img/apple-touch-icon-57x57-precomposed.png">
-    <link rel="apple-touch-icon" type="image/x-icon" sizes="72x72" href="src/img/apple-touch-icon-72x72-precomposed.png">
-    <link rel="apple-touch-icon" type="image/x-icon" sizes="114x114" href="src/img/apple-touch-icon-114x114-precomposed.png">
-    <link rel="apple-touch-icon" type="image/x-icon" sizes="144x144" href="src/img/apple-touch-icon-144x144-precomposed.png">
+    <link rel="shortcut icon" href="img/favicon.ico" type="image/x-icon">
+    <link rel="apple-touch-icon" type="image/x-icon" href="img/apple-touch-icon-57x57-precomposed.png">
+    <link rel="apple-touch-icon" type="image/x-icon" sizes="72x72" href="img/apple-touch-icon-72x72-precomposed.png">
+    <link rel="apple-touch-icon" type="image/x-icon" sizes="114x114" href="img/apple-touch-icon-114x114-precomposed.png">
+    <link rel="apple-touch-icon" type="image/x-icon" sizes="144x144" href="img/apple-touch-icon-144x144-precomposed.png">
 
     <!-- GOOGLE WEB FONT-->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -21,12 +21,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- BASE CSS -->
-    <link href="src/css/bootstrap.min.css" rel="stylesheet">
-    <link href="src/css/style.css" rel="stylesheet">
-	<link href="src/css/vendors.min.css" rel="stylesheet">
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+	<link href="css/vendors.min.css" rel="stylesheet">
+
+    <!-- SEPCIFIC CSS -->
+    <link href="css/flex_slider.css" rel="stylesheet">
 
     <!-- YOUR CUSTOM CSS -->
-    <link href="src/css/custom.css" rel="stylesheet">
+    <link href="css/custom.css" rel="stylesheet">
 </head>
 
 <body> 
@@ -35,13 +38,13 @@
         <div data-loader="circle-side"></div>
     </div><!-- /Page Preload -->
 
-    <header class="fixed_header menu_v4 submenu_version">
+   <header class="fixed_header menu_v4 submenu_version ps-md-3 pe-md-3">
         <div class="layer"></div><!-- Opacity Mask -->
-        <div class="container">
+        <div class="container-fluid">
             <div class="row align-items-center">
                 <div class="col-3">
-                    <a href="index.html" class="logo_normal"><img src="src/img/logo.png" width="135" height="45" alt=""></a>
-                    <a href="index.html" class="logo_sticky"><img src="src/img/logo_sticky.png" width="135" height="45" alt=""></a>
+                    <a href="index.html" class="logo_normal"><img src="img/logo.png" width="135" height="45" alt=""></a>
+                    <a href="index.html" class="logo_sticky"><img src="img/logo_sticky.png" width="135" height="45" alt=""></a>
                 </div>
                 <div class="col-9">
                     <div class="main-menu">
@@ -104,65 +107,88 @@
     </header><!-- End Header -->
 
     <main>
-        <div id="carousel-home">
-            <div class="owl-carousel owl-theme kenburns">
-                <div class="owl-slide background-image cover" data-background="url(/src/img/podere_cavallara/drone.jpg)">
-                    <div class="opacity-mask d-flex align-items-center" data-opacity-mask="rgba(0, 0, 0, 0.5)">
-                        <div class="container">
-                            <div class="row justify-content-center justify-content-md-start">
-                                <div class="col-lg-6 static">
-                                    <div class="slide-text white">
-                                        <small class="owl-slide-animated owl-slide-title">Luxury Hotel Experience</small>
-                                        <h2 class="owl-slide-animated owl-slide-title-2">A unique experience where to stay</h2>
-                                        <div class="owl-slide-animated owl-slide-title-3"><a class="btn_1 outline white mt-3" href="room-list-1.html">Read more</a></div>
-                                    </div>
-                                </div>
+        <div class="slider">
+            <div id="slider" class="flexslider">
+                <ul class="slides">
+                    <li>
+                        <img src="img/flex_slides/slide_1.jpg" alt="">
+                        <div class="meta">
+                            <h3>Sierra Double Room</h3>
+                            <div class="info">
+                                <p>Exquisite furnishings for a cosy ambience</p>
                             </div>
+                            <a href="room-details.html" class="btn_1 outline white">Read more</a>
                         </div>
-                    </div>
-                </div>
-                <!--/owl-slide-->
-                <div class="owl-slide background-image cover" data-background="url(src/img/podere_cavallara/piscina.jpg)">
-                    <div class="opacity-mask d-flex align-items-center" data-opacity-mask="rgba(0, 0, 0, 0.5)">
-                        <div class="container">
-                            <div class="row justify-content-center">
-                                <div class="col-lg-6 static">
-                                    <div class="slide-text white text-center">
-                                        <small class="owl-slide-animated owl-slide-title">Luxury Hotel Experience</small>
-                                        <h2 class="owl-slide-animated owl-slide-title-2">A truly immersive relax place</h2>
-                                        <div class="owl-slide-animated owl-slide-title-3"><a class="btn_1 outline white mt-3" href="room-list-2.html">Read more</a></div>
-                                    </div>
-                                </div>
+                    </li>
+                    <li>
+                        <img src="img/flex_slides/slide_2.jpg" alt="">
+                        <div class="meta">
+                            <h3>Eva Deluxe Room</h3>
+                            <div class="info">
+                                <p>The simple yet comfortable atmosphere</p>
                             </div>
+                            <a href="room-details.html" class="btn_1 outline white">Read more</a>
                         </div>
-                    </div>
-                </div>
-                <!--/owl-slide-->
-                <div class="owl-slide background-image cover" data-background="url(src/img/podere_cavallara/portico_piscina.jpg)">
-                    <div class="opacity-mask d-flex align-items-center" data-opacity-mask="rgba(0, 0, 0, 0.6)">
-                        <div class="container">
-                            <div class="row justify-content-center justify-content-md-end">
-                                <div class="col-lg-6 static">
-                                    <div class="slide-text text-end white">
-                                        <small class="owl-slide-animated owl-slide-title">Luxury Hotel Experience</small>
-                                        <h2 class="owl-slide-animated owl-slide-title-2">The experience of unique holidays</h2>
-                                        <div class="owl-slide-animated owl-slide-title-3"><a class="btn_1 outline white mt-3" href="room-list-3.html">Read more</a></div>
-                                    </div>
-                                </div>
+                    </li>
+                    <li>
+                        <img src="img/flex_slides/slide_3.jpg" alt="">
+                        <div class="meta">
+                            <h3>Mary Superior Room</h3>
+                            <div class="info">
+                                <p>Exquisite furnishings for a cosy ambience</p>
                             </div>
+                            <a href="room-details.html" class="btn_1 outline white">Read more</a>
                         </div>
-                    </div>
-                    <!--/owl-slide-->
+                    </li>
+                    <li>
+                        <img src="img/flex_slides/slide_4.jpg" alt="">
+                        <div class="meta">
+                            <h3>Porto Junior Suite</h3>
+                            <div class="info">
+                                <p>The simple yet comfortable atmosphere</p>
+                            </div>
+                            <a href="room-details.html" class="btn_1 outline white">Read more</a>
+                        </div>
+                    </li>
+                </ul>
+                <div id="icon_drag_mobile"></div>
+            </div>
+            <div id="carousel_slider_wp">
+                <div id="carousel_slider" class="flexslider">
+                    <ul class="slides">
+                        <li>
+                            <img src="img/flex_slides/slide_1_thumb.jpg" alt="">
+                            <div class="caption">
+                                <h3>Double Room<span>$150 / Night</span></h3>
+                                <small>2 Guests - 25m<sup>2</sup></small>
+                            </div>
+                        </li>
+                        <li>
+                            <img src="img/flex_slides/slide_2_thumb.jpg" alt="">
+                            <div class="caption">
+                                <h3>Deluxe Room <span>$180 / Night</span></h3>
+                                <small>2 Guests - 28m<sup>2</sup></small>
+                            </div>
+                        </li>
+                        <li>
+                            <img src="img/flex_slides/slide_3_thumb.jpg" alt="">
+                            <div class="caption">
+                                <h3>Superior Room<span>$210 / Night</span></h3>
+                                <small>3 Guests - 35m<sup>2</sup></small>
+                            </div>
+                        </li>
+                        <li>
+                            <img src="img/flex_slides/slide_4_thumb.jpg" alt="">
+                            <div class="caption">
+                                <h3>Junior Suite <span>$240 / Night</span></h3>
+                                <small>4 Guests - 35m<sup>2</sup></small>
+                            </div>
+                        </li>
+                    </ul>
                 </div>
             </div>
-            <div class="mouse_wp">
-                <a href="#first_section" class="btn_scrollto">
-                    <div class="mouse"></div>
-                </a>
-            </div>
-            <!-- / mouse -->
         </div>
-        <!--/carousel-->
+        <!-- /slider -->
 
         <div class="pattern_2">
             <div class="container margin_120_95" id="first_section">
@@ -177,8 +203,7 @@
                         <div class="intro">
                             <div class="title">
                                 <small>About us</small>
-                                <h2>Tailored services and
-                                    the experience of unique holidays</h2>
+                                <h2>Tailored services and the experience of unique holidays</h2>
                             </div>
                             <p class="lead">Vivamus volutpat eros pulvinar velit laoreet, sit amet egestas erat dignissim.</p>
                             <p>Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo.</p>
@@ -188,89 +213,70 @@
                 </div>
                 <!-- /Row -->
             </div>
-            <div class="pinned-image pinned-image--medium">
-                <div class="pinned-image__container" id="section_video">
-                    <video loop="loop" muted="muted" id="video_home">
-                        <source src="video/sunset.mp4" type="video/mp4">
-                        <source src="video/sunset.webm" type="video/webm">
-                        <source src="video/sunset.ogv" type="video/ogg">
-                    </video>
-                    <div class="pinned-image__container-overlay"></div>
-                </div>
-                <div class="pinned_over_content">
-                    <div class="title white">
-                        <small data-cue="slideInUp" data-delay="200">Luxury Hotel Experience</small>
-                        <h2 data-cue="slideInUp" data-delay="300">Enjoy in a very<br> Immersive Relax</h2>
-                    </div>
-                </div>
-            </div>
-            <!-- /pinned content -->
         </div>
-        <!-- /Pattern -->
+        <!-- /Pattern  -->
 
         <div class="container margin_120_95">
-            <div class="title mb-4">
+            <div class="title mb-2">
                 <small data-cue="slideInUp">Luxury experience</small>
                 <h2 data-cue="slideInUp" data-delay="200">Rooms & Suites</h2>
             </div>
-            <div data-cues="zoomIn" data-delay="200">
-                <div class="owl-carousel owl-theme carousel_item_centered_rooms rounded-img">
-                    <div class="item">
-                        <a href="room-details.html" class="box_cat_rooms">
-                            <figure>
-                                <div class="background-image" data-background="url(img/rooms/1.jpg)"></div>
-                                <div class="info">
-                                    <small>From $150/night</small>
-                                    <h3>Double Room</h3>
-                                    <span>Read more</span>
-                                </div>
-                            </figure>
-                        </a>
-                    </div>
-                    <!-- /item-->
-                    <div class="item">
-                        <a href="room-details.html" class="box_cat_rooms">
-                            <figure>
-                                <div class="background-image" data-background="url(img/rooms/2.jpg)"></div>
-                                <div class="info">
-                                    <small>From $190/night</small>
-                                    <h3>Deluxe Room</h3>
-                                    <span>Read more</span>
-                                </div>
-                            </figure>
-                        </a>
-                    </div>
-                    <!-- /item-->
-                    <div class="item">
-                        <a href="room-details.html" class="box_cat_rooms">
-                            <figure>
-                                <div class="background-image" data-background="url(img/rooms/3.jpg)"></div>
-                                <div class="info">
-                                    <small>From $240/night</small>
-                                    <h3>Superior Room</h3>
-                                    <span>Read more</span>
-                                </div>
-                            </figure>
-                        </a>
-                    </div>
-                    <!-- /item-->
-                    <div class="item">
-                        <a href="room-details.html" class="box_cat_rooms">
-                            <figure>
-                                <div class="background-image" data-background="url(img/rooms/4.jpg)"></div>
-                                <div class="info">
-                                    <small>From $250/night</small>
-                                    <h3>Junior Suite</h3>
-                                    <span>Read more</span>
-                                </div>
-                            </figure>
-                        </a>
-                    </div>
-                    <!-- /item-->
+            <div class="owl-carousel owl-theme carousel_item_3 rounded-img">
+                <div class="item" data-cues="slideInUp" data-delay="300">
+                    <a href="room-details.html" class="box_cat_rooms">
+                        <figure>
+                            <div class="background-image" data-background="url(img/rooms/1.jpg)"></div>
+                            <div class="info">
+                                <small>From $150/night</small>
+                                <h3>Double Room</h3>
+                                <span>Read more</span>
+                            </div>
+                        </figure>
+                    </a>
                 </div>
-                <!-- /carousel-->
+                <!-- /item-->
+                <div class="item" data-cues="slideInUp" data-delay="400">
+                    <a href="room-details.html" class="box_cat_rooms">
+                        <figure>
+                            <div class="background-image" data-background="url(img/rooms/2.jpg)"></div>
+                            <div class="info">
+                                <small>From $190/night</small>
+                                <h3>Deluxe Room</h3>
+                                <span>Read more</span>
+                            </div>
+                        </figure>
+                    </a>
+                </div>
+                <!-- /item-->
+                <div class="item" data-cues="slideInUp" data-delay="500">
+                    <a href="room-details.html" class="box_cat_rooms">
+                        <figure>
+                            <div class="background-image" data-background="url(img/rooms/3.jpg)"></div>
+                            <div class="info">
+                                <small>From $240/night</small>
+                                <h3>Superior Room</h3>
+                                <span>Read more</span>
+                            </div>
+                        </figure>
+                    </a>
+                </div>
+                <!-- /item-->
+                <div class="item" data-cues="slideInUp" data-delay="600">
+                    <a href="room-details.html" class="box_cat_rooms">
+                        <figure>
+                            <div class="background-image" data-background="url(img/rooms/4.jpg)"></div>
+                            <div class="info">
+                                <small>From $250/night</small>
+                                <h3>Junior Suite</h3>
+                                <span>Read more</span>
+                            </div>
+                        </figure>
+                    </a>
+                </div>
+                <!-- /item-->
             </div>
-            <p class="text-end mt-2"><a href="room-list-1.html" class="btn_1 outline">View all rooms</a></p>
+            <!-- /carousel-->
+            <p class="text-end"><a href="room-list-1.html" class="btn_1 outline mt-2" data-cue="slideInUp" data-delay="750">View all Rooms</a></p>
         </div>
         <!-- /container-->
 
@@ -382,6 +388,51 @@
             </div>
         </div>
         <!-- /parallax_section_1-->
+
+        <div class="bg_white">
+            <div class="container margin_120_95">
+                <div class="title mb-3">
+                    <small data-cue="slideInUp">Luxury experience</small>
+                    <h2 data-cue="slideInUp" data-delay="200">News & Events</h2>
+                </div>
+                <div class="row justify-content-center home">
+                    <div class="item col-xl-4 col-lg-6">
+                        <a href="news-post.html" class="box_contents" data-cue="slideInUp" data-delay="300">
+                            <figure><img src="img/blog-1.jpg" alt="" class="img-fluid"><em>11 Dec</em></figure>
+                            <div class="wrapper">
+                                <small>Travel<span></span></small>
+                                <h2>The vacation and travel Guide for experts in 2022</h2>
+                                <em>Read more</em>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="item col-xl-4 col-lg-6">
+                        <a href="news-post.html" class="box_contents" data-cue="slideInUp" data-delay="400">
+                            <figure><img src="img/blog-3.jpg" alt="" class="img-fluid"><em>24 Dec</em></figure>
+                            <div class="wrapper">
+                                <small>Event<span></span></small>
+                                <h2>Yayoi Kusama: Infinity Mirror Rooms at Tate Modern</h2>
+                                <em>Read more</em>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="item col-xl-4 col-lg-6">
+                        <a href="news-post.html" class="box_contents" data-cue="slideInUp" data-delay="500">
+                            <figure><img src="img/blog-2.jpg" alt="" class="img-fluid"><em>21 Dec</em></figure>
+                            <div class="wrapper">
+                                <small>Restaurant<span></span></small>
+                                <h2>Best Local Restaurant in 2022</h2>
+                                <em>Read more</em>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+                <!--/row -->
+                <p class="text-end"><a href="news-1.html" class="btn_1 outline mt-2" data-cue="slideInUp" data-delay="600">View all News</a></p>
+            </div>
+            <!--/container -->
+        </div>
+        <!--/bg_white -->
 
         <div class="container margin_120_95" id="booking_section">
             <div class="row justify-content-between">
@@ -513,15 +564,15 @@
     </div>
     <!-- /back to top -->
 
-
 <!-- COMMON SCRIPTS -->
-<script src="src/js/common_scripts.js"></script>
-<script src="src/js/common_functions.js"></script>
-<script src="src/js/datepicker_inline.js"></script>
+<script src="js/common_scripts.js"></script>
+<script src="js/common_functions.js"></script>
+<script src="js/datepicker_inline.js"></script>
 <script src="phpmailer/validate.js"></script>
 
 <!-- SPECIFIC SCRIPTS -->
-<script src="src/js/slider.js"></script>
+<script src="js/jquery.flexslider.min.js"></script>
+<script src="js/slider_func.js"></script>
 
 </body>
 </html>
