@@ -185,7 +185,11 @@
 	 */
 	Owl.Defaults = {
 		items: 3,
-		loop: false,
+		loop: true,
+		autoplay:true,
+		autoplayTimeout:3000,
+		autoplayHoverPause:true,
+		animateOut:'fadeOut',
 		center: false,
 		rewind: false,
 		checkVisibility: true,

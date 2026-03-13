@@ -1,3 +1,28 @@
 /*============================================================================================*/
 /* Your custom styles below */
 /*============================================================================================*/
+@media (min-width: 992px) {
+
+#mainNav > ul {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+}
+
+#mainNav > ul > li {
+    white-space: nowrap;
+}
+}
+
+#carousel-home .cover{
+    background-position: 50% 80%;
+}
+
+.opacity-mask {
+    opacity: 70%;
+}
+
+.jarallax-contaier-0 img {
+    object-position: 50% 80%;
+    object-fit: none;
+}
