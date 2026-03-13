@@ -22,7 +22,19 @@
     opacity: 70%;
 }
 
-.jarallax-contaier-0 img {
-    object-position: 50% 80%;
-    object-fit: none;
+.jarallax-img {
+    object-fit:fill !important;
+    /* width: 100% !important; */
+    height: 100% !important;
+    object-position: 50% 90% !important;
 }
+
+/* @keyframes kenburns {
+    0% {
+        transform: scale(1);
+    }
+    100% {
+        transform: scale(1.00);
+    }
+}
+ */
