@@ -195,3 +195,103 @@
     background:#9c8762;
     color:white;
 }
+
+#orvietoImage{
+    object-position: 50% 30% !important; 
+}
+
+
+#piscinaImage{
+    object-position: 50% 80% !important; 
+}
+
+.podere-intro {
+    text-align: center;
+}
+
+.podere-intro .subtitle {
+    display: block;
+    margin-bottom: 10px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #8d7758;
+}
+
+.podere-intro h2 {
+    margin-bottom: 25px;
+}
+
+.podere-intro .lead-text {
+    font-size: 1.15rem;
+    line-height: 1.9;
+    color: #444;
+}
+
+.podere-intro p {
+    line-height: 1.9;
+    color: #555;
+    margin-bottom: 18px;
+}
+
+.podere-features {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 22px;
+    margin-top: 40px;
+    text-align: left;
+}
+
+.feature-box {
+    padding: 28px 24px;
+    background: #f8f5ef;
+    border-radius: 14px;
+    height: 100%;
+    transition: transform 0.35s ease, box-shadow 0.35s ease, background-color 0.35s ease;
+    will-change: transform;
+}
+
+.feature-box h3 {
+    font-size: 20px;
+    margin-bottom: 10px;
+    transition: color 0.3s ease;
+}
+
+.feature-box p {
+    margin-bottom: 0;
+    line-height: 1.8;
+}
+
+/* Hover elegante */
+.feature-box:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+    background: #fbf8f3;
+}
+
+.feature-box:hover h3 {
+    color: #8d7758;
+}
+
+/* Riga decorativa morbida */
+.feature-box::after {
+    content: "";
+    display: block;
+    width: 42px;
+    height: 2px;
+    background: #c7b08a;
+    margin-top: 18px;
+    transition: width 0.3s ease;
+}
+
+.feature-box:hover::after {
+    width: 70px;
+}
+
+@media (max-width: 991.98px) {
+    .podere-features {
+        grid-template-columns: 1fr;
+    }
+}
+
+
