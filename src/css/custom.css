@@ -389,3 +389,118 @@ header.header_scrolled .lang_toggle{
     }
 }
 
+.lang_menu_item {
+    position: relative;
+}
+
+.lang_menu_item > a.lang_toggle_menu {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.lang_menu_item .lang_code {
+    font-size: 13px;
+}
+
+.lang_menu_item .fi {
+    display: inline-block;
+    line-height: 1;
+    font-size: 16px;
+    margin-right: 0;
+}
+
+/* submenu lingue */
+.lang_menu_item .lang_submenu {
+    min-width: 160px;
+}
+
+.lang_menu_item .lang_submenu li a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
+}
+
+/* desktop: non deve allargare troppo il menu */
+@media (min-width: 992px) {
+    #mainNav > ul > li.lang_menu_item {
+        margin-left: 8px;
+    }
+
+    #mainNav > ul > li.lang_menu_item > a {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+}
+
+/* mobile: piena larghezza come le altre voci */
+@media (max-width: 991.98px) {
+    .lang_menu_item > a.lang_toggle_menu {
+        justify-content: space-between;
+        width: 100%;
+    }
+
+    .lang_menu_item .lang_submenu {
+        min-width: 100%;
+    }
+}
+
+
+
+/* stringe un po' il menu desktop */
+@media (min-width: 1200px) {
+    #mainNav > ul {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 22px;
+    }
+
+    #mainNav > ul > li {
+        margin: 0;
+    }
+
+    #mainNav > ul > li > a {
+        font-size: 15px;
+        padding-left: 0;
+        padding-right: 0;
+        white-space: nowrap;
+    }
+
+    /* bottone prenota un po' più compatto */
+    #mainNav > ul > li > a.btn_1 {
+        padding: 12px 22px;
+    }
+
+    /* voce lingua più compatta */
+    #mainNav > ul > li.lang_menu_item > a.lang_toggle_menu {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    .lang_menu_item .lang_code {
+        font-size: 14px;
+    }
+
+    .lang_menu_item .fi {
+        font-size: 17px;
+        line-height: 1;
+    }
+
+    /* fa aprire il menu lingua verso sinistra */
+    .lang_menu_item {
+        position: relative;
+    }
+
+    .lang_menu_item > ul.lang_submenu {
+        left: auto;
+        right: 0;
+        min-width: 170px;
+    }
+}
+
