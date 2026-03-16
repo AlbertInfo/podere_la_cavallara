@@ -591,3 +591,8 @@ header.header_scrolled .lang_toggle{
         margin-bottom: 20px;
     }
 }
+
+.map_contact iframe {
+
+    filter: none;
+}
