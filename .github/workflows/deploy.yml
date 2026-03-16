@@ -22,5 +22,5 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ftp
           port: 21
-          local-dir: ./sito/
+          local-dir: ./src/pages/it/
           server-dir: ./public_html/
