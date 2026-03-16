@@ -8,7 +8,7 @@ on:
 jobs:
   ftp-deploy:
     runs-on: ubuntu-latest
-    
+    environment: FTP_SERVER
 
     steps:
       - name: Checkout repo
@@ -22,5 +22,5 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ftp
           port: 21
-          local-dir: ./src/pages/it/index.html
-          server-dir: ./public_html/
+          local-dir: ./src/pages/it/
+          server-dir: ./public_html/it/
