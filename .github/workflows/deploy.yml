@@ -8,7 +8,6 @@ on:
 jobs:
   ftp-deploy:
     runs-on: ubuntu-latest
-    
 
     steps:
       - name: Checkout repo
@@ -23,4 +22,4 @@ jobs:
           protocol: ftp
           port: 21
           local-dir: ./src/pages/it/
-          server-dir: ./public_html/
+          server-dir: ./public_html/it/
