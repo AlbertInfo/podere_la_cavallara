@@ -596,3 +596,31 @@ header.header_scrolled .lang_toggle{
 
     filter: none;
 }
+
+.box_contents_in h2 {
+    border-left: 4px solid #c19d60;
+    padding-left: 10px;
+}
+.box_contents_in p, 
+.box_contents_in li {
+    line-height: 1.7;
+}
+
+.cookie-banner {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    background: rgba(0,0,0,0.92);
+    color: #fff;
+    padding: 15px 0;
+    z-index: 9999;
+}
+
+.cookie-banner a {
+    color: #c19d60;
+}
+
+.cookie-actions button {
+    border-radius: 30px;
+}

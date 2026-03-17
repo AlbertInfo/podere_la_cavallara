@@ -9,7 +9,7 @@
     <title>Podere La Cavallara</title>
     
     <!-- Favicons-->
-    <link rel="shortcut icon" href="src/img/favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="../img/podere_cavallara/favicon.ico" type="image/x-icon">
     <link rel="apple-touch-icon" type="image/x-icon" href="src/img/apple-touch-icon-57x57-precomposed.png">
     <link rel="apple-touch-icon" type="image/x-icon" sizes="72x72" href="src/img/apple-touch-icon-72x72-precomposed.png">
     <link rel="apple-touch-icon" type="image/x-icon" sizes="114x114" href="src/img/apple-touch-icon-114x114-precomposed.png">
@@ -43,7 +43,7 @@
             <div class="row align-items-center">
                 <div class="col-3">
                     <a href="index.html" class="logo_normal"><img src="../img/podere_cavallara/logo.png" width="200" height="45" alt=""></a>
-                    <a href="index.html" class="logo_sticky"><img src="../img/podere_cavallara/logo_sticky.png" width="200" height="45" alt=""></a>
+                    <a href="index.html" class="logo_sticky"><img src="../img/podere_cavallara/logo_sticky_.png" width="200" height="45" alt=""></a>
                 </div>
                 <div class="col-9">
 
@@ -51,7 +51,7 @@
 
                     <div class="main-menu">
                         <a href="" class="closebt open_close_menu"><i class="bi bi-x"></i></a>
-                        <div class="logo_panel"><img src="img/logo_sticky.png" width="135" height="45" alt=""></div>
+                        <div class="logo_panel"><img src="../img/podere_cavallara/logo_sticky_.png" width="135" height="45" alt=""></div>
                         <nav id="mainNav">
                             <ul>
                                
@@ -178,7 +178,7 @@
                 </small>
 
                 <h2 data-cue="slideInUp" data-delay="200">
-                    Podere La Cavallara, il tuo soggiorno tra natura, relax e privacy
+                    Il tuo soggiorno tra natura, relax e privacy
                 </h2>
 
                 <p class="lead-text" data-cue="slideInUp" data-delay="300">
@@ -568,6 +568,7 @@ Frutta ed ortaggi biologici, potranno essere reperiti direttamente presso gli or
                             <li><a href="Alessandro_6.html">Casa Alessandro 6</a></li>
                             <li><a href="Itinerari_ed_escursioni.html">Itinerari ed escursioni</a></li>
                             <li><a href="contatti.html">Contatti</a></li>
+                            <li><a href="privacy.html">Privacy Policy</a></li>
                             
                         </ul>
                     </div>
@@ -602,5 +603,150 @@ Frutta ed ortaggi biologici, potranno essere reperiti direttamente presso gli or
 <!-- SPECIFIC SCRIPTS -->
 <script src="../js/slider.js"></script>
 
+<!--COOKIE SCRIPT-->
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const consent = localStorage.getItem("cookie_consent");
+
+    if (!consent) {
+        document.getElementById("cookie-banner").style.display = "block";
+    } else {
+        applyConsent(JSON.parse(consent));
+    }
+});
+
+function acceptCookies() {
+    const consent = {
+        analytics: true,
+        preferences: true
+    };
+    localStorage.setItem("cookie_consent", JSON.stringify(consent));
+    applyConsent(consent);
+    hideBanner();
+}
+
+function rejectCookies() {
+    const consent = {
+        analytics: false,
+        preferences: false
+    };
+    localStorage.setItem("cookie_consent", JSON.stringify(consent));
+    hideBanner();
+}
+
+function openPreferences() {
+    const modal = new bootstrap.Modal(document.getElementById('cookieModal'));
+    modal.show();
+}
+
+function savePreferences() {
+    const consent = {
+        analytics: document.getElementById("analyticsCookies").checked,
+        preferences: document.getElementById("preferenceCookies").checked
+    };
+
+    localStorage.setItem("cookie_consent", JSON.stringify(consent));
+    applyConsent(consent);
+    hideBanner();
+
+    const modal = bootstrap.Modal.getInstance(document.getElementById('cookieModal'));
+    modal.hide();
+}
+
+function hideBanner() {
+    document.getElementById("cookie-banner").style.display = "none";
+}
+
+function applyConsent(consent) {
+    // 👉 Esempio: attiva Google Analytics solo se consentito
+    if (consent.analytics) {
+        loadAnalytics();
+    }
+
+    // 👉 Preferenze lingua
+    if (consent.preferences) {
+        console.log("Preferenze abilitate");
+    }
+}
+
+function loadAnalytics() {
+    console.log("Analytics attivati");
+
+    // ESEMPIO Google Analytics
+    /*
+    var script = document.createElement('script');
+    script.src = "https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID";
+    document.head.appendChild(script);
+
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'GA_MEASUREMENT_ID');
+    */
+}
+</script>
+<!--FINE COOKIE SCRIPT-->
+
+<div id="cookie-banner" class="cookie-banner shadow-lg">
+    <div class="container d-flex flex-column flex-md-row align-items-center justify-content-between">
+        
+        <div class="cookie-text mb-3 mb-md-0">
+            <p class="mb-1">
+                Utilizziamo cookie tecnici e, previo consenso, cookie di analisi per migliorare la tua esperienza.
+            </p>
+            <a href="privacy.html" class="text-decoration-underline">Leggi la Privacy Policy</a>
+        </div>
+
+        <div class="cookie-actions">
+            <button class="btn btn-light btn-sm me-2" onclick="rejectCookies()">Rifiuta</button>
+            <button class="btn btn-outline-light btn-sm me-2" onclick="openPreferences()">Personalizza</button>
+            <button class="btn btn-primary btn-sm" onclick="acceptCookies()">Accetta</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODALE PREFERENZE -->
+<div class="modal fade" id="cookieModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            
+            <div class="modal-header">
+                <h5 class="modal-title">Preferenze Cookie</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" checked disabled>
+                    <label class="form-check-label">
+                        Cookie tecnici (necessari)
+                    </label>
+                </div>
+
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="analyticsCookies">
+                    <label class="form-check-label">
+                        Cookie analitici
+                    </label>
+                </div>
+
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="preferenceCookies">
+                    <label class="form-check-label">
+                        Cookie preferenze (lingua)
+                    </label>
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+                <button class="btn btn-primary" onclick="savePreferences()">Salva preferenze</button>
+            </div>
+
+        </div>
+    </div>
+</div>
 </body>
 </html>
