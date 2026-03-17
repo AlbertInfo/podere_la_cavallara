@@ -1,5 +1,5 @@
 const supportedLanguages = ['it', 'en', 'de'];
-const defaultLanguage = 'it';
+const defaultLanguage = 'en';
 
 // 🔥 Calcolo automatico basePath
 function getBasePath() {
