@@ -356,3 +356,13 @@
 
 })(jQuery);
 
+
+document.querySelectorAll('.show-submenu').forEach(el => {
+    el.addEventListener('click', function (e) {
+        e.preventDefault();
+        // toggle submenu
+    });
+});
+
+//script temporaneo
+
