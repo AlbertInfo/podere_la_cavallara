@@ -624,3 +624,158 @@ header.header_scrolled .lang_toggle{
 .cookie-actions button {
     border-radius: 30px;
 }
+
+
+/* PROVA CSS MOBILE */
+
+/* =========================================
+   HOME CAROUSEL MOBILE OPTIMIZATION
+========================================= */
+@media (max-width: 767.98px) {
+
+    #carousel-home,
+    #carousel-home .owl-carousel,
+    #carousel-home .owl-stage-outer,
+    #carousel-home .owl-stage,
+    #carousel-home .owl-item,
+    #carousel-home .owl-slide {
+        height: 78vh;
+        min-height: 600px;
+    }
+
+    #carousel-home .owl-slide {
+        position: relative;
+        background-position: center center !important;
+        background-size: cover !important;
+    }
+
+    #carousel-home .opacity-mask {
+        padding: 90px 0 110px 0;
+        align-items: flex-end !important;
+    }
+
+    #carousel-home .container {
+        padding-left: 22px;
+        padding-right: 22px;
+    }
+
+    #carousel-home .row {
+        justify-content: center !important;
+    }
+
+    #carousel-home .col-lg-6.static {
+        width: 100%;
+        max-width: 100%;
+        flex: 0 0 100%;
+    }
+
+    #carousel-home .slide-text,
+    #carousel-home .slide-text.text-end,
+    #carousel-home .slide-text.text-center {
+        text-align: left !important;
+        max-width: 100%;
+        margin: 0;
+    }
+
+    #carousel-home .slide-text small {
+        display: inline-block;
+        font-size: 12px;
+        line-height: 1.2;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        margin-bottom: 12px;
+        opacity: 0.95;
+    }
+
+    #carousel-home .slide-text h2 {
+        font-size: 32px;
+        line-height: 1.08;
+        letter-spacing: -0.02em;
+        margin-bottom: 16px;
+        max-width: 320px;
+    }
+
+    #carousel-home .slide-text .btn_1 {
+        padding: 12px 20px;
+        font-size: 14px;
+        min-width: auto;
+    }
+
+    #carousel-home .owl-slide-title-3 {
+        margin-top: 8px;
+    }
+
+    #carousel-home .mouse_wp {
+        display: none;
+    }
+
+    /* overlay più elegante e leggibile */
+    #carousel-home .opacity-mask::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+            to top,
+            rgba(0,0,0,0.62) 12%,
+            rgba(0,0,0,0.38) 45%,
+            rgba(0,0,0,0.18) 100%
+        );
+        z-index: 0;
+    }
+
+    #carousel-home .opacity-mask > .container {
+        position: relative;
+        z-index: 1;
+    }
+}
+
+/* SECONDO CSS PROVA PER HERO APPARTAMENTI */
+
+/* HERO APPARTAMENTI - MOBILE */
+@media (max-width: 767.98px) {
+
+    .hero.full-height[data-jarallax] {
+        min-height: 68vh;
+        height: 68vh;
+    }
+
+    .hero.full-height[data-jarallax] .jarallax-img {
+        object-fit: cover;
+        object-position: 60% center;
+       position: relative !important;
+    }
+
+    .hero.full-height[data-jarallax] .wrapper {
+        padding: 90px 20px 70px 20px;
+        justify-content: center;
+    }
+
+    .hero.full-height[data-jarallax] .col-lg-8 {
+        max-width: 100%;
+    }
+
+    .hero.full-height[data-jarallax] small {
+        display: block;
+        font-size: 12px;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+    }
+
+    .hero.full-height[data-jarallax] h1 {
+        font-size: 34px;
+        line-height: 1.08;
+        letter-spacing: -0.02em;
+        margin-bottom: 10px;
+    }
+
+    .hero.full-height[data-jarallax] p {
+        font-size: 15px;
+        line-height: 1.45;
+        margin-bottom: 0;
+    }
+
+    .hero.full-height[data-jarallax] .mouse_wp {
+        display: none;
+    }
+}
