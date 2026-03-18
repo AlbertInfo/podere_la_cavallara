@@ -101,6 +101,81 @@
         height: 230px;
     }
 }
+
+
+/* CSS DELLA SECTION DI PRESENTAZIONE ESPERIENZE */
+
+.excursions_intro{
+    max-width: 760px;
+    margin: 0 auto 55px auto;
+    position: relative;
+}
+
+.excursions_kicker{
+    display: inline-block;
+    margin-bottom: 12px;
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #9c8762;
+}
+
+.excursions_intro h2{
+    margin-bottom: 16px;
+    position: relative;
+}
+
+.excursions_intro p{
+    max-width: 620px;
+    margin: 0 auto;
+    font-size: 16px;
+    line-height: 1.8;
+    color: #666;
+}
+
+/* linea decorativa sotto il titolo */
+.excursions_intro h2::after{
+    content: "";
+    display: block;
+    width: 74px;
+    height: 2px;
+    margin: 18px auto 0 auto;
+    background: linear-gradient(to right, #d9c4a0, #9c8762, #d9c4a0);
+    border-radius: 2px;
+}
+
+/* mobile */
+@media (max-width: 767.98px){
+    .excursions_intro{
+        margin-bottom: 38px;
+        padding: 0 8px;
+    }
+
+    .excursions_kicker{
+        font-size: 11px;
+        letter-spacing: 1.6px;
+        margin-bottom: 10px;
+    }
+
+    .excursions_intro h2{
+        font-size: 30px;
+        line-height: 1.15;
+        margin-bottom: 14px;
+    }
+
+    .excursions_intro p{
+        font-size: 15px;
+        line-height: 1.65;
+        max-width: 100%;
+    }
+
+    .excursions_intro h2::after{
+        width: 58px;
+        margin-top: 14px;
+    }
+}
+
+/* FINE CSS ESPERIENZE */
 /* FINE CSS CARD PROVA */
 /* CSS PER MODALI */
 
