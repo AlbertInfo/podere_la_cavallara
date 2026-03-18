@@ -50,7 +50,10 @@
 
                     <div class="main-menu">
                         <a href="" class="closebt open_close_menu"><i class="bi bi-x"></i></a>
-                        <div class="logo_panel"><img src="../img/podere_cavallara/logo_sticky_.png" width="135" height="45" alt=""></div>
+                        <div class="logo_panel">
+                            <!-- <img src="../img/podere_cavallara/logo_mobile.png" width="405" height="135" alt=""> -->
+                              <a href="index.html" class="logo_mobile"><img src="../img/podere_cavallara/logo_mobile.png" width="405" height="135" alt=""></a>
+                        </div>
                         <nav id="mainNav">
                             <ul>
                                
@@ -108,7 +111,8 @@
     
     <main>
 
-        <div class="hero full-height" data-jarallax data-speed="0.2">
+        <!-- DESKTOP HERO -->
+        <div class="hero full-height d-none d-lg-block" data-jarallax data-speed="0.2">
             <img class="jarallax-img" src="../img/podere_cavallara/main_ale6_prova.jpg" alt="">
             <div class="wrapper opacity-mask d-flex align-items-center  text-center animate_hero" data-opacity-mask="rgba(0, 0, 0, 0.5)">
                 <div class="container">
@@ -127,6 +131,37 @@
                 </div>
                 <!-- / mouse -->
             </div>
+        </div>
+
+        <!-- MOBILE HERO -->
+        <div class="d-block d-lg-none">
+<section class="hero-mobile-minimal d-block d-lg-none">
+    <div class="hero-mobile-minimal__media">
+        <img src="../img/podere_cavallara/alessandro6_hero_mobile.jpg" alt="Casa Alessandro 6">
+    </div>
+
+    <div class="hero-mobile-minimal__overlay"></div>
+
+    <div class="hero-mobile-minimal__content container">
+        <div class="hero-mobile-minimal__inner">
+            <span class="hero-mobile-minimal__eyebrow">Podere La Cavallara</span>
+            <h1 class="hero-mobile-minimal__title">Casa Alessandro 6</h1>
+            <p class="hero-mobile-minimal__subtitle">
+               Il piacere semplice di vivere immersi nella natura
+            </p>
+
+            <a href="#first_section" class="hero-mobile-minimal__link">
+                Scopri
+                <span class="hero-mobile-minimal__link-line"></span>
+            </a>
+        </div>
+    </div>
+
+    <div class="hero-mobile-minimal__scroll-indicator" aria-hidden="true">
+        <span></span>
+    </div>
+</section>
+ 
         </div>
         <!-- /Background Img Parallax -->
 

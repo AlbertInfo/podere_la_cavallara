@@ -29,14 +29,15 @@
     object-position: 50% 90% !important;
 }
 
-.box_contents {
+/* CSS DELLE CARD ESCURSIONI ORIGINALE */
+/* .box_contents {
     display: block;
     height: 100%;
 }
 
 .box_contents figure {
     width: 100%;
-    height: 240px;       /* altezza fissa immagini */
+    height: 240px;       
     overflow: hidden;
     margin: 0;
 }
@@ -44,10 +45,63 @@
 .box_contents figure img {
     width: 100%;
     height: 100%;
-    object-fit: cover;   /* ritaglia senza deformare */
+    object-fit: cover;   
     display: block;
+} */
+ 
+/* FINE CSS CARD ORIGINALE */
+
+/*CSS CARD DI PROVA */
+/* migliora solo la resa visiva, senza toccare il layout interno del tema */
+.box_contents figure {
+    overflow: hidden;
+    border-radius: 16px;
 }
 
+.box_contents figure img {
+    width: 100%;
+    height: 280px;
+    object-fit: cover;
+    display: block;
+    transition: transform .5s ease;
+}
+
+/* leggero zoom hover */
+.box_contents:hover figure img {
+    transform: scale(1.04);
+}
+
+/* ombra soft sulla card */
+.box_contents {
+    transition: transform .3s ease, box-shadow .3s ease;
+}
+
+.box_contents:hover {
+    transform: translateY(-4px);
+}
+
+/* badge opzionale */
+.box_contents figure .card_badge {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    z-index: 3;
+    padding: 6px 10px;
+    border-radius: 20px;
+    background: rgba(0,0,0,.55);
+    color: #fff;
+    font-size: 12px;
+    line-height: 1;
+    backdrop-filter: blur(4px);
+}
+
+/* mobile */
+@media (max-width: 767.98px) {
+    .box_contents figure img {
+        height: 230px;
+    }
+}
+/* FINE CSS CARD PROVA */
 /* CSS PER MODALI */
 
 .modal-experience .modal-dialog {
