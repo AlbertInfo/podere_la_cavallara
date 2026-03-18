@@ -11,7 +11,7 @@ const $owlCarousel = $("#carousel-home .owl-carousel").owlCarousel({
   nav: false,
   dots:true,
   autoplay:true,
-  autoplayTimeout:4000,
+  autoplayTimeout:5000,
   animateOut:'fadeOut',
   autoplayHoverPause:false,
 	responsive:{
@@ -27,6 +27,16 @@ const $owlCarousel = $("#carousel-home .owl-carousel").owlCarousel({
     }
 });
 
+$('.home-carousel-mobile').owlCarousel({
+        items: 1,
+        loop: true,
+        nav: false,
+        dots: false,
+        autoplay: true,
+        autoplayTimeout: 5000,
+        smartSpeed: 700
+    });
+
 $owlCarousel.on("changed.owl.carousel", function(e) {
   $(".owl-slide-animated").removeClass("is-transitioned");
   const $currentOwlItem = $(".owl-item").eq(e.item.index);
@@ -37,3 +47,4 @@ $owlCarousel.on("resize.owl.carousel", function() {
   setTimeout(function() {
   }, 50);
 });
+

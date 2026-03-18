@@ -29,6 +29,241 @@
     object-position: 50% 90% !important;
 }
 
+/* CSS DEL MOBILE CAROSEL*/
+/* MOBILE HERO CAROUSEL */
+.carousel-home-mobile,
+.carousel-home-mobile .owl-carousel,
+.carousel-home-mobile .owl-stage-outer,
+.carousel-home-mobile .owl-stage,
+.carousel-home-mobile .owl-item,
+.carousel-home-mobile .owl-slide {
+    height: 78vh;
+    min-height: 620px;
+}
+
+.carousel-home-mobile .owl-slide {
+    background-size: cover !important;
+    background-position: center center !important;
+    background-repeat: no-repeat !important;
+    position: relative;
+}
+
+.carousel-home-mobile .opacity-mask {
+    height: 100%;
+    padding: 0 0 28px 0;
+    position: relative;
+}
+
+.carousel-home-mobile .opacity-mask::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        to top,
+        rgba(0,0,0,0.68) 10%,
+        rgba(0,0,0,0.30) 50%,
+        rgba(0,0,0,0.10) 100%
+    );
+}
+
+.carousel-home-mobile .container {
+    position: relative;
+    z-index: 2;
+    padding-left: 20px;
+    padding-right: 20px;
+}
+
+/* .mobile-slide-card {
+    max-width: 340px;
+    padding: 22px 20px;
+    border-radius: 20px;
+    background: rgba(22, 22, 22, 0.22);
+    border: 1px solid rgba(255,255,255,0.14);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    color: #fff;
+}
+
+.mobile-slide-card small {
+    display: block;
+    margin-bottom: 10px;
+    font-size: 11px;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    opacity: .95;
+}
+
+.mobile-slide-card h2 {
+    font-size: 31px;
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    margin-bottom: 10px;
+    color: #fff;
+}
+
+.mobile-slide-card p {
+    font-size: 15px;
+    line-height: 1.45;
+    margin-bottom: 0;
+    color: rgba(255,255,255,.92);
+}
+
+.mobile-slide-card .btn_1 {
+    padding: 12px 18px;
+    font-size: 14px;
+}
+
+@media (max-width: 575.98px) {
+    .carousel-home-mobile,
+    .carousel-home-mobile .owl-carousel,
+    .carousel-home-mobile .owl-stage-outer,
+    .carousel-home-mobile .owl-stage,
+    .carousel-home-mobile .owl-item,
+    .carousel-home-mobile .owl-slide {
+        height: 74vh;
+        min-height: 560px;
+    }
+
+    .mobile-slide-card {
+        max-width: 100%;
+        padding: 20px 18px;
+    }
+
+    .mobile-slide-card h2 {
+        font-size: 28px;
+    }
+
+    .mobile-slide-card p {
+        font-size: 14px;
+    }
+} */
+
+/* HERO MOBILE MINIMAL */
+.carousel-home-mobile .opacity-mask {
+    height: 100%;
+    padding-top: 120px; /* posizione medio-alta */
+    padding-left: 20px;
+    padding-right: 20px;
+    position: relative;
+}
+
+/* overlay più leggero e raffinato */
+.carousel-home-mobile .opacity-mask::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        to bottom,
+        rgba(0,0,0,0.55) 0%,
+        rgba(0,0,0,0.25) 40%,
+        rgba(0,0,0,0.15) 100%
+    );
+}
+
+/* testo */
+.mobile-hero-text {
+    position: relative;
+    z-index: 2;
+    max-width: 320px;
+    color: #fff;
+}
+
+/* label sopra */
+.mobile-hero-text small {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    opacity: .85;
+}
+
+/* titolo */
+.mobile-hero-text h2 {
+    font-size: 34px;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin-bottom: 12px;
+    color: #fff;
+}
+
+/* linea elegante sotto titolo */
+.mobile-hero-text h2::after {
+    content: "";
+    display: block;
+    width: 50px;
+    height: 2px;
+    margin-top: 14px;
+    background: linear-gradient(to right, #d9c4a0, #9c8762);
+}
+
+/* sottotitolo */
+.mobile-hero-text p {
+    font-size: 15px;
+    line-height: 1.4;
+    margin-top: 12px;
+    margin-bottom: 0;
+    opacity: .9;
+}
+
+/* bottone */
+.mobile-hero-text .btn_1 {
+    margin-top: 18px;
+    padding: 12px 20px;
+    font-size: 14px;
+}
+
+.owl-slide-animated,
+.slide-animated,
+.owl-slide-title,
+.owl-slide-title-2,
+.owl-slide-title-3 {
+    opacity: 1 !important;
+    visibility: visible !important;
+   
+}
+
+
+
+.slide-text > * {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all .6s ease;
+}
+
+.owl-item.active .slide-text > * {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.owl-item.active .slide-text small {
+    transition-delay: .1s;
+}
+
+.owl-item.active .slide-text h2 {
+    transition-delay: .2s;
+}
+
+.owl-item.active .slide-text a {
+    transition-delay: .3s;
+}
+
+/* MOBILE EXTRA SMALL */
+@media (max-width: 575.98px){
+
+    .carousel-home-mobile .opacity-mask {
+        padding-top: 100px;
+    }
+
+    .mobile-hero-text h2 {
+        font-size: 30px;
+    }
+
+    .mobile-hero-text p {
+        font-size: 14px;
+    }
+}
+
 /* CSS DELLE CARD ESCURSIONI ORIGINALE */
 /* .box_contents {
     display: block;
@@ -804,6 +1039,8 @@ header.header_scrolled .lang_toggle{
         text-align: left !important;
         max-width: 100%;
         margin: 0;
+        visibility: visible !important;
+        
     }
 
     #carousel-home .slide-text small {
