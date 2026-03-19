@@ -37,7 +37,7 @@
 .carousel-home-mobile .owl-stage,
 .carousel-home-mobile .owl-item,
 .carousel-home-mobile .owl-slide {
-    height: 78vh;
+    height: 100vh;
     min-height: 620px;
 }
 
