@@ -1365,12 +1365,15 @@ header.header_scrolled .lang_toggle{
     padding: 8px 14px;
     border-radius: 999px;
     font-size: 13px;
+    font-family: "Montserrat", Helvetica, sans-serif;
+    font-weight: 700;
     letter-spacing: 0.3px;
     font-weight: 500;
     backdrop-filter: blur(6px);
     box-shadow: 0 6px 20px rgba(0,0,0,0.22);
     white-space: nowrap;
     opacity: 0;
+    text-decoration: none;
 }
 
 .hero-label::after {
@@ -1380,8 +1383,15 @@ header.header_scrolled .lang_toggle{
     bottom: -6px;
     width: 12px;
     height: 12px;
-    background: rgba(0, 0, 0, 0.78);
+    background: rgb(151, 134, 103);
     transform: translateX(-50%) rotate(45deg);
+}
+
+.hero-label:hover{
+color: rgb(151, 134, 103);
+background-color: rgba(0, 0, 0, 0.811);
+
+    
 }
 
 /* posizioni iniziali esempio */
@@ -1510,6 +1520,8 @@ header.header_scrolled .lang_toggle{
     padding: 7px 12px;
     border-radius: 999px;
     font-size: 11px;
+    font-family: 'Gotham', sans-serif;
+    font-weight: 600;
     line-height: 1;
     letter-spacing: 0.3px;
     font-weight: 500;
