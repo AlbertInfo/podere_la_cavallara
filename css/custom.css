@@ -1794,3 +1794,36 @@ background-color: rgba(0, 0, 0, 0.811);
         line-height: 1.18;
     }
 }
+
+@media (max-width: 768px) {
+
+    /* Centra tutto il blocco */
+    .add_bottom_90 {
+        text-align: center;
+    }
+
+    /* Immagine centrata e non full width estrema */
+    .add_bottom_90 .col-lg-6 {
+        margin-bottom: 20px;
+    }
+
+    .add_bottom_90 .pinned-image {
+        margin: 0 auto;
+        max-width: 340px;
+    }
+
+    /* Testo centrato e leggibile */
+    .add_bottom_90 .col-lg-5 .title {
+        margin: 0 auto;
+        max-width: 320px;
+    }
+
+    .add_bottom_90 .title small {
+        display: block;
+        margin-bottom: 8px;
+    }
+
+    .add_bottom_90 .title p {
+        text-align: center;
+    }
+}
