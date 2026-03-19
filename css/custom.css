@@ -1796,6 +1796,19 @@ background-color: rgba(0, 0, 0, 0.811);
 }
 
 @media (max-width: 768px) {
+.col-lg-5.order-lg-1 {
+        text-align: center;
+    }
+
+    .col-lg-5.order-lg-1 .title {
+        margin: 0 auto;
+        max-width: 320px;
+    }
+
+    .col-lg-5.order-lg-1 .btn_1 {
+        display: inline-block;
+    }
+
 
     /* Centra tutto il blocco */
     .add_bottom_90 {
@@ -1809,7 +1822,7 @@ background-color: rgba(0, 0, 0, 0.811);
 
     .add_bottom_90 .pinned-image {
         margin: 0 auto;
-        max-width: 340px;
+        /* max-width: 340px; */
     }
 
     /* Testo centrato e leggibile */
