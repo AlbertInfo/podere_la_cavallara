@@ -48,3 +48,102 @@ $owlCarousel.on("resize.owl.carousel", function() {
   }, 50);
 });
 
+$('.owl-carousel').on('changed.owl.carousel', function(event) {
+    $('video').each(function(){
+        this.pause();
+    });
+
+    var current = $(event.target).find('.owl-item').eq(event.item.index).find('video').get(0);
+    if(current) current.play();
+});
+
+
+
+
+/*  JS PER MARKER CAROUSEL DEKSTOP */
+
+
+$(document).ready(function () {
+    function animateHeroMarkers() {
+        var $slide = $('.hero-markers-slide');
+        var $markers = $slide.find('.hero-marker');
+
+        $markers.removeClass('is-visible');
+
+        $markers.each(function(index) {
+            var marker = $(this);
+            setTimeout(function() {
+                marker.addClass('is-visible');
+            }, 400 + (index * 450));
+        });
+    }
+
+    $('.kenburns').on('initialized.owl.carousel changed.owl.carousel', function() {
+        setTimeout(function() {
+            var $activeSlide = $('.kenburns .owl-item.active .hero-markers-slide');
+
+            $('.hero-marker').removeClass('is-visible');
+
+            if ($activeSlide.length) {
+                $activeSlide.find('.hero-marker').each(function(index) {
+                    var marker = $(this);
+                    setTimeout(function() {
+                        marker.addClass('is-visible');
+                    }, 300 + (index * 450));
+                });
+            }
+        }, 120);
+    });
+
+    animateHeroMarkers();
+});
+
+/*   FINE JS PER MARKER CAROUSEL DEKSTOP */
+
+/*  JS PER MARKER CAROUSEL MOBILE */
+$(document).ready(function () {
+
+    function animateDesktopMarkers() {
+        var $activeSlide = $('.kenburns .owl-item.active .hero-markers-slide');
+        $('.hero-markers-slide .hero-marker').removeClass('is-visible');
+
+        if ($activeSlide.length) {
+            $activeSlide.find('.hero-marker').each(function(index) {
+                var marker = $(this);
+                setTimeout(function() {
+                    marker.addClass('is-visible');
+                }, 300 + (index * 450));
+            });
+        }
+    }
+
+    function animateMobileMarkers() {
+        var $activeSlide = $('.home-carousel-mobile .owl-item.active .mobile-markers-slide');
+        $('.mobile-markers-slide .mobile-hero-marker').removeClass('is-visible');
+
+        if ($activeSlide.length) {
+            $activeSlide.find('.mobile-hero-marker').each(function(index) {
+                var marker = $(this);
+                setTimeout(function() {
+                    marker.addClass('is-visible');
+                }, 250 + (index * 400));
+            });
+        }
+    }
+
+    $('.kenburns').on('initialized.owl.carousel changed.owl.carousel', function() {
+        setTimeout(function() {
+            animateDesktopMarkers();
+        }, 120);
+    });
+
+    $('.home-carousel-mobile').on('initialized.owl.carousel changed.owl.carousel', function() {
+        setTimeout(function() {
+            animateMobileMarkers();
+        }, 120);
+    });
+
+    animateDesktopMarkers();
+    animateMobileMarkers();
+});
+/* FINE  JS PER MARKER CAROUSEL MOBILE */

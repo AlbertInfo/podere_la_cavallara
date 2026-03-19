@@ -43,7 +43,7 @@
 
 .carousel-home-mobile .owl-slide {
     background-size: cover !important;
-    background-position: center center !important;
+    background-position:50% !important;
     background-repeat: no-repeat !important;
     position: relative;
 }
@@ -1313,4 +1313,278 @@ header.header_scrolled .lang_toggle{
         transform: none !important;
         opacity: 1 !important;
     }
+}
+
+/* CSS PROVA PER  SLIDE MARKER */
+
+.hero-markers-slide {
+    position: relative;
+}
+
+.hero-markers {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    pointer-events: none;
+}
+
+.hero-marker {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    pointer-events: auto;
+    opacity: 0;
+}
+
+.hero-pin {
+    display: block;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 2px solid rgba(255,255,255,0.9);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+    position: relative;
+}
+
+.hero-pin::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.4);
+    opacity: 0.6;
+}
+
+.hero-label {
+    position: absolute;
+    top: -52px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(20, 20, 20, 0.82);
+    color: #fff;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    letter-spacing: 0.3px;
+    font-weight: 500;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.22);
+    white-space: nowrap;
+    opacity: 0;
+}
+
+.hero-label::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -6px;
+    width: 12px;
+    height: 12px;
+    background: rgba(0, 0, 0, 0.78);
+    transform: translateX(-50%) rotate(45deg);
+}
+
+/* posizioni iniziali esempio */
+.marker-1 { top: 53%; left: 65%; }
+.marker-2 { top: 59%; left: 53%; }
+.marker-3 { top: 68%; left: 72%; }
+
+/* testo hero sopra tutto, se serve */
+.hero-markers-slide .slide-text {
+    position: relative;
+    z-index: 7;
+}
+
+/* attivazione animata */
+.hero-marker.is-visible {
+    animation: markerFadeIn .6s ease forwards;
+}
+
+.hero-marker.is-visible .hero-pin {
+    animation: pinPop .6s ease forwards, pinPulse 2.2s ease-in-out infinite .6s;
+}
+
+.hero-marker.is-visible .hero-label {
+    animation: labelFadeIn .55s ease forwards;
+    animation-delay: .2s;
+}
+
+/* hover opzionale */
+.hero-marker:hover .hero-label {
+    opacity: 1;
+}
+
+@keyframes markerFadeIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(.85);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+@keyframes pinPop {
+    0% {
+        transform: scale(.6);
+    }
+    70% {
+        transform: scale(1.15);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+@keyframes labelFadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+@keyframes pinPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255,255,255,0.35);
+    }
+    70% {
+        box-shadow: 0 0 0 14px rgba(255,255,255,0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(255,255,255,0);
+    }
+}
+
+/* CSS MARKER MOBILE*/
+
+.mobile-markers-slide {
+    position: relative;
+}
+
+.mobile-hero-markers {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    pointer-events: none;
+}
+
+.mobile-hero-marker {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    pointer-events: auto;
+    opacity: 0;
+}
+
+.mobile-hero-pin {
+    display: block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 2px solid rgba(255,255,255,0.92);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.22);
+    position: relative;
+}
+
+.mobile-hero-pin::after {
+    content: "";
+    position: absolute;
+    inset: -5px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.35);
+    opacity: 0.65;
+}
+
+.mobile-hero-label {
+    position: absolute;
+    top: -42px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(18,18,18,0.82);
+    color: #fff;
+    padding: 7px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.3px;
+    font-weight: 500;
+    white-space: nowrap;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+    backdrop-filter: blur(6px);
+    opacity: 0;
+}
+
+.mobile-hero-label::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -5px;
+    width: 10px;
+    height: 10px;
+    background: rgba(18,18,18,0.82);
+    transform: translateX(-50%) rotate(45deg);
+}
+
+/* posizioni iniziali: da regolare sulla foto */
+.mobile-marker-1 { top: 55%; left: 58%; }
+.mobile-marker-2 { top: 60%; left: 25%; }
+.mobile-marker-3 { top: 67%; left: 75%; }
+
+/* testo hero sopra tutto */
+.mobile-markers-slide .mobile-hero-text {
+    position: relative;
+    z-index: 7;
+}
+
+/* animazioni */
+.mobile-hero-marker.is-visible {
+    animation: mobileMarkerFadeIn .55s ease forwards;
+}
+
+.mobile-hero-marker.is-visible .mobile-hero-pin {
+    animation: mobilePinPop .55s ease forwards, mobilePinPulse 2.2s ease-in-out infinite .55s;
+}
+
+.mobile-hero-marker.is-visible .mobile-hero-label {
+    animation: mobileLabelFadeIn .45s ease forwards;
+    animation-delay: .18s;
+}
+
+@keyframes mobileMarkerFadeIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(.88);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+@keyframes mobilePinPop {
+    0% { transform: scale(.7); }
+    70% { transform: scale(1.12); }
+    100% { transform: scale(1); }
+}
+
+@keyframes mobileLabelFadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+@keyframes mobilePinPulse {
+    0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0.30); }
+    70%  { box-shadow: 0 0 0 12px rgba(255,255,255,0); }
+    100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
 }
