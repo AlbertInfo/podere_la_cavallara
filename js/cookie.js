@@ -16,6 +16,7 @@ function acceptCookies() {
     localStorage.setItem("cookie_consent", JSON.stringify(consent));
     applyConsent(consent);
     hideBanner();
+    window.dispatchEvent(new Event("cookieConsentUpdated"));
 }
 
 function rejectCookies() {
@@ -25,6 +26,7 @@ function rejectCookies() {
     };
     localStorage.setItem("cookie_consent", JSON.stringify(consent));
     hideBanner();
+    window.dispatchEvent(new Event("cookieConsentUpdated"));
 }
 
 function openPreferences() {
@@ -44,6 +46,7 @@ function savePreferences() {
 
     const modal = bootstrap.Modal.getInstance(document.getElementById('cookieModal'));
     modal.hide();
+    window.dispatchEvent(new Event("cookieConsentUpdated"));
 }
 
 function hideBanner() {
