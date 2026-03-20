@@ -1840,3 +1840,213 @@ background-color: rgba(0, 0, 0, 0.811);
         text-align: center;
     }
 }
+
+/* MOBILE INTRO */
+.podere-intro-mobile {
+  padding: 0 8px;
+  text-align: center;
+}
+
+.podere-intro-mobile .subtitle {
+  display: inline-block;
+  margin-bottom: 12px;
+}
+
+.podere-intro-mobile h2 {
+  font-size: 30px;
+  line-height: 1.2;
+  margin-bottom: 16px;
+}
+
+.podere-intro-mobile .lead-text {
+  font-size: 16px;
+  line-height: 1.75;
+  margin-bottom: 14px;
+}
+
+.podere-intro-mobile p {
+  font-size: 15px;
+  line-height: 1.75;
+  margin-bottom: 0;
+}
+
+/* FEATURES MOBILE */
+.podere-features-mobile {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  margin-top: 28px;
+}
+
+.podere-features-mobile .feature-box {
+  padding: 20px 18px;
+  border-radius: 16px;
+}
+
+.podere-features-mobile .feature-box h3 {
+  font-size: 17px;
+  line-height: 1.3;
+  margin-bottom: 6px;
+}
+
+.podere-features-mobile .feature-box p {
+  font-size: 14px;
+  line-height: 1.65;
+  margin-bottom: 0;
+}
+
+/* SMALL DEVICES */
+@media (max-width: 575.98px) {
+  .podere-intro-mobile {
+    padding: 0 4px;
+  }
+
+  .podere-intro-mobile h2 {
+    font-size: 26px;
+  }
+
+  .podere-intro-mobile .lead-text {
+    font-size: 15px;
+  }
+
+  .podere-intro-mobile p {
+    font-size: 14px;
+  }
+
+  .podere-features-mobile .feature-box {
+    padding: 18px 16px;
+  }
+}
+
+/* =========================
+   HERO MOBILE ITINERARI
+   ========================= */
+
+.hero-mobile-itinerari {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 64vh;
+  overflow: hidden;
+  background: #000;
+}
+
+.hero-mobile-itinerari .hero-mobile-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.hero-mobile-itinerari .hero-mobile-bg img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: center center;
+}
+
+.hero-mobile-itinerari .wrapper {
+  position: relative;
+  z-index: 2;
+  min-height: 64vh;
+  width: 100%;
+  padding: 0;
+}
+
+.hero-mobile-itinerari .container {
+  width: 100%;
+}
+
+.hero-mobile-itinerari .hero-mobile-inner {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 24px 18px;
+  text-align: center;
+  color: #fff;
+}
+
+.hero-mobile-itinerari small {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.hero-mobile-itinerari h1 {
+  margin: 0 0 12px 0;
+  font-size: 34px;
+  line-height: 1.12;
+  font-weight: 600;
+  color: #fff;
+}
+
+.hero-mobile-itinerari p {
+  margin: 0 auto;
+  max-width: 320px;
+  font-size: 15px;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+/* overlay compatibile con la struttura del tema */
+.hero-mobile-itinerari .opacity-mask {
+  position: relative;
+}
+
+.hero-mobile-itinerari .opacity-mask:before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: -1;
+}
+
+/* piccoli telefoni */
+@media (max-width: 575.98px) {
+  .hero-mobile-itinerari,
+  .hero-mobile-itinerari .wrapper {
+    min-height: 58vh;
+  }
+
+  .hero-mobile-itinerari .hero-mobile-inner {
+    padding: 20px 16px;
+  }
+
+  .hero-mobile-itinerari small {
+    margin-bottom: 10px;
+    font-size: 11px;
+    letter-spacing: 1.6px;
+  }
+
+  .hero-mobile-itinerari h1 {
+    font-size: 28px;
+    line-height: 1.15;
+    margin-bottom: 10px;
+  }
+
+  .hero-mobile-itinerari p {
+    max-width: 280px;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+}
+
+/* telefoni molto bassi */
+@media (max-height: 740px) and (max-width: 991.98px) {
+  .hero-mobile-itinerari,
+  .hero-mobile-itinerari .wrapper {
+    min-height: 56vh;
+  }
+}
+
+.lagoImg {
+    object-fit: cover !important;
+    object-position: 50% 80% !important;
+}
+
+.escursioniContainer{
+    height: 80vh !important;
+}
