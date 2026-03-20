@@ -2492,6 +2492,22 @@ background-color: rgba(0, 0, 0, 0.811);
     }
 }
 
-.hero-mobile-minimal__scroll-indicator {
-    display: none !important;
+.hero-mobile-minimal__title,
+.hero-mobile-minimal__subtitle,
+.hero-mobile-minimal__eyebrow {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    will-change: transform;
+}
+
+.hero-mobile-minimal__content {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+}
+
+.hero-mobile-minimal__overlay {
+    transform: translateZ(0);
 }
