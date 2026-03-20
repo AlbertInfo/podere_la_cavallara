@@ -1994,14 +1994,16 @@ background-color: rgba(0, 0, 0, 0.811);
 /* overlay compatibile con la struttura del tema */
 .hero-mobile-itinerari .opacity-mask {
   position: relative;
+  opacity: 100%;
 }
 
 .hero-mobile-itinerari .opacity-mask:before {
   content: "";
-  position: absolute;
+  position: relative;
   inset: 0;
   background: rgba(0, 0, 0, 0.45);
   z-index: -1;
+  height: 100vh;
 }
 
 /* piccoli telefoni */
@@ -2288,3 +2290,200 @@ background-color: rgba(0, 0, 0, 0.811);
 
 
 
+
+
+/* HERO SCOPE */
+.hero-mobile-minimal,
+.hero,
+.page-hero,
+.hero-section {
+  position: relative;
+}
+
+/* POPUP HERO */
+.whatsapp-cta--hero {
+  position: absolute;
+  left: 24px;
+  right: auto;
+  bottom: 40px;
+  z-index: 60;
+  pointer-events: auto;
+}
+
+/* MOBILE */
+@media (max-width: 767px) {
+  .whatsapp-cta--hero {
+    left: 14px;
+    right: auto;
+    bottom: 28px;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+
+    padding: 0;
+    gap: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .whatsapp-cta--hero .whatsapp-cta__content {
+    display: none;
+  }
+
+  .whatsapp-cta--hero .whatsapp-cta__icon {
+    width: 56px;
+    height: 56px;
+    min-width: 56px;
+  }
+}
+
+/* STORY BLOCK APPARTAMENTI */
+.unit_story {
+    position: relative;
+    margin-top: 26px;
+    padding: 24px 0 0 0;
+}
+
+.unit_story__eyebrow {
+    display: inline-block;
+    margin-bottom: 14px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #9c8762;
+}
+
+.unit_story__content {
+    position: relative;
+    padding-left: 26px;
+}
+
+.unit_story__content::before {
+    content: "";
+    position: absolute;
+    top: 4px;
+    left: 0;
+    width: 2px;
+    height: calc(100% - 8px);
+    border-radius: 2px;
+    background: linear-gradient(to bottom, #d9c4a0, #b79b72 55%, rgba(183,155,114,0.15));
+}
+
+.unit_story__content p {
+    margin: 0 0 18px 0;
+    font-size: 17px;
+    line-height: 1.95;
+    color: #4f4a43;
+    max-width: 95%;
+}
+
+.unit_story__content p:first-of-type {
+    color: #3f3a34;
+}
+
+.unit_story__content p:last-of-type {
+    margin-bottom: 16px;
+}
+
+.unit_story__note {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 4px;
+    padding: 10px 16px;
+    border: 1px solid #eadfcd;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #fbf8f3 0%, #f7f2ea 100%);
+    color: #7f6948;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    box-shadow: 0 10px 22px rgba(0,0,0,0.04);
+}
+
+.unit_story__note::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #b79b72;
+    box-shadow: 0 0 0 4px rgba(183,155,114,0.14);
+}
+
+/* Raffinamento mobile */
+@media (max-width: 767.98px) {
+    .unit_story {
+        margin-top: 22px;
+        padding-top: 18px;
+    }
+
+    .unit_story__eyebrow {
+        font-size: 10px;
+        letter-spacing: 0.16em;
+        margin-bottom: 12px;
+    }
+
+    .unit_story__content {
+        padding-left: 18px;
+    }
+
+    .unit_story__content p {
+        font-size: 15px;
+        line-height: 1.85;
+        max-width: 100%;
+        margin-bottom: 16px;
+    }
+
+    .unit_story__note {
+        font-size: 12px;
+        padding: 9px 14px;
+    }
+}
+
+.unit_story__connection {
+    margin-top: 22px;
+    padding: 18px 20px;
+    border: 1px solid #eadfcd;
+    border-radius: 18px;
+    background: linear-gradient(180deg, #fcfaf7 0%, #f7f2ea 100%);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.04);
+}
+
+.unit_story__connection-label {
+    display: inline-block;
+    margin-bottom: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #9c8762;
+}
+
+.unit_story__connection p {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.85;
+    color: #4a443d;
+}
+
+@media (max-width: 767.98px) {
+    .unit_story__connection {
+        margin-top: 18px;
+        padding: 16px 16px;
+        border-radius: 16px;
+    }
+
+    .unit_story__connection-label {
+        font-size: 10px;
+        margin-bottom: 8px;
+    }
+
+    .unit_story__connection p {
+        font-size: 14px;
+        line-height: 1.75;
+    }
+}
