@@ -2521,3 +2521,28 @@ background-color: rgba(0, 0, 0, 0.811);
 .whatsapp-cta.whatsapp-enabled {
   display: inline-flex !important;
 }
+
+
+/* prova fix pallini*/
+
+.hero-mobile-minimal__content,
+.hero-mobile-minimal__inner,
+.hero-mobile-minimal__eyebrow,
+.hero-mobile-minimal__title,
+.hero-mobile-minimal__subtitle,
+.hero-mobile-minimal__link {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  -webkit-text-size-adjust: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.hero-mobile-minimal__eyebrow,
+.hero-mobile-minimal__title,
+.hero-mobile-minimal__subtitle,
+.hero-mobile-minimal__link {
+  transform: none !important;
+  filter: none !important;
+  text-shadow: 0 1px 8px rgba(0,0,0,0.18);
+}
