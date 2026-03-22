@@ -2546,3 +2546,41 @@ background-color: rgba(0, 0, 0, 0.811);
   filter: none !important;
   text-shadow: 0 1px 8px rgba(0,0,0,0.18);
 }
+
+
+/* WHATSAPP POPUP: sempre fisso in basso a sinistra */
+.whatsapp-cta,
+.whatsapp-cta--hero {
+  position: fixed !important;
+  left: 16px !important;
+  right: auto !important;
+  bottom: 16px !important;
+  z-index: 9999 !important;
+}
+
+@media (min-width: 768px) {
+  .whatsapp-cta,
+  .whatsapp-cta--hero {
+    left: 24px !important;
+    bottom: 24px !important;
+  }
+}
+
+
+@media (max-width: 767px) {
+  .whatsapp-cta {
+    opacity: 1 !important;
+    position: fixed !important;
+    left: 16px !important;
+    right: auto !important;
+    bottom: 16px !important;
+    padding: 0;
+    gap: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
