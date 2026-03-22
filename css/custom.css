@@ -2563,6 +2563,7 @@ background-color: rgba(0, 0, 0, 0.811);
   .whatsapp-cta--hero {
     left: 24px !important;
     bottom: 24px !important;
+    display: none !important;
   }
 }
 
@@ -2574,6 +2575,22 @@ background-color: rgba(0, 0, 0, 0.811);
     left: 16px !important;
     right: auto !important;
     bottom: 16px !important;
+    padding: 0;
+    gap: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    
+  }
+  .whatsapp-cta--hero {
+    opacity: 1 !important;
+    position: fixed !important;
+    left: 16px !important;
+    right: auto !important;
+    bottom: 32px !important;
     padding: 0;
     gap: 0;
     background: transparent;
