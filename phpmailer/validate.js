@@ -4,6 +4,13 @@ $(function () {
     let activeFormSelector = null;
     let activeMessageSelector = null;
 
+    function scrollTopSmooth() {
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+    }
+
     function scrollToElement(selector) {
         const target = document.querySelector(selector);
         if (!target) return;
@@ -17,54 +24,45 @@ $(function () {
         });
     }
 
-   function openSuccessModal(title, text, formSelector, messageSelector) {
-    const modalEl = document.getElementById('formSuccessModal');
-    const titleEl = document.getElementById('formSuccessModalTitle');
-    const textEl = document.getElementById('formSuccessModalText');
+    function openSuccessModal(title, text, formSelector, messageSelector) {
+        const modalEl = document.getElementById('formSuccessModal');
+        const titleEl = document.getElementById('formSuccessModalTitle');
+        const textEl = document.getElementById('formSuccessModalText');
 
-    if (!modalEl) {
-        console.error('Modale non trovata: #formSuccessModal');
-        return false;
+        if (!modalEl || typeof bootstrap === 'undefined') {
+            return false;
+        }
+
+        activeFormSelector = formSelector;
+        activeMessageSelector = messageSelector;
+
+        if (titleEl) titleEl.textContent = title;
+        if (textEl) textEl.textContent = text;
+
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+        modalEl.addEventListener('hidden.bs.modal', function handleHidden() {
+            scrollTopSmooth();
+
+            setTimeout(function () {
+                if (activeFormSelector) {
+                    $(activeFormSelector).stop(true, true).slideDown('slow');
+                }
+
+                if (activeMessageSelector) {
+                    $(activeMessageSelector).hide().html('');
+                }
+
+                activeFormSelector = null;
+                activeMessageSelector = null;
+            }, 400);
+
+            modalEl.removeEventListener('hidden.bs.modal', handleHidden);
+        }, { once: true });
+
+        modal.show();
+        return true;
     }
-
-    if (typeof bootstrap === 'undefined') {
-        console.error('Bootstrap JS non caricato');
-        return false;
-    }
-
-    activeFormSelector = formSelector;
-    activeMessageSelector = messageSelector;
-
-    if (titleEl) titleEl.textContent = title;
-    if (textEl) textEl.textContent = text;
-
-    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-
-    modalEl.addEventListener('hidden.bs.modal', function handleHidden() {
-        window.scrollTo({
-            top: 0,
-            behavior: 'smooth'
-        });
-
-        setTimeout(function () {
-            if (activeFormSelector) {
-                $(activeFormSelector).slideDown('slow');
-            }
-
-            if (activeMessageSelector) {
-                $(activeMessageSelector).hide().html('');
-            }
-
-            activeFormSelector = null;
-            activeMessageSelector = null;
-        }, 350);
-
-        modalEl.removeEventListener('hidden.bs.modal', handleHidden);
-    }, { once: true });
-
-    modal.show();
-    return true;
-}
 
     function showInlineFallback(messageSelector, title, text) {
         const html = `
@@ -92,10 +90,11 @@ $(function () {
             const title = successNode.dataset.title || fallbackTitle;
             const text = successNode.dataset.text || fallbackText;
 
-            $(formSelector).slideUp('slow', function () {
+            $(formSelector).stop(true, true).slideUp('slow', function () {
                 $(messageSelector).hide().html('');
 
                 const opened = openSuccessModal(title, text, formSelector, messageSelector);
+
                 if (!opened) {
                     showInlineFallback(messageSelector, title, text);
                 }
