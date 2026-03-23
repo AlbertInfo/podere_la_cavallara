@@ -1,6 +1,9 @@
 /* <![CDATA[ */
 $(function () {
 
+    let activeFormSelector = null;
+    let activeMessageSelector = null;
+
     function scrollToElement(selector) {
         const target = document.querySelector(selector);
         if (!target) return;
@@ -14,7 +17,7 @@ $(function () {
         });
     }
 
-    function openSuccessModal(title, text) {
+    function openSuccessModal(title, text, formSelector, messageSelector) {
         const modalEl = document.getElementById('formSuccessModal');
         const titleEl = document.getElementById('formSuccessModalTitle');
         const textEl = document.getElementById('formSuccessModalText');
@@ -29,10 +32,36 @@ $(function () {
             return false;
         }
 
+        activeFormSelector = formSelector;
+        activeMessageSelector = messageSelector;
+
         if (titleEl) titleEl.textContent = title;
         if (textEl) textEl.textContent = text;
 
-        const modal = new bootstrap.Modal(modalEl);
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+        modalEl.addEventListener('hidden.bs.modal', function handleHidden() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+
+            setTimeout(function () {
+                if (activeFormSelector) {
+                    $(activeFormSelector).slideDown('slow');
+                }
+
+                if (activeMessageSelector) {
+                    $(activeMessageSelector).hide().html('');
+                }
+
+                activeFormSelector = null;
+                activeMessageSelector = null;
+            }, 350);
+
+            modalEl.removeEventListener('hidden.bs.modal', handleHidden);
+        });
+
         modal.show();
         return true;
     }
@@ -40,11 +69,14 @@ $(function () {
     function showInlineFallback(messageSelector, title, text) {
         const html = `
             <div class="form-success-fallback">
-                <strong>${title}</strong><br>${text}
+                <div class="form-success-fallback-icon">✓</div>
+                <h4>${title}</h4>
+                <p>${text}</p>
             </div>
         `;
-        $(messageSelector).html(html).slideDown('slow');
-        scrollToElement(messageSelector);
+        $(messageSelector).html(html).slideDown('slow', function () {
+            scrollToElement(messageSelector);
+        });
     }
 
     function handleResponse(messageSelector, submitSelector, formSelector, data, fallbackTitle, fallbackText) {
@@ -63,7 +95,7 @@ $(function () {
             $(formSelector).slideUp('slow', function () {
                 $(messageSelector).hide().html('');
 
-                const opened = openSuccessModal(title, text);
+                const opened = openSuccessModal(title, text, formSelector, messageSelector);
                 if (!opened) {
                     showInlineFallback(messageSelector, title, text);
                 }
