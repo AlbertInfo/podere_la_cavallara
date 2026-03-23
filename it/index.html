@@ -769,51 +769,71 @@ Frutta ed ortaggi biologici, potranno essere reperiti direttamente presso gli or
                     </div>
                 </div>
                 <div class="col-xl-7">
-                    <div data-cue="slideInUp" data-delay="200">
-                        <div class="booking_wrapper">
-                            <div class="col-12">
-                                <input type="hidden" id="date_booking" name="date_booking">
+            <div data-cue="slideInUp" data-delay="200">
+
+                <div id="message-booking"></div>
+
+                <form method="post" action="../phpmailer/reserve_template_email_smtp.php" id="bookingform" autocomplete="off">
+                    <div class="booking_wrapper">
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                <input type="text" id="date_booking" name="date_booking" class="form-control" placeholder="Check in / Check out" required>
                             </div>
-                            <div class="row">
-                                <div class="col-lg-6">
-                                    <div class="custom_select">
-                                        <select class="wide">
+
+                            <div class="col-lg-6">
+                                <div class="custom_select">
+                                    <select class="wide" id="rooms_booking" name="rooms_booking" required>
                                             <option>Scegli soluzione</option>
                                             <option>Casa Domenico 1</option>
                                             <option>Casa Domenico 2</option>
-                                            <option>Casa Domenico 1-2</option>
                                             <option>Casa Riccardo 3</option>
                                             <option>Casa Riccardo 4</option>
                                             <option>Casa Alessandro 5</option>
                                             <option>Casa Alessandro 6</option>
-                                        </select>
-                                    </div>
+                                    </select>
                                 </div>
-                                <div class="col-lg-6">
-                                    <div class="row">
-                                        <div class="col-6">
-                                            <div class="qty-buttons mb-3 version_2">
-                                                <input type="button" value="+" class="qtyplus" name="adults_booking">
-                                                <input type="text" name="adults_booking" id="adults_booking" value="" class="qty form-control" placeholder="Adulti">
-                                                <input type="button" value="-" class="qtyminus" name="adults_booking">
-                                            </div>
+                            </div>
+
+                            <div class="col-lg-6">
+                                <div class="row">
+                                    <div class="col-6">
+                                        <div class="qty-buttons mb-3 version_2">
+                                            <input type="button" value="+" class="qtyplus" name="adults_booking">
+                                            <input type="text" name="adults_booking" id="adults_booking" value="" class="qty form-control" placeholder="Adulti" required>
+                                            <input type="button" value="-" class="qtyminus" name="adults_booking">
                                         </div>
-                                        <div class="col-6">
-                                            <div class="mb-3 qty-buttons mb-3 version_2">
-                                                <input type="button" value="+" class="qtyplus" name="childs_booking">
-                                                <input type="text" name="childs_booking" id="childs_booking" value="" class="qty form-control" placeholder="Bambini">
-                                                <input type="button" value="-" class="qtyminus" name="childs_booking">
-                                            </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="qty-buttons mb-3 version_2">
+                                            <input type="button" value="+" class="qtyplus" name="childs_booking">
+                                            <input type="text" name="childs_booking" id="childs_booking" value="" class="qty form-control" placeholder="Bambini" required>
+                                            <input type="button" value="-" class="qtyminus" name="childs_booking">
                                         </div>
                                     </div>
                                 </div>
                             </div>
+
+                            <div class="col-md-6 mt-3">
+                                <input type="text" id="name_booking" name="name_booking" class="form-control" placeholder="Nome e cognome" required>
+                            </div>
+
+                            <div class="col-md-6 mt-3">
+                                <input type="email" id="email_booking" name="email_booking" class="form-control" placeholder="Email" required>
+                            </div>
+
+                            <div class="col-md-6 mt-3">
+                                <input type="text" id="verify_booking" name="verify_booking" class="form-control" placeholder="Quanto fa 2 + 2?" required>
+                            </div>
                         </div>
-                        <!-- / row -->
-                        <p class="text-end mt-4"><a href="#0" class="btn_1 outline">Invia richiesta</a></p>
                     </div>
-                </div>
-                <!-- /col -->
+
+                    <p class="text-end mt-4">
+                        <button type="submit" class="btn_1 outline" id="submit-booking">Invia richiesta</button>
+                    </p>
+                </form>
+
+            </div>
+        </div>
             </div>
             <!-- /row -->
         </div>
