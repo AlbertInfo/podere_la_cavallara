@@ -12,7 +12,7 @@ $mail = new PHPMailer(true);
 try {
     // SMTP
     $mail->isSMTP();
-    $mail->Host       = '7816dd001@smtp-brevo.com';
+    $mail->Host       = 'smtp-relay.brevo.com';
     $mail->SMTPAuth   = true;
     $mail->Username   = 'alb.stend97@gmail.com';
     $mail->Password   = 'bsky6Xzs02wNBXH';
