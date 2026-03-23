@@ -344,6 +344,10 @@
     }
 }
 
+.card-montefiascone figure img {
+    transform: scale(1.1);
+    transform-origin: center center;
+}
 
 /* CSS DELLA SECTION DI PRESENTAZIONE ESPERIENZE */
 
