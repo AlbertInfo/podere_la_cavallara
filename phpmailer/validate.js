@@ -1,113 +1,120 @@
 /* <![CDATA[ */
+$(function () {
 
-/// Jquery validate newsletter
-$('#newsletter_form').submit(function () {
+    function scrollToMessage(selector) {
+        const target = document.querySelector(selector);
+        if (!target) return;
 
-	var action = $(this).attr('action');
+        const offset = window.innerWidth < 768 ? 90 : 120;
+        const top = target.getBoundingClientRect().top + window.pageYOffset - offset;
 
-	$("#message-newsletter").slideUp(750, function () {
-		$('#message-newsletter').hide();
+        window.scrollTo({
+            top: top,
+            behavior: 'smooth'
+        });
+    }
 
-		$('#submit-newsletter')
-			.attr('disabled', 'disabled');
+    function showResponse(messageSelector, submitSelector, formSelector, data) {
+        const isSuccess = data.indexOf('success_page') !== -1;
 
-		$.post(action, {
-				email_newsletter: $('#email_newsletter').val()
-			},
-			function (data) {
-				document.getElementById('message-newsletter').innerHTML = data;
-				$('#message-newsletter').slideDown('slow');
-				$('#submit-newsletter').removeAttr('disabled');
-				if (data.match('success') != null) $('#newsletter_form').slideUp('slow');
+        document.querySelector(messageSelector).innerHTML = data;
 
-			}
-		);
+        $(messageSelector).slideDown('slow', function () {
+            if (isSuccess) {
+                $(formSelector).slideUp('slow', function () {
+                    setTimeout(function () {
+                        scrollToMessage(messageSelector);
+                    }, 150);
+                });
+            } else {
+                setTimeout(function () {
+                    scrollToMessage(messageSelector);
+                }, 100);
+            }
+        });
 
-	});
-	return false;
-});
+        $(submitSelector).removeAttr('disabled');
+    }
 
-// Jquery validate form contact
-$('#bookingform').submit(function () {
+    $('#newsletter_form').submit(function (e) {
+        e.preventDefault();
 
-	var action = $(this).attr('action');
+        var action = $(this).attr('action');
 
-	$("#message-booking").slideUp(750, function () {
-		$('#message-booking').hide();
+        $("#message-newsletter").slideUp(300, function () {
+            $('#message-newsletter').hide();
+            $('#submit-newsletter').attr('disabled', 'disabled');
 
-		$('#submit-booking')
-			.attr('disabled', 'disabled');
-
-		$.post(action, {
-				date_booking: $('#date_booking').val(),
-				rooms_booking: $('#rooms_booking').val(),
-				adults_booking: $('#adults_booking').val(),
-				childs_booking: $('#childs_booking').val(),
-				name_booking: $('#name_booking').val(),
-				email_booking: $('#email_booking').val(),
-				verify_booking: $('#verify_booking').val()
-			},
-			function (data) {
-    document.getElementById('message-booking').innerHTML = data;
-    $('#message-booking').slideDown('slow', function () {
-        const target = document.getElementById('message-booking');
-        if (target) {
-            const offset = 110;
-            const top = target.getBoundingClientRect().top + window.pageYOffset - offset;
-            window.scrollTo({ top: top, behavior: 'smooth' });
-        }
+            $.post(action, {
+                email_newsletter: $('#email_newsletter').val()
+            })
+            .done(function (data) {
+                showResponse('#message-newsletter', '#submit-newsletter', '#newsletter_form', data);
+            })
+            .fail(function () {
+                $('#message-newsletter').html('<div class="error_message">Si è verificato un errore. Riprova tra qualche istante.</div>').slideDown('slow');
+                $('#submit-newsletter').removeAttr('disabled');
+                scrollToMessage('#message-newsletter');
+            });
+        });
     });
 
-    $('#submit-booking').removeAttr('disabled');
+    $('#bookingform').submit(function (e) {
+        e.preventDefault();
 
-    if (data.match('success') != null) {
-        $('#bookingform').slideUp('slow');
-    }
-}
+        var action = $(this).attr('action');
 
-	});
-	return false;
-});
+        $("#message-booking").slideUp(300, function () {
+            $('#message-booking').hide();
+            $('#submit-booking').attr('disabled', 'disabled');
 
-// Jquery validate form contact
-$('#contactform').submit(function () {
-
-	var action = $(this).attr('action');
-
-	$("#message-contact").slideUp(750, function () {
-		$('#message-contact').hide();
-
-		$('#submit-contact')
-			.attr('disabled', 'disabled');
-
-		$.post(action, {
-				name_contact: $('#name_contact').val(),
-				lastname_contact: $('#lastname_contact').val(),
-				email_contact: $('#email_contact').val(),
-				phone_contact: $('#phone_contact').val(),
-				message_contact: $('#message_contact').val(),
-				verify_contact: $('#verify_contact').val()
-			},
-			function (data) {
-    document.getElementById('message-contact').innerHTML = data;
-    $('#message-contact').slideDown('slow', function () {
-        const target = document.getElementById('message-contact');
-        if (target) {
-            const offset = 110;
-            const top = target.getBoundingClientRect().top + window.pageYOffset - offset;
-            window.scrollTo({ top: top, behavior: 'smooth' });
-        }
+            $.post(action, {
+                date_booking: $('#date_booking').val(),
+                rooms_booking: $('#rooms_booking').val(),
+                adults_booking: $('#adults_booking').val(),
+                childs_booking: $('#childs_booking').val(),
+                name_booking: $('#name_booking').val(),
+                email_booking: $('#email_booking').val(),
+                verify_booking: $('#verify_booking').val()
+            })
+            .done(function (data) {
+                showResponse('#message-booking', '#submit-booking', '#bookingform', data);
+            })
+            .fail(function () {
+                $('#message-booking').html('<div class="error_message">Si è verificato un errore durante l\'invio della richiesta. Riprova.</div>').slideDown('slow');
+                $('#submit-booking').removeAttr('disabled');
+                scrollToMessage('#message-booking');
+            });
+        });
     });
 
-    $('#submit-contact').removeAttr('disabled');
+    $('#contactform').submit(function (e) {
+        e.preventDefault();
 
-    if (data.match('success') != null) {
-        $('#contactform').slideUp('slow');
-    }
-}
+        var action = $(this).attr('action');
 
-	});
-	return false;
+        $("#message-contact").slideUp(300, function () {
+            $('#message-contact').hide();
+            $('#submit-contact').attr('disabled', 'disabled');
+
+            $.post(action, {
+                name_contact: $('#name_contact').val(),
+                lastname_contact: $('#lastname_contact').val(),
+                email_contact: $('#email_contact').val(),
+                phone_contact: $('#phone_contact').val(),
+                message_contact: $('#message_contact').val(),
+                verify_contact: $('#verify_contact').val()
+            })
+            .done(function (data) {
+                showResponse('#message-contact', '#submit-contact', '#contactform', data);
+            })
+            .fail(function () {
+                $('#message-contact').html('<div class="error_message">Si è verificato un errore durante l\'invio del messaggio. Riprova.</div>').slideDown('slow');
+                $('#submit-contact').removeAttr('disabled');
+                scrollToMessage('#message-contact');
+            });
+        });
+    });
+
 });
-
 /* ]]> */
