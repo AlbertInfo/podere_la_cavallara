@@ -1,120 +1,104 @@
 <?php
 
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+
 use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\SMTP;
 use PHPMailer\PHPMailer\Exception;
 
-require 'src/Exception.php';
-require 'src/PHPMailer.php';
-require 'src/SMTP.php';
+require __DIR__ . '/src/Exception.php';
+require __DIR__ . '/src/PHPMailer.php';
+require __DIR__ . '/src/SMTP.php';
 
 $mail = new PHPMailer(true);
 
 try {
 
-    //Server settings
-    $mail->isSMTP();                                            // Send using SMTP
-    $mail->Host       = 'smtpserver';                           // Set the SMTP server to send through
-    $mail->SMTPAuth   = true;                                   // Enable SMTP authentication
-    $mail->Username   = 'username';                             // SMTP username
-    $mail->Password   = 'password';                             // SMTP password
-    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;         // Enable TLS encryption; `PHPMailer::ENCRYPTION_SMTPS` encouraged
-    $mail->Port       = 587;                                    // TCP port to connect to, use 465 for `PHPMailer::ENCRYPTION_SMTPS` above
+    // SMTP Brevo
+    $mail->isSMTP();
+    $mail->Host       = 'smtp-relay.brevo.com';
+    $mail->SMTPAuth   = true;
+    $mail->Username   = '7816dd001@smtp-brevo.com';
+    $mail->Password   = 'bsky6Xzs02wNBXH';
+    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+    $mail->Port       = 587;
 
-    //Recipients - main edits
-    $mail->setFrom('info@Paradise.com', 'Message from Paradise Hotel');             // Email Address and Name FROM
-    $mail->addAddress('info@Paradise.com', 'Jhon Doe');                            // Email Address and Name TO - Name is optional
-    $mail->addReplyTo('noreply@Paradise.com', 'Message from Paradise Hotel');       // Email Address and Name NOREPLY
-    $mail->isHTML(true);                                                       
-    $mail->Subject = 'Message from Paradise Hotel';                                // Email Subject    
-   
-   // Email verification, do not edit
-    function isEmail($email_booking ) {
-        return(preg_match("/^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,})$/",$email_booking ));
+    // Campi form
+    $date_booking   = trim($_POST['date_booking'] ?? '');
+    $rooms_booking  = trim($_POST['rooms_booking'] ?? '');
+    $adults_booking = trim($_POST['adults_booking'] ?? '');
+    $childs_booking = trim($_POST['childs_booking'] ?? '');
+    $name_booking   = trim($_POST['name_booking'] ?? '');
+    $email_booking  = trim($_POST['email_booking'] ?? '');
+    $verify_booking = trim($_POST['verify_booking'] ?? '');
+
+    // VALIDAZIONE
+    if ($date_booking === '') {
+        echo '<div class="error_message">Inserisci le date.</div>'; exit();
+    } elseif ($rooms_booking === '') {
+        echo '<div class="error_message">Seleziona una sistemazione.</div>'; exit();
+    } elseif ($adults_booking === '') {
+        echo '<div class="error_message">Inserisci numero adulti.</div>'; exit();
+    } elseif ($name_booking === '') {
+        echo '<div class="error_message">Inserisci il nome.</div>'; exit();
+    } elseif ($email_booking === '' || !filter_var($email_booking, FILTER_VALIDATE_EMAIL)) {
+        echo '<div class="error_message">Email non valida.</div>'; exit();
+    } elseif ($verify_booking !== '4') {
+        echo '<div class="error_message">Verifica errata.</div>'; exit();
     }
 
-    // Form fields
-    $date_booking     = $_POST['date_booking'];
-    $rooms_booking     = $_POST['rooms_booking'];
-    $adults_booking     = $_POST['adults_booking'];
-    $childs_booking     = $_POST['childs_booking'];
-    $name_booking        = $_POST['name_booking'];
-    $email_booking    = $_POST['email_booking'];
-    $verify_booking = $_POST['verify_booking'];
+    // EMAIL A TE
+    $mail->setFrom('EMAIL_VERIFICATA', 'Podere La Cavallara');
+    $mail->addAddress('EMAIL_TUA');
+    $mail->addReplyTo($email_booking, $name_booking);
 
-    if(trim($date_booking) == '') {
-        echo '<div class="error_message">Please enter your dates.</div>';
-        exit();
-    } else if(trim($rooms_booking ) == '') {
-        echo '<div class="error_message">Please enter room preference.</div>';
-        exit();
-    } else if(trim($adults_booking ) == '') {
-        echo '<div class="error_message">Please enter number of adults.</div>';
-        exit();
-    } else if(trim($childs_booking ) == '') {
-        echo '<div class="error_message">Please enter number of childs.</div>';
-        exit();
-    } else if(trim($name_booking ) == '') {
-        echo '<div class="error_message">Please enter your Name.</div>';
-        exit();
-    } else if(trim($email_booking) == '') {
-        echo '<div class="error_message">Please enter a valid email address.</div>';
-        exit();
-    } else if(!isEmail($email_booking)) {
-        echo '<div class="error_message">Invalid e-mail address, try again.</div>';
-        exit();
-    } else if(!isset($verify_booking) || trim($verify_booking) == '') {
-        echo '<div class="error_message"> Please enter the verification number.</div>';
-        exit();
-    } else if(trim($verify_booking) != '4') {
-        echo '<div class="error_message">The verification number you entered is incorrect.</div>';
-        exit();
-    } 
+    $mail->isHTML(true);
+    $mail->Subject = 'Nuova richiesta prenotazione';
 
-    // Get the email's html content
-    $email_html = file_get_contents('template-email.html');
+    $email_html = file_get_contents(__DIR__ . '/template-email.html');
 
-    // Setup html content
-    // Setup html content
-    $e_content = "You have been contacted by <strong>$name_booking</strong> with the following booking request:<br><br>Check in / out: $date_booking<br><br>Number of adults: $adults_booking<br><br>Number of childs: $childs_booking <br><br>You can contact $name_booking via email at $email_booking";
-    $body = str_replace(array('message'),array($e_content),$email_html);
+    $e_content = "
+        Nuova richiesta prenotazione:<br><br>
+        <strong>Nome:</strong> $name_booking<br>
+        <strong>Email:</strong> $email_booking<br>
+        <strong>Date:</strong> $date_booking<br>
+        <strong>Sistemazione:</strong> $rooms_booking<br>
+        <strong>Adulti:</strong> $adults_booking<br>
+        <strong>Bambini:</strong> $childs_booking
+    ";
+
+    $body = str_replace('message', $e_content, $email_html);
     $mail->MsgHTML($body);
-
-    $mail->CharSet = 'UTF-8'; //Force UTF for special characters
-
     $mail->send();
 
-    // Confirmation/autoreplay email send to who fill the form
-    $mail->ClearAddresses();
-    $mail->isSMTP();
-    $mail->addAddress($_POST['email_booking']); // Email address entered on form
-    $mail->isHTML(true);
-    $mail->Subject    = 'Confirmation'; // Custom subject
-    
-    // Get the email's html content
-    $email_html_confirm = file_get_contents('confirmation.html');
+    // EMAIL CLIENTE
+    $mail->clearAddresses();
+    $mail->clearReplyTos();
 
-    // Setup html content
-    $body = str_replace(array('message'),array($e_content),$email_html_confirm);
+    $mail->setFrom('EMAIL_VERIFICATA', 'Podere La Cavallara');
+    $mail->addAddress($email_booking, $name_booking);
+    $mail->addReplyTo('EMAIL_VERIFICATA', 'Podere La Cavallara');
+
+    $mail->Subject = 'Conferma richiesta prenotazione';
+
+    $email_html_confirm = file_get_contents(__DIR__ . '/confirmation.html');
+
+    $confirm_content = "
+        Gentile $name_booking,<br><br>
+        abbiamo ricevuto la tua richiesta di prenotazione.<br>
+        Ti risponderemo al più presto.<br><br>
+        <strong>Riepilogo:</strong><br>
+        $date_booking - $rooms_booking
+    ";
+
+    $body = str_replace('message', $confirm_content, $email_html_confirm);
     $mail->MsgHTML($body);
+    $mail->send();
 
-    $mail->CharSet = 'UTF-8'; //Force UTF for special characters
-
-    $mail->Send();
-
-     // Succes message
     echo '<div id="success_page">
-            <div class="icon icon--order-success svg">
-                 <svg xmlns="http://www.w3.org/2000/svg" width="72px" height="72px">
-                  <g fill="none" stroke="#8EC343" stroke-width="2">
-                     <circle cx="36" cy="36" r="35" style="stroke-dasharray:240px, 240px; stroke-dashoffset: 480px;"></circle>
-                     <path d="M17.417,37.778l9.93,9.909l25.444-25.393" style="stroke-dasharray:50px, 50px; stroke-dashoffset: 0px;"></path>
-                  </g>
-                 </svg>
-             </div>
-            <h5>Thank you!<span>Request successfully sent!</span></h5>
-        </div>';
-    } catch (Exception $e) {
-        echo "Message could not be sent. Mailer Error: {$mail->ErrorInfo}";
-    }   
-?> 
+            <h5>Grazie!<span>Richiesta inviata correttamente.</span></h5>
+          </div>';
+
+} catch (Exception $e) {
+    echo '<div class="error_message">Errore: ' . $mail->ErrorInfo . '</div>';
+}
