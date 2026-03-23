@@ -1,70 +1,47 @@
 /* <![CDATA[ */
 $(function () {
 
-    function scrollToMessage(selector) {
-        const target = document.querySelector(selector);
-        if (!target) return;
+    function openSuccessModal(title, text) {
+        const titleEl = document.getElementById('formSuccessModalTitle');
+        const textEl = document.getElementById('formSuccessModalText');
 
-        const offset = window.innerWidth < 768 ? 90 : 120;
-        const top = target.getBoundingClientRect().top + window.pageYOffset - offset;
+        if (titleEl) titleEl.textContent = title;
+        if (textEl) textEl.textContent = text;
 
-        window.scrollTo({
-            top: top,
-            behavior: 'smooth'
-        });
+        const modalEl = document.getElementById('formSuccessModal');
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
     }
 
-    function showResponse(messageSelector, submitSelector, formSelector, data) {
-        const isSuccess = data.indexOf('success_page') !== -1;
+    function handleResponse(messageSelector, submitSelector, formSelector, data, fallbackTitle, fallbackText) {
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = data;
 
-        document.querySelector(messageSelector).innerHTML = data;
-
-        $(messageSelector).slideDown('slow', function () {
-            if (isSuccess) {
-                $(formSelector).slideUp('slow', function () {
-                    setTimeout(function () {
-                        scrollToMessage(messageSelector);
-                    }, 150);
-                });
-            } else {
-                setTimeout(function () {
-                    scrollToMessage(messageSelector);
-                }, 100);
-            }
-        });
+        const successNode = wrapper.querySelector('#success_page');
+        const isSuccess = !!successNode;
 
         $(submitSelector).removeAttr('disabled');
+
+        if (isSuccess) {
+            const title = successNode.dataset.title || fallbackTitle;
+            const text = successNode.dataset.text || fallbackText;
+
+            $(formSelector).slideUp('slow');
+            $(messageSelector).hide().html('');
+            openSuccessModal(title, text);
+            return;
+        }
+
+        document.querySelector(messageSelector).innerHTML = data;
+        $(messageSelector).slideDown('slow');
     }
-
-    $('#newsletter_form').submit(function (e) {
-        e.preventDefault();
-
-        var action = $(this).attr('action');
-
-        $("#message-newsletter").slideUp(300, function () {
-            $('#message-newsletter').hide();
-            $('#submit-newsletter').attr('disabled', 'disabled');
-
-            $.post(action, {
-                email_newsletter: $('#email_newsletter').val()
-            })
-            .done(function (data) {
-                showResponse('#message-newsletter', '#submit-newsletter', '#newsletter_form', data);
-            })
-            .fail(function () {
-                $('#message-newsletter').html('<div class="error_message">Si è verificato un errore. Riprova tra qualche istante.</div>').slideDown('slow');
-                $('#submit-newsletter').removeAttr('disabled');
-                scrollToMessage('#message-newsletter');
-            });
-        });
-    });
 
     $('#bookingform').submit(function (e) {
         e.preventDefault();
 
         var action = $(this).attr('action');
 
-        $("#message-booking").slideUp(300, function () {
+        $("#message-booking").slideUp(200, function () {
             $('#message-booking').hide();
             $('#submit-booking').attr('disabled', 'disabled');
 
@@ -78,12 +55,20 @@ $(function () {
                 verify_booking: $('#verify_booking').val()
             })
             .done(function (data) {
-                showResponse('#message-booking', '#submit-booking', '#bookingform', data);
+                handleResponse(
+                    '#message-booking',
+                    '#submit-booking',
+                    '#bookingform',
+                    data,
+                    'Richiesta inviata correttamente',
+                    'Abbiamo ricevuto la tua richiesta di prenotazione. Ti risponderemo al più presto con tutti i dettagli.'
+                );
             })
             .fail(function () {
-                $('#message-booking').html('<div class="error_message">Si è verificato un errore durante l\'invio della richiesta. Riprova.</div>').slideDown('slow');
                 $('#submit-booking').removeAttr('disabled');
-                scrollToMessage('#message-booking');
+                $('#message-booking')
+                    .html('<div class="error_message">Si è verificato un errore durante l’invio della richiesta. Riprova.</div>')
+                    .slideDown('slow');
             });
         });
     });
@@ -93,7 +78,7 @@ $(function () {
 
         var action = $(this).attr('action');
 
-        $("#message-contact").slideUp(300, function () {
+        $("#message-contact").slideUp(200, function () {
             $('#message-contact').hide();
             $('#submit-contact').attr('disabled', 'disabled');
 
@@ -106,12 +91,20 @@ $(function () {
                 verify_contact: $('#verify_contact').val()
             })
             .done(function (data) {
-                showResponse('#message-contact', '#submit-contact', '#contactform', data);
+                handleResponse(
+                    '#message-contact',
+                    '#submit-contact',
+                    '#contactform',
+                    data,
+                    'Messaggio inviato correttamente',
+                    'Grazie per averci contattato. Ti risponderemo al più presto.'
+                );
             })
             .fail(function () {
-                $('#message-contact').html('<div class="error_message">Si è verificato un errore durante l\'invio del messaggio. Riprova.</div>').slideDown('slow');
                 $('#submit-contact').removeAttr('disabled');
-                scrollToMessage('#message-contact');
+                $('#message-contact')
+                    .html('<div class="error_message">Si è verificato un errore durante l’invio del messaggio. Riprova.</div>')
+                    .slideDown('slow');
             });
         });
     });

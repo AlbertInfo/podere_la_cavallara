@@ -142,11 +142,7 @@ try {
     $mail->MsgHTML($body);
     $mail->send();
 
-    echo '<div id="success_page" class="form-success-box">
-        <div class="form-success-icon">✓</div>
-        <h4>Richiesta di prenotazione inviata correttamente</h4>
-        <p>Abbiamo ricevuto la tua richiesta. Ti risponderemo al più presto con disponibilità e dettagli.</p>
-      </div>';
+    echo '<div id="success_page" data-type="booking" data-title="Richiesta inviata correttamente" data-text="Abbiamo ricevuto la tua richiesta di prenotazione. Ti risponderemo al più presto con tutti i dettagli."></div>';
 
 } catch (Exception $e) {
     echo '<div class="error_message">Errore: ' . $mail->ErrorInfo . '</div>';

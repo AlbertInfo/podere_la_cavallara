@@ -2712,3 +2712,82 @@ background-color: rgba(0, 0, 0, 0.811);
         font-size: 24px;
     }
 }
+
+.success-modal .modal-content {
+    background: linear-gradient(180deg, #fffdf9 0%, #f7f2e9 100%);
+}
+
+.success-check-wrap {
+    width: 96px;
+    height: 96px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.success-check-circle {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    background: rgba(40, 167, 69, 0.10);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.success-check-circle svg {
+    width: 72px;
+    height: 72px;
+}
+
+.success-check-circle-bg {
+    fill: #28a745;
+    opacity: 0.16;
+    stroke: #28a745;
+    stroke-width: 1.5;
+}
+
+.success-check-path {
+    fill: none;
+    stroke: #28a745;
+    stroke-width: 4.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.success-modal h3 {
+    color: #2d2d2d;
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+.success-modal p {
+    color: #5c5c5c;
+    font-size: 1rem;
+    line-height: 1.7;
+    max-width: 420px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+@media (max-width: 767.98px) {
+    .success-check-wrap,
+    .success-check-circle {
+        width: 82px;
+        height: 82px;
+    }
+
+    .success-check-circle svg {
+        width: 62px;
+        height: 62px;
+    }
+
+    .success-modal h3 {
+        font-size: 1.45rem;
+    }
+
+    .success-modal p {
+        font-size: 0.95rem;
+        line-height: 1.6;
+    }
+}
