@@ -62,7 +62,7 @@ $('#bookingform').submit(function () {
 
 // Jquery validate form contact
 $('#contactform').submit(function () {
-alert('submit contact intercettato');
+
 	var action = $(this).attr('action');
 
 	$("#message-contact").slideUp(750, function () {
