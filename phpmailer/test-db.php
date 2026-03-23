@@ -1,6 +1,6 @@
 <?php
 
-$DB_HOST = 'HOST_REALE';
+$DB_HOST = 'localhost';
 $DB_NAME = 'u881781553_cavallara';
 $DB_USER = 'u881781553_admin';
 $DB_PASS = 'Poderecavallara26$';

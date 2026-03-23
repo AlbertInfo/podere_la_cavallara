@@ -1,6 +1,6 @@
 <?php
 
-$DB_HOST = 'palevioletred-fly-568261.hostingersite.com';
+$DB_HOST = 'localhost';
 $DB_NAME = 'u881781553_cavallara';
 $DB_USER = 'u881781553_admin';
 $DB_PASS = 'Poderecavallara26$';
