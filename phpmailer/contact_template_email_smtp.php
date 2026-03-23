@@ -57,11 +57,11 @@ try {
     }
 
     // Email admin
-    $mail->setFrom('alb.stend97@gmail.com', 'Podere La Cavallara');
-    $mail->addAddress('alb.stend97@gmail.com', 'Podere La Cavallara');
+    $mail->setFrom('alb.stend97@gmail.com', 'Podere Cavallara');
+    $mail->addAddress('alb.stend97@gmail.com', 'Podere Cavallara');
     $mail->addReplyTo($email_contact, $name_contact . ' ' . $lastname_contact);
     $mail->isHTML(true);
-    $mail->Subject = 'Nuova richiesta contatto - Podere La Cavallara';
+    $mail->Subject = 'Nuova richiesta contatto - Podere Cavallara';
     $mail->CharSet = 'UTF-8';
 
     $email_html = file_get_contents('template-email.html');
@@ -82,11 +82,11 @@ try {
     $mail->clearAddresses();
     $mail->clearReplyTos();
 
-    $mail->setFrom('info@palazzoriccaguarducci.it', 'Podere La Cavallara');
+    $mail->setFrom('alb.stend97@gmail.com', 'Podere Cavallara');
     $mail->addAddress($email_contact, $name_contact . ' ' . $lastname_contact);
-    $mail->addReplyTo('info@palazzoriccaguarducci.it', 'Podere La Cavallara');
+    $mail->addReplyTo('alb.stend97@gmail.com', 'Podere Cavallara');
     $mail->isHTML(true);
-    $mail->Subject = 'Conferma richiesta contatto - Podere La Cavallara';
+    $mail->Subject = 'Conferma richiesta contatto - Podere Cavallara';
     $mail->CharSet = 'UTF-8';
 
     $email_html_confirm = file_get_contents('confirmation.html');
