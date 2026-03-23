@@ -48,8 +48,8 @@ try {
     }
 
     // EMAIL A TE
-    $mail->setFrom('EMAIL_VERIFICATA', 'Podere La Cavallara');
-    $mail->addAddress('EMAIL_TUA');
+    $mail->setFrom('alb.stend97@gmail.com', 'Podere La Cavallara');
+    $mail->addAddress('alb.stend97@gmail.com');
     $mail->addReplyTo($email_booking, $name_booking);
 
     $mail->isHTML(true);
@@ -75,9 +75,9 @@ try {
     $mail->clearAddresses();
     $mail->clearReplyTos();
 
-    $mail->setFrom('EMAIL_VERIFICATA', 'Podere La Cavallara');
+    $mail->setFrom('alb.stend97@gmail.com', 'Podere La Cavallara');
     $mail->addAddress($email_booking, $name_booking);
-    $mail->addReplyTo('EMAIL_VERIFICATA', 'Podere La Cavallara');
+    $mail->addReplyTo('alb.stend97@gmail.com', 'Podere La Cavallara');
 
     $mail->Subject = 'Conferma richiesta prenotazione';
 
