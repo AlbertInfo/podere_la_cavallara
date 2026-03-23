@@ -288,9 +288,24 @@
 
 /*CSS CARD DI PROVA */
 /* migliora solo la resa visiva, senza toccare il layout interno del tema */
-.box_contents figure {
+
+
+
+/* CARD ESCURSIONI - FIX BORDI */
+.box_contents {
+    display: block;
+    height: 100%;
     overflow: hidden;
     border-radius: 16px;
+    background: #fff;
+    transition: transform .3s ease, box-shadow .3s ease;
+}
+
+.box_contents figure {
+    position: relative;
+    margin: 0;
+    overflow: hidden;
+    border-radius: 0;
 }
 
 .box_contents figure img {
@@ -301,21 +316,14 @@
     transition: transform .5s ease;
 }
 
-/* leggero zoom hover */
 .box_contents:hover figure img {
     transform: scale(1.04);
-}
-
-/* ombra soft sulla card */
-.box_contents {
-    transition: transform .3s ease, box-shadow .3s ease;
 }
 
 .box_contents:hover {
     transform: translateY(-4px);
 }
 
-/* badge opzionale */
 .box_contents figure .card_badge {
     position: absolute;
     top: 14px;
@@ -330,7 +338,6 @@
     backdrop-filter: blur(4px);
 }
 
-/* mobile */
 @media (max-width: 767.98px) {
     .box_contents figure img {
         height: 230px;
