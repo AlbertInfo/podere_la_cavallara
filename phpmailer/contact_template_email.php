@@ -5,7 +5,7 @@ use PHPMailer\PHPMailer\Exception;
 
 require 'src/Exception.php';
 require 'src/PHPMailer.php';
-
+require __DIR__ . '/db.php';
 $mail = new PHPMailer(true);
 
 try {

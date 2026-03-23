@@ -1,11 +1,15 @@
 <?php
 
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-require 'src/Exception.php';
-require 'src/PHPMailer.php';
-require 'src/SMTP.php';
+require __DIR__ . '/src/Exception.php';
+require __DIR__ . '/src/PHPMailer.php';
+require __DIR__ . '/src/SMTP.php';
+require __DIR__ . '/db.php';
 
 $mail = new PHPMailer(true);
 
@@ -17,11 +21,10 @@ try {
     $mail->Username   = '7816dd001@smtp-brevo.com';
     $mail->Password   = 'bsky6Xzs02wNBXH';
     $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-    $mail->Port       = 587
+    $mail->Port       = 587;
+    $mail->CharSet    = 'UTF-8';
 
-;
-
-    // Form fields
+    // Campi form
     $name_contact     = trim($_POST['name_contact'] ?? '');
     $lastname_contact = trim($_POST['lastname_contact'] ?? '');
     $email_contact    = trim($_POST['email_contact'] ?? '');
@@ -29,82 +32,166 @@ try {
     $message_contact  = trim($_POST['message_contact'] ?? '');
     $verify_contact   = trim($_POST['verify_contact'] ?? '');
 
-    // Validation
+    // Validazione
     if ($name_contact === '') {
         echo '<div class="error_message">Inserisci il nome.</div>';
         exit();
-    } elseif ($lastname_contact === '') {
+    }
+
+    if ($lastname_contact === '') {
         echo '<div class="error_message">Inserisci il cognome.</div>';
         exit();
-    } elseif ($email_contact === '' || !filter_var($email_contact, FILTER_VALIDATE_EMAIL)) {
+    }
+
+    if ($email_contact === '' || !filter_var($email_contact, FILTER_VALIDATE_EMAIL)) {
         echo '<div class="error_message">Inserisci un indirizzo email valido.</div>';
         exit();
-    } elseif ($phone_contact === '') {
+    }
+
+    if ($phone_contact === '') {
         echo '<div class="error_message">Inserisci un numero di telefono.</div>';
         exit();
-    } elseif (!preg_match('/^[0-9+\s().-]{6,20}$/', $phone_contact)) {
+    }
+
+    if (!preg_match('/^[0-9+\s().-]{6,20}$/', $phone_contact)) {
         echo '<div class="error_message">Inserisci un numero di telefono valido.</div>';
         exit();
-    } elseif ($message_contact === '') {
+    }
+
+    if ($message_contact === '') {
         echo '<div class="error_message">Inserisci il messaggio.</div>';
         exit();
-    } elseif ($verify_contact === '') {
-        echo '<div class="error_message">Inserisci il numero di verifica.</div>';
-        exit();
-    } elseif ($verify_contact !== '4') {
+    }
+
+    if ($verify_contact !== '4') {
         echo '<div class="error_message">Il numero di verifica non è corretto.</div>';
         exit();
     }
 
-    // Email admin
-    $mail->setFrom('alb.stend97@gmail.com', 'Podere Cavallara');
-    $mail->addAddress('alb.stend97@gmail.com', 'Podere Cavallara');
-    $mail->addReplyTo($email_contact, $name_contact . ' ' . $lastname_contact);
-    $mail->isHTML(true);
-    $mail->Subject = 'Nuova richiesta contatto - Podere Cavallara';
-    $mail->CharSet = 'UTF-8';
+    // Limite massimo 3 richieste contatto per email
+    $check = $pdo->prepare("
+        SELECT COUNT(*) 
+        FROM contact_requests 
+        WHERE email_contact = :email_contact
+    ");
+    $check->execute([
+        'email_contact' => $email_contact
+    ]);
 
-    $email_html = file_get_contents('template-email.html');
+    $requestCount = (int)$check->fetchColumn();
+
+    if ($requestCount >= 3) {
+        echo '<div class="error_message">Hai già inviato il numero massimo di richieste informazioni consentite con questa email.</div>';
+        exit();
+    }
+
+    // Template email admin
+    $email_html = file_get_contents(__DIR__ . '/template-email.html');
+
+    $safe_message_contact = nl2br(htmlspecialchars($message_contact, ENT_QUOTES, 'UTF-8'));
 
     $e_content = "
-        Hai ricevuto una nuova richiesta di contatto da
-        <strong>{$name_contact} {$lastname_contact}</strong>.<br><br>
-        <strong>Email:</strong> {$email_contact}<br>
-        <strong>Telefono:</strong> {$phone_contact}<br><br>
-        <strong>Messaggio:</strong><br>{$message_contact}
+        <h3 style='margin-top:0;'>Nuova richiesta informazioni</h3>
+        <table cellpadding='8' cellspacing='0' width='100%' style='border-collapse:collapse;'>
+            <tr>
+                <td style='border-bottom:1px solid #ddd; width:180px;'><strong>Nome</strong></td>
+                <td style='border-bottom:1px solid #ddd;'>{$name_contact} {$lastname_contact}</td>
+            </tr>
+            <tr>
+                <td style='border-bottom:1px solid #ddd;'><strong>Email</strong></td>
+                <td style='border-bottom:1px solid #ddd;'>{$email_contact}</td>
+            </tr>
+            <tr>
+                <td style='border-bottom:1px solid #ddd;'><strong>Telefono</strong></td>
+                <td style='border-bottom:1px solid #ddd;'>{$phone_contact}</td>
+            </tr>
+            <tr>
+                <td valign='top'><strong>Messaggio</strong></td>
+                <td>{$safe_message_contact}</td>
+            </tr>
+        </table>
     ";
 
-    $body = str_replace('message', $e_content, $email_html);
+    $body = str_replace(['message', 'messaggio'], $e_content, $email_html);
+
+    // Mail a te
+    $mail->setFrom('alb.stend97@gmail.com', 'Podere La Cavallara');
+    $mail->addAddress('alb.stend97@gmail.com', 'Podere La Cavallara');
+    $mail->addReplyTo($email_contact, $name_contact . ' ' . $lastname_contact);
+    $mail->isHTML(true);
+    $mail->Subject = 'Nuova richiesta informazioni - Podere La Cavallara';
     $mail->MsgHTML($body);
     $mail->send();
 
-    // Email conferma cliente
+    // Mail di conferma utente
     $mail->clearAddresses();
     $mail->clearReplyTos();
 
-    $mail->setFrom('alb.stend97@gmail.com', 'Podere Cavallara');
-    $mail->addAddress($email_contact, $name_contact . ' ' . $lastname_contact);
-    $mail->addReplyTo('alb.stend97@gmail.com', 'Podere Cavallara');
-    $mail->isHTML(true);
-    $mail->Subject = 'Conferma richiesta contatto - Podere Cavallara';
-    $mail->CharSet = 'UTF-8';
-
-    $email_html_confirm = file_get_contents('confirmation.html');
+    $email_html_confirm = file_get_contents(__DIR__ . '/confirmation.html');
 
     $confirm_content = "
-        Gentile <strong>{$name_contact} {$lastname_contact}</strong>,<br><br>
-        abbiamo ricevuto correttamente la tua richiesta di contatto.<br>
-        Ti risponderemo al più presto.<br><br>
-        <strong>Riepilogo del messaggio inviato:</strong><br>{$message_contact}
+        <p>Gentile {$name_contact} {$lastname_contact},</p>
+        <p>abbiamo ricevuto correttamente la tua richiesta di informazioni. Ti risponderemo al più presto.</p>
+        <h3>Riepilogo della richiesta</h3>
+        <table cellpadding='8' cellspacing='0' width='100%' style='border-collapse:collapse;'>
+            <tr>
+                <td style='border-bottom:1px solid #ddd; width:180px;'><strong>Email</strong></td>
+                <td style='border-bottom:1px solid #ddd;'>{$email_contact}</td>
+            </tr>
+            <tr>
+                <td style='border-bottom:1px solid #ddd;'><strong>Telefono</strong></td>
+                <td style='border-bottom:1px solid #ddd;'>{$phone_contact}</td>
+            </tr>
+            <tr>
+                <td valign='top'><strong>Messaggio</strong></td>
+                <td>{$safe_message_contact}</td>
+            </tr>
+        </table>
     ";
 
-    $body = str_replace('message', $confirm_content, $email_html_confirm);
-    $mail->MsgHTML($body);
+    $confirm_body = str_replace(['message', 'messaggio'], $confirm_content, $email_html_confirm);
+
+    $mail->setFrom('alb.stend97@gmail.com', 'Podere La Cavallara');
+    $mail->addAddress($email_contact, $name_contact . ' ' . $lastname_contact);
+    $mail->addReplyTo('alb.stend97@gmail.com', 'Podere La Cavallara');
+    $mail->isHTML(true);
+    $mail->Subject = 'Conferma richiesta informazioni - Podere La Cavallara';
+    $mail->MsgHTML($confirm_body);
     $mail->send();
+
+    // Salvataggio DB
+    $insert = $pdo->prepare("
+        INSERT INTO contact_requests (
+            name_contact,
+            lastname_contact,
+            email_contact,
+            phone_contact,
+            message_contact,
+            ip_address,
+            user_agent
+        ) VALUES (
+            :name_contact,
+            :lastname_contact,
+            :email_contact,
+            :phone_contact,
+            :message_contact,
+            :ip_address,
+            :user_agent
+        )
+    ");
+
+    $insert->execute([
+        'name_contact' => $name_contact,
+        'lastname_contact' => $lastname_contact,
+        'email_contact' => $email_contact,
+        'phone_contact' => $phone_contact,
+        'message_contact' => $message_contact,
+        'ip_address' => $_SERVER['REMOTE_ADDR'] ?? null,
+        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? null
+    ]);
 
     echo '<div id="success_page" data-title="Messaggio inviato correttamente" data-text="Grazie per averci contattato. Ti risponderemo al più presto."></div>';
 
 } catch (Exception $e) {
     echo '<div class="error_message">Impossibile inviare il messaggio. Errore: ' . htmlspecialchars($mail->ErrorInfo) . '</div>';
 }
-?>
