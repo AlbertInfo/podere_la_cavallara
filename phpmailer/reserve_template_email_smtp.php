@@ -58,14 +58,36 @@ try {
     $email_html = file_get_contents(__DIR__ . '/template-email.html');
 
     $e_content = "
-        Nuova richiesta prenotazione:<br><br>
-        <strong>Nome:</strong> $name_booking<br>
-        <strong>Email:</strong> $email_booking<br>
-        <strong>Date:</strong> $date_booking<br>
-        <strong>Sistemazione:</strong> $rooms_booking<br>
-        <strong>Adulti:</strong> $adults_booking<br>
-        <strong>Bambini:</strong> $childs_booking
-    ";
+    <h2>Nuova richiesta di prenotazione</h2>
+    <p>Hai ricevuto una nuova richiesta dal sito.</p>
+
+    <table cellpadding='6' cellspacing='0' border='1' style='border-collapse:collapse; width:100%;'>
+        <tr>
+            <td><strong>Nome</strong></td>
+            <td>{$name_booking}</td>
+        </tr>
+        <tr>
+            <td><strong>Email</strong></td>
+            <td>{$email_booking}</td>
+        </tr>
+        <tr>
+            <td><strong>Date soggiorno</strong></td>
+            <td>{$date_booking}</td>
+        </tr>
+        <tr>
+            <td><strong>Sistemazione</strong></td>
+            <td>{$rooms_booking}</td>
+        </tr>
+        <tr>
+            <td><strong>Adulti</strong></td>
+            <td>{$adults_booking}</td>
+        </tr>
+        <tr>
+            <td><strong>Bambini</strong></td>
+            <td>{$childs_booking}</td>
+        </tr>
+    </table>
+";
 
     $body = str_replace('message', $e_content, $email_html);
     $mail->MsgHTML($body);
@@ -84,12 +106,37 @@ try {
     $email_html_confirm = file_get_contents(__DIR__ . '/confirmation.html');
 
     $confirm_content = "
-        Gentile $name_booking,<br><br>
-        abbiamo ricevuto la tua richiesta di prenotazione.<br>
-        Ti risponderemo al più presto.<br><br>
-        <strong>Riepilogo:</strong><br>
-        $date_booking - $rooms_booking - Adulti: $adults_booking - Bambini: $childs_booking
-    ";
+    <p>Gentile {$name_booking},</p>
+    <p>abbiamo ricevuto correttamente la tua richiesta di prenotazione. Ti risponderemo al più presto.</p>
+
+    <h3>Riepilogo della richiesta</h3>
+    <table cellpadding='6' cellspacing='0' border='1' style='border-collapse:collapse; width:100%;'>
+        <tr>
+            <td><strong>Nome</strong></td>
+            <td>{$name_booking}</td>
+        </tr>
+        <tr>
+            <td><strong>Email</strong></td>
+            <td>{$email_booking}</td>
+        </tr>
+        <tr>
+            <td><strong>Date soggiorno</strong></td>
+            <td>{$date_booking}</td>
+        </tr>
+        <tr>
+            <td><strong>Sistemazione</strong></td>
+            <td>{$rooms_booking}</td>
+        </tr>
+        <tr>
+            <td><strong>Adulti</strong></td>
+            <td>{$adults_booking}</td>
+        </tr>
+        <tr>
+            <td><strong>Bambini</strong></td>
+            <td>{$childs_booking}</td>
+        </tr>
+    </table>
+";
 
     $body = str_replace('message', $confirm_content, $email_html_confirm);
     $mail->MsgHTML($body);
