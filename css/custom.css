@@ -2647,3 +2647,7 @@ background-color: rgba(0, 0, 0, 0.811);
     background: #c6a97a; /* colore brand */
     color: #fff;
 }
+
+.booking_wrapper {
+    padding: 10px 10px 10px 10px !important;
+}
