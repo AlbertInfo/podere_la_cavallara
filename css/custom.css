@@ -2612,3 +2612,38 @@ background-color: rgba(0, 0, 0, 0.811);
     -webkit-backdrop-filter: none;
   }
 }
+
+
+/* LINK CON BADGE */
+.menu-with-badge {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+/* BADGE OSPITI */
+.menu-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 20px;
+    background: rgba(0,0,0,0.06);
+    color: #444;
+    white-space: nowrap;
+    transition: all 0.3s ease;
+}
+
+/* ICONA */
+.menu-badge i {
+    font-size: 12px;
+}
+
+/* HOVER EFFETTO */
+.menu-with-badge:hover .menu-badge {
+    background: #c6a97a; /* colore brand */
+    color: #fff;
+}
