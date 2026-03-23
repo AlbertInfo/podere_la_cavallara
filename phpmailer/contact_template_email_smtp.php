@@ -102,7 +102,7 @@ try {
     $mail->MsgHTML($body);
     $mail->send();
 
-    echo '<div id="success_page" data-type="contact" data-title="Messaggio inviato correttamente" data-text="Grazie per averci contattato. Ti risponderemo al più presto."></div>';
+    echo '<div id="success_page" data-title="Messaggio inviato correttamente" data-text="Grazie per averci contattato. Ti risponderemo al più presto."></div>';
 
 } catch (Exception $e) {
     echo '<div class="error_message">Impossibile inviare il messaggio. Errore: ' . htmlspecialchars($mail->ErrorInfo) . '</div>';

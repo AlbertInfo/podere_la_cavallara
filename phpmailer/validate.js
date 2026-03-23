@@ -1,16 +1,50 @@
 /* <![CDATA[ */
 $(function () {
 
+    function scrollToElement(selector) {
+        const target = document.querySelector(selector);
+        if (!target) return;
+
+        const offset = window.innerWidth < 768 ? 90 : 120;
+        const top = target.getBoundingClientRect().top + window.pageYOffset - offset;
+
+        window.scrollTo({
+            top: top,
+            behavior: 'smooth'
+        });
+    }
+
     function openSuccessModal(title, text) {
+        const modalEl = document.getElementById('formSuccessModal');
         const titleEl = document.getElementById('formSuccessModalTitle');
         const textEl = document.getElementById('formSuccessModalText');
+
+        if (!modalEl) {
+            console.error('Modale non trovata: #formSuccessModal');
+            return false;
+        }
+
+        if (typeof bootstrap === 'undefined') {
+            console.error('Bootstrap JS non caricato');
+            return false;
+        }
 
         if (titleEl) titleEl.textContent = title;
         if (textEl) textEl.textContent = text;
 
-        const modalEl = document.getElementById('formSuccessModal');
         const modal = new bootstrap.Modal(modalEl);
         modal.show();
+        return true;
+    }
+
+    function showInlineFallback(messageSelector, title, text) {
+        const html = `
+            <div class="form-success-fallback">
+                <strong>${title}</strong><br>${text}
+            </div>
+        `;
+        $(messageSelector).html(html).slideDown('slow');
+        scrollToElement(messageSelector);
     }
 
     function handleResponse(messageSelector, submitSelector, formSelector, data, fallbackTitle, fallbackText) {
@@ -26,22 +60,62 @@ $(function () {
             const title = successNode.dataset.title || fallbackTitle;
             const text = successNode.dataset.text || fallbackText;
 
-            $(formSelector).slideUp('slow');
-            $(messageSelector).hide().html('');
-            openSuccessModal(title, text);
+            $(formSelector).slideUp('slow', function () {
+                $(messageSelector).hide().html('');
+
+                const opened = openSuccessModal(title, text);
+                if (!opened) {
+                    showInlineFallback(messageSelector, title, text);
+                }
+            });
+
             return;
         }
 
-        document.querySelector(messageSelector).innerHTML = data;
-        $(messageSelector).slideDown('slow');
+        $(messageSelector).html(data).slideDown('slow', function () {
+            scrollToElement(messageSelector);
+        });
     }
 
-    $('#bookingform').submit(function (e) {
+    $('#newsletter_form').on('submit', function (e) {
         e.preventDefault();
 
-        var action = $(this).attr('action');
+        const action = $(this).attr('action');
 
-        $("#message-booking").slideUp(200, function () {
+        $('#message-newsletter').slideUp(200, function () {
+            $('#message-newsletter').hide();
+            $('#submit-newsletter').attr('disabled', 'disabled');
+
+            $.post(action, {
+                email_newsletter: $('#email_newsletter').val()
+            })
+            .done(function (data) {
+                handleResponse(
+                    '#message-newsletter',
+                    '#submit-newsletter',
+                    '#newsletter_form',
+                    data,
+                    'Iscrizione completata',
+                    'Grazie, la tua iscrizione alla newsletter è stata registrata correttamente.'
+                );
+            })
+            .fail(function () {
+                $('#submit-newsletter').removeAttr('disabled');
+                $('#message-newsletter')
+                    .html('<div class="error_message">Si è verificato un errore. Riprova tra qualche istante.</div>')
+                    .slideDown('slow', function () {
+                        scrollToElement('#message-newsletter');
+                    });
+            });
+        });
+    });
+
+    $('#bookingform').on('submit', function (e) {
+        e.preventDefault();
+
+        const action = $(this).attr('action');
+
+        $('#message-booking').slideUp(200, function () {
             $('#message-booking').hide();
             $('#submit-booking').attr('disabled', 'disabled');
 
@@ -68,17 +142,19 @@ $(function () {
                 $('#submit-booking').removeAttr('disabled');
                 $('#message-booking')
                     .html('<div class="error_message">Si è verificato un errore durante l’invio della richiesta. Riprova.</div>')
-                    .slideDown('slow');
+                    .slideDown('slow', function () {
+                        scrollToElement('#message-booking');
+                    });
             });
         });
     });
 
-    $('#contactform').submit(function (e) {
+    $('#contactform').on('submit', function (e) {
         e.preventDefault();
 
-        var action = $(this).attr('action');
+        const action = $(this).attr('action');
 
-        $("#message-contact").slideUp(200, function () {
+        $('#message-contact').slideUp(200, function () {
             $('#message-contact').hide();
             $('#submit-contact').attr('disabled', 'disabled');
 
@@ -104,7 +180,9 @@ $(function () {
                 $('#submit-contact').removeAttr('disabled');
                 $('#message-contact')
                     .html('<div class="error_message">Si è verificato un errore durante l’invio del messaggio. Riprova.</div>')
-                    .slideDown('slow');
+                    .slideDown('slow', function () {
+                        scrollToElement('#message-contact');
+                    });
             });
         });
     });

@@ -2714,7 +2714,8 @@ background-color: rgba(0, 0, 0, 0.811);
 }
 
 .success-modal .modal-content {
-    background: linear-gradient(180deg, #fffdf9 0%, #f7f2e9 100%);
+    background: linear-gradient(180deg, #fffdf9 0%, #f6f1e8 100%);
+    border-radius: 22px;
 }
 
 .success-check-wrap {
@@ -2733,6 +2734,7 @@ background-color: rgba(0, 0, 0, 0.811);
     display: flex;
     align-items: center;
     justify-content: center;
+    box-shadow: 0 12px 28px rgba(40, 167, 69, 0.18);
 }
 
 .success-check-circle svg {
@@ -2742,7 +2744,7 @@ background-color: rgba(0, 0, 0, 0.811);
 
 .success-check-circle-bg {
     fill: #28a745;
-    opacity: 0.16;
+    opacity: 0.14;
     stroke: #28a745;
     stroke-width: 1.5;
 }
@@ -2762,28 +2764,27 @@ background-color: rgba(0, 0, 0, 0.811);
 }
 
 .success-modal p {
-    color: #5c5c5c;
+    color: #5e5a54;
     font-size: 1rem;
     line-height: 1.7;
     max-width: 420px;
-    margin-left: auto;
-    margin-right: auto;
+    margin: 0 auto;
 }
 
 @media (max-width: 767.98px) {
     .success-check-wrap,
     .success-check-circle {
-        width: 82px;
-        height: 82px;
+        width: 80px;
+        height: 80px;
     }
 
     .success-check-circle svg {
-        width: 62px;
-        height: 62px;
+        width: 60px;
+        height: 60px;
     }
 
     .success-modal h3 {
-        font-size: 1.45rem;
+        font-size: 1.4rem;
     }
 
     .success-modal p {
