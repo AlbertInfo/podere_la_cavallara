@@ -17,54 +17,54 @@ $(function () {
         });
     }
 
-    function openSuccessModal(title, text, formSelector, messageSelector) {
-        const modalEl = document.getElementById('formSuccessModal');
-        const titleEl = document.getElementById('formSuccessModalTitle');
-        const textEl = document.getElementById('formSuccessModalText');
+   function openSuccessModal(title, text, formSelector, messageSelector) {
+    const modalEl = document.getElementById('formSuccessModal');
+    const titleEl = document.getElementById('formSuccessModalTitle');
+    const textEl = document.getElementById('formSuccessModalText');
 
-        if (!modalEl) {
-            console.error('Modale non trovata: #formSuccessModal');
-            return false;
-        }
+    if (!modalEl) {
+        console.error('Modale non trovata: #formSuccessModal');
+        return false;
+    }
 
-        if (typeof bootstrap === 'undefined') {
-            console.error('Bootstrap JS non caricato');
-            return false;
-        }
+    if (typeof bootstrap === 'undefined') {
+        console.error('Bootstrap JS non caricato');
+        return false;
+    }
 
-        activeFormSelector = formSelector;
-        activeMessageSelector = messageSelector;
+    activeFormSelector = formSelector;
+    activeMessageSelector = messageSelector;
 
-        if (titleEl) titleEl.textContent = title;
-        if (textEl) textEl.textContent = text;
+    if (titleEl) titleEl.textContent = title;
+    if (textEl) textEl.textContent = text;
 
-        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
 
-        modalEl.addEventListener('hidden.bs.modal', function handleHidden() {
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
-
-            setTimeout(function () {
-                if (activeFormSelector) {
-                    $(activeFormSelector).slideDown('slow');
-                }
-
-                if (activeMessageSelector) {
-                    $(activeMessageSelector).hide().html('');
-                }
-
-                activeFormSelector = null;
-                activeMessageSelector = null;
-            }, 350);
-
-            modalEl.removeEventListener('hidden.bs.modal', handleHidden);
+    modalEl.addEventListener('hidden.bs.modal', function handleHidden() {
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
         });
 
-        modal.show();
-        return true;
-    }
+        setTimeout(function () {
+            if (activeFormSelector) {
+                $(activeFormSelector).slideDown('slow');
+            }
+
+            if (activeMessageSelector) {
+                $(activeMessageSelector).hide().html('');
+            }
+
+            activeFormSelector = null;
+            activeMessageSelector = null;
+        }, 350);
+
+        modalEl.removeEventListener('hidden.bs.modal', handleHidden);
+    }, { once: true });
+
+    modal.show();
+    return true;
+}
 
     function showInlineFallback(messageSelector, title, text) {
         const html = `
