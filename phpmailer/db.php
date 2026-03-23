@@ -1,9 +1,9 @@
 <?php
 
-$DB_HOST = 'localhost';
+$DB_HOST = 'palevioletred-fly-568261.hostingersite.com';
 $DB_NAME = 'u881781553_cavallara';
-$DB_USER = 'palevioletred-fly-568261.hostingersite.com';
-$DB_PASS = 'PASSWORD_DATABASE';
+$DB_USER = 'u881781553_admin';
+$DB_PASS = 'Poderecavallara26$';
 
 try {
     $pdo = new PDO(
