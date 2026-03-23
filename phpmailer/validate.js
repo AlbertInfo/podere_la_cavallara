@@ -48,13 +48,22 @@ $('#bookingform').submit(function () {
 				verify_booking: $('#verify_booking').val()
 			},
 			function (data) {
-				document.getElementById('message-booking').innerHTML = data;
-				$('#message-booking').slideDown('slow');
-				$('#submit-booking').removeAttr('disabled');
-				if (data.match('success') != null) $('#bookingform').slideUp('slow');
+    document.getElementById('message-booking').innerHTML = data;
+    $('#message-booking').slideDown('slow', function () {
+        const target = document.getElementById('message-booking');
+        if (target) {
+            const offset = 110;
+            const top = target.getBoundingClientRect().top + window.pageYOffset - offset;
+            window.scrollTo({ top: top, behavior: 'smooth' });
+        }
+    });
 
-			}
-		);
+    $('#submit-booking').removeAttr('disabled');
+
+    if (data.match('success') != null) {
+        $('#bookingform').slideUp('slow');
+    }
+}
 
 	});
 	return false;
@@ -80,13 +89,22 @@ $('#contactform').submit(function () {
 				verify_contact: $('#verify_contact').val()
 			},
 			function (data) {
-				document.getElementById('message-contact').innerHTML = data;
-				$('#message-contact').slideDown('slow');
-				$('#submit-contact').removeAttr('disabled');
-				if (data.match('success') != null) $('#contactform').slideUp('slow');
+    document.getElementById('message-contact').innerHTML = data;
+    $('#message-contact').slideDown('slow', function () {
+        const target = document.getElementById('message-contact');
+        if (target) {
+            const offset = 110;
+            const top = target.getBoundingClientRect().top + window.pageYOffset - offset;
+            window.scrollTo({ top: top, behavior: 'smooth' });
+        }
+    });
 
-			}
-		);
+    $('#submit-contact').removeAttr('disabled');
+
+    if (data.match('success') != null) {
+        $('#contactform').slideUp('slow');
+    }
+}
 
 	});
 	return false;

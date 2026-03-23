@@ -2651,3 +2651,64 @@ background-color: rgba(0, 0, 0, 0.811);
 .booking_wrapper {
     padding: 10px 10px 10px 10px !important;
 }
+
+.form-success-box {
+    background: #f8f5ef;
+    border: 1px solid #d8ccb8;
+    border-left: 5px solid #978667;
+    border-radius: 14px;
+    padding: 22px 20px;
+    margin: 20px 0 0;
+    text-align: center;
+    box-shadow: 0 8px 24px rgba(0,0,0,.06);
+}
+
+.form-success-icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 14px;
+    border-radius: 50%;
+    background: #978667;
+    color: #fff;
+    font-size: 28px;
+    line-height: 56px;
+    font-weight: 700;
+}
+
+.form-success-box h4 {
+    margin: 0 0 10px;
+    font-size: 24px;
+    line-height: 1.3;
+    color: #2f2f2f;
+}
+
+.form-success-box p {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.7;
+    color: #555;
+}
+
+@media (max-width: 767.98px) {
+    .form-success-box {
+        padding: 18px 16px;
+        margin-top: 16px;
+        border-radius: 12px;
+    }
+
+    .form-success-box h4 {
+        font-size: 20px;
+    }
+
+    .form-success-box p {
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    .form-success-icon {
+        width: 50px;
+        height: 50px;
+        line-height: 50px;
+        font-size: 24px;
+    }
+}
