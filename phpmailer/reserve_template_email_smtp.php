@@ -88,7 +88,7 @@ try {
         abbiamo ricevuto la tua richiesta di prenotazione.<br>
         Ti risponderemo al più presto.<br><br>
         <strong>Riepilogo:</strong><br>
-        $date_booking - $rooms_booking
+        $date_booking - $rooms_booking - Adulti: $adults_booking - Bambini: $childs_booking
     ";
 
     $body = str_replace('message', $confirm_content, $email_html_confirm);
