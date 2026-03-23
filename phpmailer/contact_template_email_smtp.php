@@ -12,12 +12,12 @@ $mail = new PHPMailer(true);
 try {
     // SMTP
     $mail->isSMTP();
-    $mail->Host       = 'smtp.hostinger.com';
+    $mail->Host       = '7816dd001@smtp-brevo.com';
     $mail->SMTPAuth   = true;
-    $mail->Username   = 'info@palazzoriccaguarducci.it';
-    $mail->Password   = 'Riccaguarducci2024$';
+    $mail->Username   = 'alb.stend97@gmail.com';
+    $mail->Password   = 'bsky6Xzs02wNBXH';
     $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-    $mail->Port       = 465
+    $mail->Port       = 587
 
 ;
 
@@ -57,8 +57,8 @@ try {
     }
 
     // Email admin
-    $mail->setFrom('info@palazzoriccaguarducci.it', 'Podere La Cavallara');
-    $mail->addAddress('info@palazzoriccaguarducci.it', 'Podere La Cavallara');
+    $mail->setFrom('alb.stend97@gmail.com', 'Podere La Cavallara');
+    $mail->addAddress('alb.stend97@gmail.com', 'Podere La Cavallara');
     $mail->addReplyTo($email_contact, $name_contact . ' ' . $lastname_contact);
     $mail->isHTML(true);
     $mail->Subject = 'Nuova richiesta contatto - Podere La Cavallara';
