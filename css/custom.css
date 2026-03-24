@@ -2652,7 +2652,7 @@ background-color: rgba(0, 0, 0, 0.811);
     padding: 10px 10px 10px 10px !important;
 }
 
-.form-success-box {
+/* .form-success-box {
     background: #f8f5ef;
     border: 1px solid #d8ccb8;
     border-left: 5px solid #978667;
@@ -2864,6 +2864,7 @@ background-color: rgba(0, 0, 0, 0.811);
 /* =========================
    SUCCESS MODAL
 ========================= */
+/*
 .success-modal .modal-dialog {
     max-width: 520px;
     margin: 1rem auto;
@@ -2993,13 +2994,13 @@ background-color: rgba(0, 0, 0, 0.811);
     .success-modal .btn_1 {
         width: 100%;
     }
-}
+} */
 
 /* ======================================
    SUCCESS MODAL - OVERRIDE DEFINITIVO
 ====================================== */
 
-.success-modal .modal-dialog {
+/* .success-modal .modal-dialog {
     max-width: 520px;
     margin: 1rem auto;
 }
@@ -3160,5 +3161,193 @@ background-color: rgba(0, 0, 0, 0.811);
 
     .success-modal .btn_1 {
         width: 100% !important;
+    }
+} */
+
+
+
+/* =========================
+   SUCCESS MODAL
+========================= */
+.success-modal .modal-dialog {
+    max-width: 520px;
+    margin: 1rem auto;
+}
+
+.success-modal .modal-content {
+    background: linear-gradient(180deg, #fffdf9 0%, #f6f1e8 100%);
+    border-radius: 22px;
+    border: 0;
+    overflow: hidden;
+    text-align: center;
+}
+
+.success-modal .modal-header {
+    padding: 14px 14px 0 14px;
+    border: 0;
+}
+
+.success-modal .modal-body {
+    text-align: center !important;
+    padding: 0 2rem 2rem 2rem;
+}
+
+.success-modal .btn-close {
+    box-shadow: none;
+    opacity: 0.85;
+}
+
+.success-modal .btn-close:hover {
+    opacity: 1;
+}
+
+.success-check-wrap {
+    width: 110px;
+    height: 110px;
+    margin: 0 auto 1.25rem auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.success-check-circle {
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    background: #dff3df;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 14px 30px rgba(40, 167, 69, 0.18);
+}
+
+.success-check-circle svg {
+    width: 68px;
+    height: 68px;
+    display: block;
+}
+
+.success-check-circle-bg {
+    fill: #dff3df;
+    stroke: #dff3df;
+    stroke-width: 1.5;
+}
+
+.success-check-path {
+    fill: none;
+    stroke: #28a745 !important;
+    stroke-width: 4.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.success-modal h3,
+.success-modal #formSuccessModalTitle {
+    color: #2d2d2d;
+    font-size: 1.85rem;
+    line-height: 1.2;
+    font-weight: 700;
+    text-align: center !important;
+    margin: 0 0 0.9rem 0 !important;
+}
+
+.success-modal p,
+.success-modal #formSuccessModalText {
+    color: #5e5a54;
+    font-size: 1rem;
+    line-height: 1.7;
+    max-width: 420px;
+    margin: 0 auto 1.5rem auto !important;
+    text-align: center !important;
+}
+
+.success-modal .btn_1 {
+    min-width: 160px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.form-success-fallback {
+    background: linear-gradient(180deg, #fffdf9 0%, #f6f1e8 100%);
+    border: 1px solid #e3d8c7;
+    border-radius: 18px;
+    padding: 24px 18px;
+    margin-top: 20px;
+    text-align: center;
+    box-shadow: 0 12px 30px rgba(0,0,0,.08);
+}
+
+.form-success-fallback-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 14px;
+    border-radius: 50%;
+    background: #28a745;
+    color: #fff;
+    font-size: 32px;
+    line-height: 64px;
+    font-weight: 700;
+}
+
+.form-success-fallback h4 {
+    margin: 0 0 8px;
+    font-size: 24px;
+    color: #2d2d2d;
+}
+
+.form-success-fallback p {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.6;
+    color: #5e5a54;
+}
+
+@media (max-width: 767.98px) {
+    .success-modal .modal-dialog {
+        margin: 1rem;
+    }
+
+    .success-modal .modal-body {
+        padding: 0 1.25rem 1.5rem 1.25rem !important;
+    }
+
+    .success-check-wrap,
+    .success-check-circle {
+        width: 88px;
+        height: 88px;
+    }
+
+    .success-check-circle svg {
+        width: 56px;
+        height: 56px;
+    }
+
+    .success-modal h3,
+    .success-modal #formSuccessModalTitle {
+        font-size: 1.45rem;
+    }
+
+    .success-modal p,
+    .success-modal #formSuccessModalText {
+        font-size: 0.96rem;
+        line-height: 1.6;
+    }
+
+    .success-modal .btn_1 {
+        width: 100%;
+    }
+
+    .form-success-fallback {
+        padding: 20px 14px;
+        border-radius: 14px;
+    }
+
+    .form-success-fallback h4 {
+        font-size: 20px;
+    }
+
+    .form-success-fallback p {
+        font-size: 14px;
     }
 }
