@@ -2827,3 +2827,35 @@ background-color: rgba(0, 0, 0, 0.811);
     line-height: 1.6;
     color: #5e5a54;
 }
+
+.success-modal .modal-header {
+    padding: 14px 14px 0 14px;
+}
+
+.success-modal .btn-close {
+    box-shadow: none;
+    opacity: 0.8;
+}
+
+.success-modal .btn-close:hover {
+    opacity: 1;
+}
+
+.success-modal .btn_1 {
+    min-width: 140px;
+}
+
+@media (max-width: 767.98px) {
+    .success-modal .modal-dialog {
+        margin: 1rem;
+    }
+
+    .success-modal .modal-body {
+        padding-left: 1.25rem !important;
+        padding-right: 1.25rem !important;
+    }
+
+    .success-modal .btn_1 {
+        width: 100%;
+    }
+}
