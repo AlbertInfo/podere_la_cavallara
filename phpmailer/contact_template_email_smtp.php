@@ -68,22 +68,38 @@ try {
         exit();
     }
 
-    // Limite massimo 3 richieste contatto per email
+    // Limite massimo 3 richieste contatto per email in un'ora
     $check = $pdo->prepare("
-        SELECT COUNT(*) 
-        FROM contact_requests 
-        WHERE email_contact = :email_contact
-    ");
-    $check->execute([
-        'email_contact' => $email_contact
-    ]);
+    SELECT created_at
+    FROM contact_requests
+    WHERE email_contact = :email_contact
+      AND created_at >= (NOW() - INTERVAL 1 HOUR)
+    ORDER BY created_at ASC
+");
+$check->execute([
+    'email_contact' => $email_contact
+]);
 
-    $requestCount = (int)$check->fetchColumn();
+$requests = $check->fetchAll();
 
-    if ($requestCount >= 3) {
-        echo '<div class="error_message">Hai già inviato il numero massimo di richieste informazioni consentite con questa email.</div>';
-        exit();
+if (count($requests) >= 3) {
+    $firstRequestTime = new DateTime($requests[0]['created_at']);
+    $unlockTime = clone $firstRequestTime;
+    $unlockTime->modify('+1 hour');
+
+    $now = new DateTime();
+    $secondsRemaining = $unlockTime->getTimestamp() - $now->getTimestamp();
+
+    if ($secondsRemaining < 0) {
+        $secondsRemaining = 0;
     }
+
+    $minutes = floor($secondsRemaining / 60);
+    $seconds = $secondsRemaining % 60;
+
+   echo '<div class="error_message">Tentativi di richiesta esauriti. Riprova tra ' . $minutes . ' minuti e ' . $seconds . ' secondi.</div>';
+    exit();
+}
 
     // Template email admin
     $email_html = file_get_contents(__DIR__ . '/template-email.html');

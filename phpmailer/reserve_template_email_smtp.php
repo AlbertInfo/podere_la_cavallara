@@ -70,21 +70,37 @@ try {
     }
 
     // Limite massimo 3 richieste prenotazione per email
-    $check = $pdo->prepare("
-        SELECT COUNT(*) 
-        FROM booking_requests 
-        WHERE email_booking = :email_booking
-    ");
-    $check->execute([
-        'email_booking' => $email_booking
-    ]);
+   $check = $pdo->prepare("
+    SELECT created_at
+    FROM booking_requests
+    WHERE email_booking = :email_booking
+      AND created_at >= (NOW() - INTERVAL 1 HOUR)
+    ORDER BY created_at ASC
+");
+$check->execute([
+    'email_booking' => $email_booking
+]);
 
-    $requestCount = (int)$check->fetchColumn();
+$requests = $check->fetchAll();
 
-    if ($requestCount >= 3) {
-        echo '<div class="error_message">Hai già inviato il numero massimo di richieste di prenotazione consentite con questa email.</div>';
-        exit();
+if (count($requests) >= 3) {
+    $firstRequestTime = new DateTime($requests[0]['created_at']);
+    $unlockTime = clone $firstRequestTime;
+    $unlockTime->modify('+1 hour');
+
+    $now = new DateTime();
+    $secondsRemaining = $unlockTime->getTimestamp() - $now->getTimestamp();
+
+    if ($secondsRemaining < 0) {
+        $secondsRemaining = 0;
     }
+
+    $minutes = floor($secondsRemaining / 60);
+    $seconds = $secondsRemaining % 60;
+
+    echo '<div class="error_message">Hai raggiunto il numero massimo di richieste consentite nell’ultima ora. Riprova tra ' . $minutes . ' minuti e ' . $seconds . ' secondi.</div>';
+    exit();
+}
 
     // Template email admin
     $email_html = file_get_contents(__DIR__ . '/template-email.html');
