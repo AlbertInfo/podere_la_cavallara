@@ -1,88 +1,196 @@
 /* <![CDATA[ */
 $(document).ready(function () {
+    "use strict";
+
+    var redirectAfterSuccess = false;
+    var redirectTimer = null;
 
     function getHomeUrl() {
-        const path = window.location.pathname;
-        const lastSlash = path.lastIndexOf('/');
-        const basePath = path.substring(0, lastSlash + 1);
+        var path = window.location.pathname || '';
+        var lastSlash = path.lastIndexOf('/');
+        var basePath = lastSlash !== -1 ? path.substring(0, lastSlash + 1) : '';
         return basePath + 'index.html';
     }
 
-    function bindSuccessModalRedirect() {
-        const modalEl = document.getElementById('formSuccessModal');
-
-        if (!modalEl || typeof bootstrap === 'undefined') {
-            return;
+    function clearRedirectTimer() {
+        if (redirectTimer) {
+            clearTimeout(redirectTimer);
+            redirectTimer = null;
         }
-
-        $(modalEl).off('hidden.bs.modal.formredirect');
-
-        $(modalEl).on('hidden.bs.modal.formredirect', function () {
-            window.location.href = getHomeUrl();
-        });
     }
 
-    function openSuccessModal(title, text) {
-        const modalEl = document.getElementById('formSuccessModal');
-        const titleEl = document.getElementById('formSuccessModalTitle');
-        const textEl = document.getElementById('formSuccessModalText');
+    function goHome() {
+        clearRedirectTimer();
+        window.location.href = getHomeUrl();
+    }
 
-        if (!modalEl || typeof bootstrap === 'undefined') {
-            return false;
+    function getSuccessModalElements() {
+        return {
+            modalEl: document.getElementById('formSuccessModal'),
+            titleEl: document.getElementById('formSuccessModalTitle'),
+            textEl: document.getElementById('formSuccessModalText')
+        };
+    }
+
+    function ensureModalIconFallback(modalEl) {
+        if (!modalEl) return;
+
+        var circle = modalEl.querySelector('.success-check-circle');
+        if (!circle) return;
+
+        var svg = circle.querySelector('svg');
+        var fallback = circle.querySelector('.success-check-fallback');
+
+        if (!fallback) {
+            fallback = document.createElement('span');
+            fallback.className = 'success-check-fallback';
+            fallback.setAttribute('aria-hidden', 'true');
+            fallback.textContent = '✓';
+            circle.appendChild(fallback);
         }
 
-        if (titleEl) titleEl.textContent = title;
-        if (textEl) textEl.textContent = text;
+        if (!svg) {
+            circle.classList.add('no-svg');
+        } else {
+            circle.classList.remove('no-svg');
+        }
+    }
 
-        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-        modal.show();
+    function bindSuccessModalRedirect() {
+        var els = getSuccessModalElements();
+        var modalEl = els.modalEl;
 
-        return true;
+        if (!modalEl) return;
+
+        ensureModalIconFallback(modalEl);
+
+        $(modalEl).off('.formredirect');
+        modalEl.removeEventListener('click', handleManualClose, true);
+        document.removeEventListener('keydown', handleEscClose, true);
+
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            $(modalEl).on('hidden.bs.modal.formredirect', function () {
+                if (redirectAfterSuccess) {
+                    goHome();
+                }
+            });
+
+            $(modalEl).on('shown.bs.modal.formredirect', function () {
+                ensureModalIconFallback(modalEl);
+            });
+        }
+
+        modalEl.addEventListener('click', handleManualClose, true);
+        document.addEventListener('keydown', handleEscClose, true);
+    }
+
+    function handleManualClose(e) {
+        if (!redirectAfterSuccess) return;
+
+        var target = e.target;
+
+        if (
+            target.closest('[data-bs-dismiss="modal"]') ||
+            target.classList.contains('btn-close') ||
+            target.closest('.btn-close')
+        ) {
+            clearRedirectTimer();
+            setTimeout(function () {
+                goHome();
+            }, 120);
+        }
+    }
+
+    function handleEscClose(e) {
+        if (!redirectAfterSuccess) return;
+        if (e.key === 'Escape' || e.keyCode === 27) {
+            clearRedirectTimer();
+            setTimeout(function () {
+                goHome();
+            }, 180);
+        }
     }
 
     function showInlineSuccess(messageSelector, title, text) {
-        const html = `
-            <div class="form-success-fallback">
-                <div class="form-success-fallback-icon">✓</div>
-                <h4>${title}</h4>
-                <p>${text}</p>
-            </div>
-        `;
+        var html =
+            '<div class="form-success-fallback">' +
+                '<div class="form-success-fallback-icon">✓</div>' +
+                '<h4>' + escapeHtml(title) + '</h4>' +
+                '<p>' + escapeHtml(text) + '</p>' +
+            '</div>';
+
         $(messageSelector).html(html).slideDown('slow');
     }
 
-    function handleResponse(data, formSelector, messageSelector, submitSelector, fallbackTitle, fallbackText) {
-        const wrapper = document.createElement('div');
+    function escapeHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function parseSuccessResponse(data) {
+        var wrapper = document.createElement('div');
         wrapper.innerHTML = data;
 
-        const successNode = wrapper.querySelector('#success_page');
-        const isSuccess = !!successNode;
+        var successNode = wrapper.querySelector('#success_page');
+        if (!successNode) return null;
 
-        $(submitSelector).removeAttr('disabled');
+        return {
+            title: successNode.getAttribute('data-title') || '',
+            text: successNode.getAttribute('data-text') || ''
+        };
+    }
 
-        if (isSuccess) {
-            const title = successNode.dataset.title || fallbackTitle;
-            const text = successNode.dataset.text || fallbackText;
+    function openSuccessModal(title, text) {
+        var els = getSuccessModalElements();
+        var modalEl = els.modalEl;
+        var titleEl = els.titleEl;
+        var textEl = els.textEl;
 
-            const modalOpened = openSuccessModal(title, text);
-
-            if (modalOpened) {
-                $(formSelector).stop(true, true).slideUp('slow');
-                $(messageSelector).hide().html('');
-            } else {
-                $(formSelector).stop(true, true).slideUp('slow', function () {
-                    showInlineSuccess(messageSelector, title, text);
-                    window.location.href = getHomeUrl();
-                });
-            }
-
-            return;
+        if (!modalEl || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+            return false;
         }
 
+        if (titleEl) {
+            titleEl.textContent = title;
+        }
+
+        if (textEl) {
+            textEl.textContent = text;
+        }
+
+        ensureModalIconFallback(modalEl);
+
+        try {
+            var modal = bootstrap.Modal.getOrCreateInstance(modalEl, {
+                backdrop: true,
+                keyboard: true,
+                focus: true
+            });
+
+            modal.show();
+
+            redirectAfterSuccess = true;
+
+            clearRedirectTimer();
+            redirectTimer = setTimeout(function () {
+                goHome();
+            }, 12000);
+
+            return true;
+        } catch (err) {
+            return false;
+        }
+    }
+
+    function showServerMessage(messageSelector, data) {
         $(messageSelector).html(data).slideDown('slow', function () {
-            const target = document.querySelector(messageSelector);
+            var target = document.querySelector(messageSelector);
             if (target) {
-                const top = target.getBoundingClientRect().top + window.pageYOffset - 100;
+                var top = target.getBoundingClientRect().top + window.pageYOffset - 100;
                 window.scrollTo({
                     top: top,
                     behavior: 'smooth'
@@ -91,56 +199,112 @@ $(document).ready(function () {
         });
     }
 
+    function beforeSubmit(messageSelector, submitSelector) {
+        $(messageSelector).stop(true, true).slideUp(200, function () {
+            $(this).hide().html('');
+        });
+
+        $(submitSelector).attr('disabled', 'disabled');
+    }
+
+    function afterFail(messageSelector, submitSelector, errorText) {
+        $(submitSelector).removeAttr('disabled');
+        $(messageSelector)
+            .html('<div class="error_message">' + errorText + '</div>')
+            .slideDown('slow');
+    }
+
+    function handleSuccessResponse(data, options) {
+        var parsed = parseSuccessResponse(data);
+
+        $(options.submitSelector).removeAttr('disabled');
+
+        if (parsed) {
+            var title = parsed.title || options.fallbackTitle;
+            var text = parsed.text || options.fallbackText;
+
+            var modalOpened = openSuccessModal(title, text);
+
+            if (modalOpened) {
+                $(options.formSelector).stop(true, true).slideUp('slow');
+                $(options.messageSelector).hide().html('');
+            } else {
+                $(options.formSelector).stop(true, true).slideUp('slow', function () {
+                    showInlineSuccess(options.messageSelector, title, text);
+                    setTimeout(function () {
+                        goHome();
+                    }, 1800);
+                });
+            }
+
+            return;
+        }
+
+        showServerMessage(options.messageSelector, data);
+    }
+
+    function submitAjaxForm(config) {
+        var $form = $(config.formSelector);
+        if (!$form.length) return;
+
+        $form.on('submit', function (e) {
+            e.preventDefault();
+
+            var action = $form.attr('action');
+            if (!action) {
+                afterFail(
+                    config.messageSelector,
+                    config.submitSelector,
+                    'Azione del form non trovata. Controlla l’attributo action.'
+                );
+                return;
+            }
+
+            redirectAfterSuccess = false;
+            clearRedirectTimer();
+
+            beforeSubmit(config.messageSelector, config.submitSelector);
+
+            $.post(action, config.getData())
+                .done(function (data) {
+                    handleSuccessResponse(data, config);
+                })
+                .fail(function () {
+                    afterFail(config.messageSelector, config.submitSelector, config.errorText);
+                });
+        });
+    }
+
     bindSuccessModalRedirect();
 
-    // CONTACT FORM
-    $('#contactform').on('submit', function (e) {
-        e.preventDefault();
-
-        const action = $(this).attr('action');
-
-        $('#message-contact').slideUp(200, function () {
-            $('#message-contact').hide();
-            $('#submit-contact').attr('disabled', 'disabled');
-
-            $.post(action, {
+    submitAjaxForm({
+        formSelector: '#contactform',
+        messageSelector: '#message-contact',
+        submitSelector: '#submit-contact',
+        fallbackTitle: 'Messaggio inviato correttamente',
+        fallbackText: 'Grazie per averci contattato. Ti risponderemo al più presto.',
+        errorText: 'Si è verificato un errore durante l’invio del messaggio. Riprova.',
+        getData: function () {
+            return {
                 name_contact: $('#name_contact').val(),
                 lastname_contact: $('#lastname_contact').val(),
                 email_contact: $('#email_contact').val(),
                 phone_contact: $('#phone_contact').val(),
                 message_contact: $('#message_contact').val(),
                 verify_contact: $('#verify_contact').val()
-            })
-            .done(function (data) {
-                handleResponse(
-                    data,
-                    '#contactform',
-                    '#message-contact',
-                    '#submit-contact',
-                    'Messaggio inviato correttamente',
-                    'Grazie per averci contattato. Ti risponderemo al più presto.'
-                );
-            })
-            .fail(function () {
-                $('#submit-contact').removeAttr('disabled');
-                $('#message-contact')
-                    .html('<div class="error_message">Si è verificato un errore durante l’invio del messaggio. Riprova.</div>')
-                    .slideDown('slow');
-            });
-        });
+            };
+        }
     });
 
-    // BOOKING FORM
-    $('#bookingform').on('submit', function (e) {
-        e.preventDefault();
-
-        const action = $(this).attr('action');
-
-        $('#message-booking').slideUp(200, function () {
-            $('#message-booking').hide();
-            $('#submit-booking').attr('disabled', 'disabled');
-
-            $.post(action, {
+    submitAjaxForm({
+        formSelector: '#bookingform',
+        messageSelector: '#message-booking',
+        submitSelector: '#submit-booking',
+        fallbackTitle: 'Richiesta inviata correttamente',
+        fallbackText: 'Abbiamo ricevuto la tua richiesta di prenotazione. Ti risponderemo al più presto con tutti i dettagli.',
+        errorText: 'Si è verificato un errore durante l’invio della richiesta. Riprova.',
+        getData: function () {
+            return {
                 date_booking: $('#date_booking').val(),
                 rooms_booking: $('#rooms_booking').val(),
                 adults_booking: $('#adults_booking').val(),
@@ -148,57 +312,22 @@ $(document).ready(function () {
                 name_booking: $('#name_booking').val(),
                 email_booking: $('#email_booking').val(),
                 verify_booking: $('#verify_booking').val()
-            })
-            .done(function (data) {
-                handleResponse(
-                    data,
-                    '#bookingform',
-                    '#message-booking',
-                    '#submit-booking',
-                    'Richiesta inviata correttamente',
-                    'Abbiamo ricevuto la tua richiesta di prenotazione. Ti risponderemo al più presto con tutti i dettagli.'
-                );
-            })
-            .fail(function () {
-                $('#submit-booking').removeAttr('disabled');
-                $('#message-booking')
-                    .html('<div class="error_message">Si è verificato un errore durante l’invio della richiesta. Riprova.</div>')
-                    .slideDown('slow');
-            });
-        });
+            };
+        }
     });
 
-    // NEWSLETTER FORM
-    $('#newsletter_form').on('submit', function (e) {
-        e.preventDefault();
-
-        const action = $(this).attr('action');
-
-        $('#message-newsletter').slideUp(200, function () {
-            $('#message-newsletter').hide();
-            $('#submit-newsletter').attr('disabled', 'disabled');
-
-            $.post(action, {
+    submitAjaxForm({
+        formSelector: '#newsletter_form',
+        messageSelector: '#message-newsletter',
+        submitSelector: '#submit-newsletter',
+        fallbackTitle: 'Iscrizione completata',
+        fallbackText: 'Grazie, la tua iscrizione alla newsletter è stata registrata correttamente.',
+        errorText: 'Si è verificato un errore. Riprova tra qualche istante.',
+        getData: function () {
+            return {
                 email_newsletter: $('#email_newsletter').val()
-            })
-            .done(function (data) {
-                handleResponse(
-                    data,
-                    '#newsletter_form',
-                    '#message-newsletter',
-                    '#submit-newsletter',
-                    'Iscrizione completata',
-                    'Grazie, la tua iscrizione alla newsletter è stata registrata correttamente.'
-                );
-            })
-            .fail(function () {
-                $('#submit-newsletter').removeAttr('disabled');
-                $('#message-newsletter')
-                    .html('<div class="error_message">Si è verificato un errore. Riprova tra qualche istante.</div>')
-                    .slideDown('slow');
-            });
-        });
+            };
+        }
     });
-
 });
 /* ]]> */

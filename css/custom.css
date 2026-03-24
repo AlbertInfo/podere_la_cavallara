@@ -2994,3 +2994,171 @@ background-color: rgba(0, 0, 0, 0.811);
         width: 100%;
     }
 }
+
+/* ======================================
+   SUCCESS MODAL - OVERRIDE DEFINITIVO
+====================================== */
+
+.success-modal .modal-dialog {
+    max-width: 520px;
+    margin: 1rem auto;
+}
+
+.success-modal .modal-content {
+    background: linear-gradient(180deg, #fffdf9 0%, #f6f1e8 100%) !important;
+    border: 0 !important;
+    border-radius: 22px !important;
+    overflow: hidden !important;
+    text-align: center !important;
+}
+
+.success-modal .modal-header {
+    border: 0 !important;
+    padding: 14px 14px 0 14px !important;
+}
+
+.success-modal .modal-body {
+    text-align: center !important;
+    padding: 0 2rem 2rem 2rem !important;
+}
+
+.success-modal h3,
+.success-modal p,
+.success-modal .modal-body h3,
+.success-modal .modal-body p,
+#formSuccessModalTitle,
+#formSuccessModalText {
+    text-align: center !important;
+}
+
+.success-modal h3,
+#formSuccessModalTitle {
+    color: #2d2d2d !important;
+    font-size: 1.85rem !important;
+    line-height: 1.25 !important;
+    font-weight: 700 !important;
+    margin-bottom: 0.75rem !important;
+}
+
+.success-modal p,
+#formSuccessModalText {
+    color: #5e5a54 !important;
+    font-size: 1rem !important;
+    line-height: 1.7 !important;
+    max-width: 420px !important;
+    margin: 0 auto 1.5rem auto !important;
+}
+
+.success-check-wrap {
+    width: 96px !important;
+    height: 96px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 auto 1.25rem auto !important;
+}
+
+.success-check-circle {
+    width: 96px !important;
+    height: 96px !important;
+    border-radius: 50% !important;
+    background: #28a745 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: relative !important;
+    overflow: hidden !important;
+    box-shadow: 0 14px 30px rgba(40, 167, 69, 0.22) !important;
+}
+
+.success-check-circle svg {
+    width: 62px !important;
+    height: 62px !important;
+    display: block !important;
+    position: relative !important;
+    z-index: 2 !important;
+}
+
+.success-check-circle-bg {
+    fill: rgba(255,255,255,0.18) !important;
+    stroke: rgba(255,255,255,0.35) !important;
+    stroke-width: 1.5 !important;
+}
+
+.success-check-path {
+    fill: none !important;
+    stroke: #ffffff !important;
+    stroke-width: 4.2 !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+}
+
+.success-check-fallback {
+    display: none;
+    color: #ffffff;
+    font-size: 42px;
+    line-height: 1;
+    font-weight: 700;
+    position: relative;
+    z-index: 3;
+}
+
+.success-check-circle.no-svg .success-check-fallback {
+    display: block;
+}
+
+.success-modal .btn-close {
+    box-shadow: none !important;
+    opacity: 0.85 !important;
+}
+
+.success-modal .btn-close:hover {
+    opacity: 1 !important;
+}
+
+.success-modal .btn_1 {
+    min-width: 150px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+@media (max-width: 767.98px) {
+    .success-modal .modal-dialog {
+        margin: 1rem !important;
+    }
+
+    .success-modal .modal-body {
+        padding: 0 1.25rem 1.5rem 1.25rem !important;
+    }
+
+    .success-check-wrap,
+    .success-check-circle {
+        width: 82px !important;
+        height: 82px !important;
+    }
+
+    .success-check-circle svg {
+        width: 54px !important;
+        height: 54px !important;
+    }
+
+    .success-check-fallback {
+        font-size: 36px;
+    }
+
+    .success-modal h3,
+    #formSuccessModalTitle {
+        font-size: 1.4rem !important;
+    }
+
+    .success-modal p,
+    #formSuccessModalText {
+        font-size: 0.95rem !important;
+        line-height: 1.6 !important;
+    }
+
+    .success-modal .btn_1 {
+        width: 100% !important;
+    }
+}
