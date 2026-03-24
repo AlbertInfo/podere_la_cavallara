@@ -1,19 +1,24 @@
 /* <![CDATA[ */
 $(document).ready(function () {
 
-    function bindSuccessModalReload() {
+    function getHomeUrl() {
+        const path = window.location.pathname;
+        const lastSlash = path.lastIndexOf('/');
+        const basePath = path.substring(0, lastSlash + 1);
+        return basePath + 'index.html';
+    }
+
+    function bindSuccessModalRedirect() {
         const modalEl = document.getElementById('formSuccessModal');
 
         if (!modalEl || typeof bootstrap === 'undefined') {
             return;
         }
 
-        // rimuove eventuali binding precedenti
-        $(modalEl).off('hidden.bs.modal.formreload');
+        $(modalEl).off('hidden.bs.modal.formredirect');
 
-        // quando la modale si chiude, ricarica la pagina
-        $(modalEl).on('hidden.bs.modal.formreload', function () {
-            window.location.reload();
+        $(modalEl).on('hidden.bs.modal.formredirect', function () {
+            window.location.href = getHomeUrl();
         });
     }
 
@@ -67,10 +72,7 @@ $(document).ready(function () {
             } else {
                 $(formSelector).stop(true, true).slideUp('slow', function () {
                     showInlineSuccess(messageSelector, title, text);
-                    window.scrollTo({
-                        top: 0,
-                        behavior: 'smooth'
-                    });
+                    window.location.href = getHomeUrl();
                 });
             }
 
@@ -89,8 +91,7 @@ $(document).ready(function () {
         });
     }
 
-    // bind globale: alla chiusura modale => reload pagina
-    bindSuccessModalReload();
+    bindSuccessModalRedirect();
 
     // CONTACT FORM
     $('#contactform').on('submit', function (e) {

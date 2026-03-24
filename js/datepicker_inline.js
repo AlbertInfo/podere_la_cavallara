@@ -56,8 +56,8 @@ $(function () {
           return num - 1;
         },
         locale: {
-          one: 'night',
-          other: 'nights',
+          one: 'notte',
+          other: 'notti',
         },
       },
       LockPlugin: {

@@ -2859,3 +2859,138 @@ background-color: rgba(0, 0, 0, 0.811);
         width: 100%;
     }
 }
+
+
+/* =========================
+   SUCCESS MODAL
+========================= */
+.success-modal .modal-dialog {
+    max-width: 520px;
+    margin: 1rem auto;
+}
+
+.success-modal .modal-content {
+    background: linear-gradient(180deg, #fffdf9 0%, #f6f1e8 100%);
+    border-radius: 22px;
+    border: 0;
+    overflow: hidden;
+    text-align: center;
+}
+
+.success-modal .modal-header {
+    padding: 14px 14px 0 14px;
+    border: 0;
+}
+
+.success-modal .modal-body {
+    text-align: center !important;
+    padding: 0 2rem 2rem 2rem;
+}
+
+.success-modal .btn-close {
+    box-shadow: none;
+    opacity: 0.85;
+}
+
+.success-modal .btn-close:hover {
+    opacity: 1;
+}
+
+.success-check-wrap {
+    width: 96px;
+    height: 96px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.25rem auto;
+}
+
+.success-check-circle {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    background: #28a745;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 14px 30px rgba(40, 167, 69, 0.22);
+}
+
+.success-check-circle svg {
+    width: 62px;
+    height: 62px;
+    display: block;
+}
+
+.success-check-circle-bg {
+    fill: rgba(255,255,255,0.18);
+    stroke: rgba(255,255,255,0.35);
+    stroke-width: 1.5;
+}
+
+.success-check-path {
+    fill: none;
+    stroke: #ffffff;
+    stroke-width: 4.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.success-modal h3 {
+    color: #2d2d2d;
+    font-size: 1.85rem;
+    line-height: 1.25;
+    font-weight: 700;
+    text-align: center !important;
+    margin-bottom: 0.75rem;
+}
+
+.success-modal p {
+    color: #5e5a54;
+    font-size: 1rem;
+    line-height: 1.7;
+    max-width: 420px;
+    margin: 0 auto 1.5rem auto !important;
+    text-align: center !important;
+}
+
+.success-modal .btn_1 {
+    min-width: 150px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@media (max-width: 767.98px) {
+    .success-modal .modal-dialog {
+        margin: 1rem;
+    }
+
+    .success-modal .modal-body {
+        padding: 0 1.25rem 1.5rem 1.25rem !important;
+    }
+
+    .success-check-wrap,
+    .success-check-circle {
+        width: 82px;
+        height: 82px;
+    }
+
+    .success-check-circle svg {
+        width: 54px;
+        height: 54px;
+    }
+
+    .success-modal h3 {
+        font-size: 1.4rem;
+    }
+
+    .success-modal p {
+        font-size: 0.95rem;
+        line-height: 1.6;
+    }
+
+    .success-modal .btn_1 {
+        width: 100%;
+    }
+}
