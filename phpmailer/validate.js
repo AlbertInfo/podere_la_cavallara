@@ -3,7 +3,6 @@ $(document).ready(function () {
 
     let currentFormSelector = null;
     let currentMessageSelector = null;
-    let currentSubmitSelector = null;
 
     function scrollTopSmooth() {
         window.scrollTo({
@@ -12,7 +11,7 @@ $(document).ready(function () {
         });
     }
 
-    function showFormAgain() {
+    function resetAndShowForm() {
         if (currentFormSelector) {
             const formEl = document.querySelector(currentFormSelector);
             if (formEl) {
@@ -25,14 +24,37 @@ $(document).ready(function () {
         if (currentMessageSelector) {
             $(currentMessageSelector).hide().html('');
         }
+    }
 
-        if (currentSubmitSelector) {
-            $(currentSubmitSelector).removeAttr('disabled');
+    function openSuccessModal(title, text, formSelector, messageSelector) {
+        const modalEl = document.getElementById('formSuccessModal');
+        const titleEl = document.getElementById('formSuccessModalTitle');
+        const textEl = document.getElementById('formSuccessModalText');
+
+        if (!modalEl || typeof bootstrap === 'undefined') {
+            return false;
         }
 
-        currentFormSelector = null;
-        currentMessageSelector = null;
-        currentSubmitSelector = null;
+        currentFormSelector = formSelector;
+        currentMessageSelector = messageSelector;
+
+        if (titleEl) titleEl.textContent = title;
+        if (textEl) textEl.textContent = text;
+
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+        modalEl.addEventListener('hidden.bs.modal', function handleHidden() {
+            scrollTopSmooth();
+
+            setTimeout(function () {
+                resetAndShowForm();
+                currentFormSelector = null;
+                currentMessageSelector = null;
+            }, 350);
+        }, { once: true });
+
+        modal.show();
+        return true;
     }
 
     function showInlineSuccess(messageSelector, title, text) {
@@ -45,37 +67,6 @@ $(document).ready(function () {
         `;
 
         $(messageSelector).html(html).slideDown('slow');
-    }
-
-    function openSuccessModal(title, text, formSelector, messageSelector, submitSelector) {
-        const modalEl = document.getElementById('formSuccessModal');
-        const titleEl = document.getElementById('formSuccessModalTitle');
-        const textEl = document.getElementById('formSuccessModalText');
-
-        if (!modalEl || typeof bootstrap === 'undefined') {
-            return false;
-        }
-
-        currentFormSelector = formSelector;
-        currentMessageSelector = messageSelector;
-        currentSubmitSelector = submitSelector;
-
-        if (titleEl) titleEl.textContent = title;
-        if (textEl) textEl.textContent = text;
-
-        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-
-        // Rimuove eventuali handler precedenti e ne aggancia uno pulito
-        $(modalEl).off('hidden.bs.modal').one('hidden.bs.modal', function () {
-            scrollTopSmooth();
-
-            setTimeout(function () {
-                showFormAgain();
-            }, 450);
-        });
-
-        modal.show();
-        return true;
     }
 
     function handleResponse(data, formSelector, messageSelector, submitSelector, fallbackTitle, fallbackText) {
@@ -91,13 +82,7 @@ $(document).ready(function () {
             const title = successNode.dataset.title || fallbackTitle;
             const text = successNode.dataset.text || fallbackText;
 
-            const modalOpened = openSuccessModal(
-                title,
-                text,
-                formSelector,
-                messageSelector,
-                submitSelector
-            );
+            const modalOpened = openSuccessModal(title, text, formSelector, messageSelector);
 
             if (modalOpened) {
                 $(formSelector).stop(true, true).slideUp('slow');
@@ -142,7 +127,7 @@ $(document).ready(function () {
                     'Grazie per averci contattato. Ti risponderemo al più presto.'
                 );
             })
-            .fail(function () {
+            .fail(function (xhr) {
                 $('#submit-contact').removeAttr('disabled');
                 $('#message-contact')
                     .html('<div class="error_message">Si è verificato un errore durante l’invio del messaggio. Riprova.</div>')
@@ -180,7 +165,7 @@ $(document).ready(function () {
                     'Abbiamo ricevuto la tua richiesta di prenotazione. Ti risponderemo al più presto con tutti i dettagli.'
                 );
             })
-            .fail(function () {
+            .fail(function (xhr) {
                 $('#submit-booking').removeAttr('disabled');
                 $('#message-booking')
                     .html('<div class="error_message">Si è verificato un errore durante l’invio della richiesta. Riprova.</div>')
