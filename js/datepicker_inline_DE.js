@@ -43,7 +43,7 @@ $(function() {
         css: [
           'css/daterangepicker_v2.css',
         ],
-        lang: 'fr-FR', // Language tags https://www.techonthenet.com/js/language_tags.php
+        lang: 'de-DE', // Language tags https://www.techonthenet.com/js/language_tags.php
         format: "DD/MM/YYYY",
         calendars: 2,
         grid: 2,
@@ -55,8 +55,8 @@ $(function() {
             return num - 1;
           },
           locale: {
-            one: 'night',
-            other: 'nights',
+            one: 'Nacht',
+            other: 'Nächte',
           },
         },
         LockPlugin: {

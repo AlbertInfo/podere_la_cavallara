@@ -459,7 +459,7 @@
 <script src="../js/common_scripts.js"></script>
 <script src="../js/common_functions.js"></script>
 <script src="../js/datepicker_inline.js"></script>
-<script src="../phpmailer/validate.js"></script>
+<script src="../phpmailer/validate.js?v=7"></script>
 <script>
     // Progress bars animation
     $(function() {
@@ -504,8 +504,12 @@
 <div class="modal fade success-modal" id="formSuccessModal" tabindex="-1" aria-labelledby="formSuccessModalTitle" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-sm modal-md">
     <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-      <div class="modal-body text-center p-4 p-md-5">
 
+      <div class="modal-header border-0 pb-0">
+        <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+
+      <div class="modal-body text-center px-4 pb-4 pt-0 p-md-5">
         <div class="success-check-wrap mx-auto mb-4">
           <div class="success-check-circle">
             <svg viewBox="0 0 52 52" aria-hidden="true">
@@ -519,11 +523,15 @@
           Richiesta inviata correttamente
         </h3>
 
-        <p id="formSuccessModalText" class="mb-0">
+        <p id="formSuccessModalText" class="mb-4">
           Grazie, abbiamo ricevuto la tua richiesta e ti risponderemo al più presto.
         </p>
 
+        <button type="button" class="btn_1" data-bs-dismiss="modal">
+          Chiudi
+        </button>
       </div>
+
     </div>
   </div>
 </div>
