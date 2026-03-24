@@ -1,8 +1,8 @@
 /* <![CDATA[ */
-$(function () {
+$(document).ready(function () {
 
-    let activeFormSelector = null;
-    let activeMessageSelector = null;
+    let currentFormSelector = null;
+    let currentMessageSelector = null;
 
     function scrollTopSmooth() {
         window.scrollTo({
@@ -11,17 +11,19 @@ $(function () {
         });
     }
 
-    function scrollToElement(selector) {
-        const target = document.querySelector(selector);
-        if (!target) return;
+    function resetAndShowForm() {
+        if (currentFormSelector) {
+            const formEl = document.querySelector(currentFormSelector);
+            if (formEl) {
+                formEl.reset();
+            }
 
-        const offset = window.innerWidth < 768 ? 90 : 120;
-        const top = target.getBoundingClientRect().top + window.pageYOffset - offset;
+            $(currentFormSelector).stop(true, true).slideDown('slow');
+        }
 
-        window.scrollTo({
-            top: top,
-            behavior: 'smooth'
-        });
+        if (currentMessageSelector) {
+            $(currentMessageSelector).hide().html('');
+        }
     }
 
     function openSuccessModal(title, text, formSelector, messageSelector) {
@@ -33,8 +35,8 @@ $(function () {
             return false;
         }
 
-        activeFormSelector = formSelector;
-        activeMessageSelector = messageSelector;
+        currentFormSelector = formSelector;
+        currentMessageSelector = messageSelector;
 
         if (titleEl) titleEl.textContent = title;
         if (textEl) textEl.textContent = text;
@@ -45,26 +47,17 @@ $(function () {
             scrollTopSmooth();
 
             setTimeout(function () {
-                if (activeFormSelector) {
-                    $(activeFormSelector).stop(true, true).slideDown('slow');
-                }
-
-                if (activeMessageSelector) {
-                    $(activeMessageSelector).hide().html('');
-                }
-
-                activeFormSelector = null;
-                activeMessageSelector = null;
-            }, 400);
-
-            modalEl.removeEventListener('hidden.bs.modal', handleHidden);
+                resetAndShowForm();
+                currentFormSelector = null;
+                currentMessageSelector = null;
+            }, 350);
         }, { once: true });
 
         modal.show();
         return true;
     }
 
-    function showInlineFallback(messageSelector, title, text) {
+    function showInlineSuccess(messageSelector, title, text) {
         const html = `
             <div class="form-success-fallback">
                 <div class="form-success-fallback-icon">✓</div>
@@ -72,12 +65,11 @@ $(function () {
                 <p>${text}</p>
             </div>
         `;
-        $(messageSelector).html(html).slideDown('slow', function () {
-            scrollToElement(messageSelector);
-        });
+
+        $(messageSelector).html(html).slideDown('slow');
     }
 
-    function handleResponse(messageSelector, submitSelector, formSelector, data, fallbackTitle, fallbackText) {
+    function handleResponse(data, formSelector, messageSelector, submitSelector, fallbackTitle, fallbackText) {
         const wrapper = document.createElement('div');
         wrapper.innerHTML = data;
 
@@ -90,57 +82,61 @@ $(function () {
             const title = successNode.dataset.title || fallbackTitle;
             const text = successNode.dataset.text || fallbackText;
 
-            $(formSelector).stop(true, true).slideUp('slow', function () {
+            const modalOpened = openSuccessModal(title, text, formSelector, messageSelector);
+
+            if (modalOpened) {
+                $(formSelector).stop(true, true).slideUp('slow');
                 $(messageSelector).hide().html('');
-
-                const opened = openSuccessModal(title, text, formSelector, messageSelector);
-
-                if (!opened) {
-                    showInlineFallback(messageSelector, title, text);
-                }
-            });
+            } else {
+                $(formSelector).stop(true, true).slideUp('slow', function () {
+                    showInlineSuccess(messageSelector, title, text);
+                });
+            }
 
             return;
         }
 
-        $(messageSelector).html(data).slideDown('slow', function () {
-            scrollToElement(messageSelector);
-        });
+        $(messageSelector).html(data).slideDown('slow');
     }
 
-    $('#newsletter_form').on('submit', function (e) {
+    // CONTACT FORM
+    $('#contactform').on('submit', function (e) {
         e.preventDefault();
 
         const action = $(this).attr('action');
 
-        $('#message-newsletter').slideUp(200, function () {
-            $('#message-newsletter').hide();
-            $('#submit-newsletter').attr('disabled', 'disabled');
+        $('#message-contact').slideUp(200, function () {
+            $('#message-contact').hide();
+            $('#submit-contact').attr('disabled', 'disabled');
 
             $.post(action, {
-                email_newsletter: $('#email_newsletter').val()
+                name_contact: $('#name_contact').val(),
+                lastname_contact: $('#lastname_contact').val(),
+                email_contact: $('#email_contact').val(),
+                phone_contact: $('#phone_contact').val(),
+                message_contact: $('#message_contact').val(),
+                verify_contact: $('#verify_contact').val()
             })
             .done(function (data) {
                 handleResponse(
-                    '#message-newsletter',
-                    '#submit-newsletter',
-                    '#newsletter_form',
                     data,
-                    'Iscrizione completata',
-                    'Grazie, la tua iscrizione alla newsletter è stata registrata correttamente.'
+                    '#contactform',
+                    '#message-contact',
+                    '#submit-contact',
+                    'Messaggio inviato correttamente',
+                    'Grazie per averci contattato. Ti risponderemo al più presto.'
                 );
             })
-            .fail(function () {
-                $('#submit-newsletter').removeAttr('disabled');
-                $('#message-newsletter')
-                    .html('<div class="error_message">Si è verificato un errore. Riprova tra qualche istante.</div>')
-                    .slideDown('slow', function () {
-                        scrollToElement('#message-newsletter');
-                    });
+            .fail(function (xhr) {
+                $('#submit-contact').removeAttr('disabled');
+                $('#message-contact')
+                    .html('<div class="error_message">Si è verificato un errore durante l’invio del messaggio. Riprova.</div>')
+                    .slideDown('slow');
             });
         });
     });
 
+    // BOOKING FORM
     $('#bookingform').on('submit', function (e) {
         e.preventDefault();
 
@@ -161,59 +157,51 @@ $(function () {
             })
             .done(function (data) {
                 handleResponse(
+                    data,
+                    '#bookingform',
                     '#message-booking',
                     '#submit-booking',
-                    '#bookingform',
-                    data,
                     'Richiesta inviata correttamente',
                     'Abbiamo ricevuto la tua richiesta di prenotazione. Ti risponderemo al più presto con tutti i dettagli.'
                 );
             })
-            .fail(function () {
+            .fail(function (xhr) {
                 $('#submit-booking').removeAttr('disabled');
                 $('#message-booking')
                     .html('<div class="error_message">Si è verificato un errore durante l’invio della richiesta. Riprova.</div>')
-                    .slideDown('slow', function () {
-                        scrollToElement('#message-booking');
-                    });
+                    .slideDown('slow');
             });
         });
     });
 
-    $('#contactform').on('submit', function (e) {
+    // NEWSLETTER FORM
+    $('#newsletter_form').on('submit', function (e) {
         e.preventDefault();
 
         const action = $(this).attr('action');
 
-        $('#message-contact').slideUp(200, function () {
-            $('#message-contact').hide();
-            $('#submit-contact').attr('disabled', 'disabled');
+        $('#message-newsletter').slideUp(200, function () {
+            $('#message-newsletter').hide();
+            $('#submit-newsletter').attr('disabled', 'disabled');
 
             $.post(action, {
-                name_contact: $('#name_contact').val(),
-                lastname_contact: $('#lastname_contact').val(),
-                email_contact: $('#email_contact').val(),
-                phone_contact: $('#phone_contact').val(),
-                message_contact: $('#message_contact').val(),
-                verify_contact: $('#verify_contact').val()
+                email_newsletter: $('#email_newsletter').val()
             })
             .done(function (data) {
                 handleResponse(
-                    '#message-contact',
-                    '#submit-contact',
-                    '#contactform',
                     data,
-                    'Messaggio inviato correttamente',
-                    'Grazie per averci contattato. Ti risponderemo al più presto.'
+                    '#newsletter_form',
+                    '#message-newsletter',
+                    '#submit-newsletter',
+                    'Iscrizione completata',
+                    'Grazie, la tua iscrizione alla newsletter è stata registrata correttamente.'
                 );
             })
             .fail(function () {
-                $('#submit-contact').removeAttr('disabled');
-                $('#message-contact')
-                    .html('<div class="error_message">Si è verificato un errore durante l’invio del messaggio. Riprova.</div>')
-                    .slideDown('slow', function () {
-                        scrollToElement('#message-contact');
-                    });
+                $('#submit-newsletter').removeAttr('disabled');
+                $('#message-newsletter')
+                    .html('<div class="error_message">Si è verificato un errore. Riprova tra qualche istante.</div>')
+                    .slideDown('slow');
             });
         });
     });
