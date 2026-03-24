@@ -32,57 +32,29 @@ $(document).ready(function () {
         };
     }
 
-    function ensureModalIconFallback(modalEl) {
-        if (!modalEl) return;
+    
 
-        var circle = modalEl.querySelector('.success-check-circle');
-        if (!circle) return;
+   function bindSuccessModalRedirect() {
+    var els = getSuccessModalElements();
+    var modalEl = els.modalEl;
 
-        var svg = circle.querySelector('svg');
-        var fallback = circle.querySelector('.success-check-fallback');
+    if (!modalEl) return;
 
-        if (!fallback) {
-            fallback = document.createElement('span');
-            fallback.className = 'success-check-fallback';
-            fallback.setAttribute('aria-hidden', 'true');
-            fallback.textContent = '✓';
-            circle.appendChild(fallback);
-        }
+    $(modalEl).off('.formredirect');
+    modalEl.removeEventListener('click', handleManualClose, true);
+    document.removeEventListener('keydown', handleEscClose, true);
 
-        if (!svg) {
-            circle.classList.add('no-svg');
-        } else {
-            circle.classList.remove('no-svg');
-        }
+    if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        $(modalEl).on('hidden.bs.modal.formredirect', function () {
+            if (redirectAfterSuccess) {
+                goHome();
+            }
+        });
     }
 
-    function bindSuccessModalRedirect() {
-        var els = getSuccessModalElements();
-        var modalEl = els.modalEl;
-
-        if (!modalEl) return;
-
-        ensureModalIconFallback(modalEl);
-
-        $(modalEl).off('.formredirect');
-        modalEl.removeEventListener('click', handleManualClose, true);
-        document.removeEventListener('keydown', handleEscClose, true);
-
-        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-            $(modalEl).on('hidden.bs.modal.formredirect', function () {
-                if (redirectAfterSuccess) {
-                    goHome();
-                }
-            });
-
-            $(modalEl).on('shown.bs.modal.formredirect', function () {
-                ensureModalIconFallback(modalEl);
-            });
-        }
-
-        modalEl.addEventListener('click', handleManualClose, true);
-        document.addEventListener('keydown', handleEscClose, true);
-    }
+    modalEl.addEventListener('click', handleManualClose, true);
+    document.addEventListener('keydown', handleEscClose, true);
+}
 
     function handleManualClose(e) {
         if (!redirectAfterSuccess) return;
@@ -162,7 +134,7 @@ $(document).ready(function () {
             textEl.textContent = text;
         }
 
-        ensureModalIconFallback(modalEl);
+       
 
         try {
             var modal = bootstrap.Modal.getOrCreateInstance(modalEl, {
