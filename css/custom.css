@@ -2222,7 +2222,8 @@ background-color: rgba(0, 0, 0, 0.811);
     width: 56px;
     height: 56px;
     min-width: 56px;
-    box-shadow: 0 12px 24px rgba(37, 211, 102, 0.3);
+    /* box-shadow: 0 12px 24px rgba(37, 211, 102, 0.3); */
+    box-shadow: none;
   }
 
   .whatsapp-cta__icon svg {

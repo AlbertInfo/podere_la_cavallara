@@ -150,31 +150,31 @@ if (count($requests) >= 3) {
     $mail->clearAddresses();
     $mail->clearReplyTos();
 
-    $email_html_confirm = file_get_contents(__DIR__ . '/confirmation.html');
+    $email_html_confirm = file_get_contents(__DIR__ . '/confirmation_EN.html');
 
     $confirm_content = "
-        <p>Gentile {$name_booking},</p>
-        <p>abbiamo ricevuto correttamente la tua richiesta di prenotazione. Ti risponderemo al più presto con disponibilità e dettagli.</p>
-        <h3>Riepilogo della richiesta</h3>
+        <p>Dear {$name_booking},</p>
+        <p>We have successfully received your booking request. We will get back to you shortly with availability and further details.</p>
+        <h3>Request Summary</h3>
         <table cellpadding='8' cellspacing='0' width='100%' style='border-collapse:collapse;'>
             <tr>
                 <td style='border-bottom:1px solid #ddd; width:180px;'><strong>Email</strong></td>
                 <td style='border-bottom:1px solid #ddd;'>{$email_booking}</td>
             </tr>
             <tr>
-                <td style='border-bottom:1px solid #ddd;'><strong>Date soggiorno</strong></td>
+                <td style='border-bottom:1px solid #ddd;'><strong>Stay dates</strong></td>
                 <td style='border-bottom:1px solid #ddd;'>{$date_booking}</td>
             </tr>
             <tr>
-                <td style='border-bottom:1px solid #ddd;'><strong>Sistemazione</strong></td>
+                <td style='border-bottom:1px solid #ddd;'><strong>Accommodation</strong></td>
                 <td style='border-bottom:1px solid #ddd;'>{$rooms_booking}</td>
             </tr>
             <tr>
-                <td style='border-bottom:1px solid #ddd;'><strong>Adulti</strong></td>
+                <td style='border-bottom:1px solid #ddd;'><strong>Adults</strong></td>
                 <td style='border-bottom:1px solid #ddd;'>{$adults_booking}</td>
             </tr>
             <tr>
-                <td><strong>Bambini</strong></td>
+                <td><strong>Children</strong></td>
                 <td>{$childs_booking}</td>
             </tr>
         </table>

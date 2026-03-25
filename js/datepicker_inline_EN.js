@@ -38,10 +38,11 @@ $(function() {
       });
 
       /* Configuration picker */
+      const cssPath = document.body.dataset.datepickerCss || 'css/daterangepicker_v2.css';
       const picker = new easepick.create({
         element: document.getElementById('date_booking'),
         css: [
-          'css/daterangepicker_v2.css',
+          cssPath,
         ],
         lang: 'en-GB', // Language tags https://www.techonthenet.com/js/language_tags.php
         format: "DD/MM/YYYY",
