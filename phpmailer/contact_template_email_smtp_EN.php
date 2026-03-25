@@ -143,7 +143,7 @@ if (count($requests) >= 3) {
     $mail->clearAddresses();
     $mail->clearReplyTos();
 
-    $email_html_confirm = file_get_contents(__DIR__ . '/confirmation.html');
+    $email_html_confirm = file_get_contents(__DIR__ . '/confirmation_EN.html');
 
     $confirm_content = "
         <p>Dear {$name_contact} {$lastname_contact},</p>
