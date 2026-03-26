@@ -7,18 +7,11 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
 require __DIR__ . '/src/Exception.php';
-require __DIR__ . '/db.php';
 require __DIR__ . '/src/PHPMailer.php';
 require __DIR__ . '/src/SMTP.php';
-require dirname(__DIR__, 2) . '/config/database.php';
-
-define('APP_INIT', true);
-
-
-$pdo = getPDO();
+require __DIR__ . '/db.php';
 
 $mail = new PHPMailer(true);
-
 try {
     // SMTP
     $mail->isSMTP();
