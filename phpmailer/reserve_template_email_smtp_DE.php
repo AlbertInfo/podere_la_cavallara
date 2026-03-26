@@ -150,31 +150,31 @@ if (count($requests) >= 3) {
     $mail->clearAddresses();
     $mail->clearReplyTos();
 
-    $email_html_confirm = file_get_contents(__DIR__ . '/confirmation.html');
+    $email_html_confirm = file_get_contents(__DIR__ . '/confirmation_DE.html');
 
     $confirm_content = "
-        <p>Gentile {$name_booking},</p>
-        <p>abbiamo ricevuto correttamente la tua richiesta di prenotazione. Ti risponderemo al più presto con disponibilità e dettagli.</p>
-        <h3>Riepilogo della richiesta</h3>
+        <p>GeSehr geehrte/r {$name_booking},</p>
+        <p>Wir haben Ihre Buchungsanfrage erfolgreich erhalten. Wir werden uns so schnell wie möglich mit Verfügbarkeit und weiteren Details bei Ihnen melden.</p>
+        <h3>Zusammenfassung Ihrer Anfrage</h3>
         <table cellpadding='8' cellspacing='0' width='100%' style='border-collapse:collapse;'>
             <tr>
-                <td style='border-bottom:1px solid #ddd; width:180px;'><strong>Email</strong></td>
+                <td style='border-bottom:1px solid #ddd; width:180px;'><strong>E-Mail</strong></td>
                 <td style='border-bottom:1px solid #ddd;'>{$email_booking}</td>
             </tr>
             <tr>
-                <td style='border-bottom:1px solid #ddd;'><strong>Date soggiorno</strong></td>
+                <td style='border-bottom:1px solid #ddd;'><strong>Aufenthaltsdaten</strong></td>
                 <td style='border-bottom:1px solid #ddd;'>{$date_booking}</td>
             </tr>
             <tr>
-                <td style='border-bottom:1px solid #ddd;'><strong>Sistemazione</strong></td>
+                <td style='border-bottom:1px solid #ddd;'><strong>Unterkunft</strong></td>
                 <td style='border-bottom:1px solid #ddd;'>{$rooms_booking}</td>
             </tr>
             <tr>
-                <td style='border-bottom:1px solid #ddd;'><strong>Adulti</strong></td>
+                <td style='border-bottom:1px solid #ddd;'><strong>Erwachsene</strong></td>
                 <td style='border-bottom:1px solid #ddd;'>{$adults_booking}</td>
             </tr>
             <tr>
-                <td><strong>Bambini</strong></td>
+                <td><strong>Kinder</strong></td>
                 <td>{$childs_booking}</td>
             </tr>
         </table>

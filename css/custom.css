@@ -2790,3 +2790,7 @@ background-color: rgba(0, 0, 0, 0.811);
         width: 100%;
     }
 }
+
+footer a:focus{
+    color:wheat !important
+}

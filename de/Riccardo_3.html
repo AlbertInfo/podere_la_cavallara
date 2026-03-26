@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="de">
 
 <head>
     <meta charset="utf-8">
@@ -50,8 +50,9 @@
 
                     <div class="main-menu">
                         <a href="" class="closebt open_close_menu"><i class="bi bi-x"></i></a>
-                       <div class="logo_panel">
-                            <!-- <img src="../img/podere_cavallara/logo_mobile.png" width="405" height="135" alt=""> -->
+                       
+                        <div class="logo_panel">
+                            
                               <a href="index.html" class="logo_mobile"><img src="../img/podere_cavallara/logo_mobile.png" width="405" height="135" alt=""></a>
                         </div>
                         <nav id="mainNav">
@@ -63,13 +64,7 @@
                                         <li><a href="Domenico_1.html">Casa Domenico 1</a></li>
                                         <li><a href="Domenico_2.html">Casa Domenico 2</a></li>
                                         <li>
-    <a href="Domenico_1-2.html" class="menu-with-badge">
-        Casa Domenico 1-2
-        <span class="menu-badge">
-            <i class="bi bi-people-fill"></i> 14 ospiti
-        </span>
-    </a>
-</li>
+                                    <a href="Domenico_1-2.html" class="menu-with-badge">Casa Domenico 1-2<span class="menu-badge"><i class="bi bi-people-fill"></i> 14 Gäste</span></a></li>
                                         
                                     </ul>
                                 </li>
@@ -87,18 +82,18 @@
                                         <li><a href="Alessandro_6.html">Casa Alessandro 6</a></li>
                                     </ul>
                                 </li>
-                                <li><a href="Itinerari_ed_escursioni.html">Itinerari ed escursioni</a></li>
-                                <li><a href="contatti.html">Contatti</a></li>
+                                <li><a href="Itinerari_ed_escursioni.html">Routen und Ausflüge</a></li>
+                                <li><a href="contatti.html">Kontakte</a></li>
                                 <!-- <li><a href="contatti.html">Dove siamo</a></li> -->
-                                <li><a href="#booking_section" class="btn_1 open_close_menu">Prenota ora</a></li>
+                                <li><a href="#booking_section" class="btn_1 open_close_menu">Jetzt buchen</a></li>
                                 <li class="submenu lang_menu_item">
     <a href="#0" class="show-submenu lang_toggle_menu">
-        <span class="fi fi-it"></span>
-        <span class="lang_code">IT</span>
+        <span class="fi fi-de"></span>
+        <span class="lang_code">DE</span>
     </a>
     <ul class="lang_submenu">
-        <li><a href="/it/" data-lang="it" class="dropdown-item language-link"><span class="fi fi-it"></span><span>Italiano</span></a></li>
-        <li><a href="/en/" data-lang="en" class="dropdown-item language-link"><span class="fi fi-gb"></span><span>English</span></a></li>
+        <li><a href="/it/" data-lang="it" class="dropdown-item language-link"><span class="fi fi-it"></span><span>Italienisch</span></a></li>
+        <li><a href="/en/" data-lang="en" class="dropdown-item language-link"><span class="fi fi-gb"></span><span>Englisch</span></a></li>
         <li><a href="/de/" data-lang="de" class="dropdown-item language-link"><span class="fi fi-de"></span><span>Deutsch</span></a></li>
     </ul>
 </li>
@@ -324,10 +319,10 @@
                     <div data-cue="slideInUp">
                         <div class="title">
                             <small>Podere la Cavallara</small>
-                            <h2>Controlla le disponibilità</h2>
+                            <h2>Verfügbarkeit prüfen</h2>
                         </div>
-                        <p>Compila il modulo di richiesta o contattaci telefonicamente.</p>
-                        <p class="phone_element no_borders"><a href="tel://3287344795"><i class="bi bi-telephone"></i><span><em>Info e prenotazioni</em>+328 734 4795</span></a></p>
+                        <p>Füllen Sie das Anfrageformular aus oder kontaktieren Sie uns telefonisch.</p>
+                        <p class="phone_element no_borders"><a href="tel://3287344795"><i class="bi bi-telephone"></i><span><em>Informationen und Buchungen</em>+328 734 4795</span></a></p>
                     </div>
                 </div>
                 <div class="col-xl-7">
@@ -335,7 +330,7 @@
 
                 <div id="message-booking"></div>
 
-                <form method="post" action="../phpmailer/reserve_template_email_smtp.php" id="bookingform" autocomplete="off">
+                <form method="post" action="../phpmailer/reserve_template_email_smtp_DE.php" id="bookingform" autocomplete="off">
                     <div class="booking_wrapper">
                         <div class="row">
                             <div class="col-12 mb-3">
@@ -345,7 +340,7 @@
                             <div class="col-lg-6">
                                 <div class="custom_select">
                                     <select class="wide" id="rooms_booking" name="rooms_booking" required>
-                                            <option>Scegli soluzione</option>
+                                            <option>Wählen Sie eine Lösung</option>
                                             <option>Casa Domenico 1</option>
                                             <option>Casa Domenico 2</option>
                                             <option>Casa Domenico 1-2</option>
@@ -362,14 +357,14 @@
                                     <div class="col-6">
                                         <div class="qty-buttons mb-3 version_2">
                                             <input type="button" value="+" class="qtyplus" name="adults_booking">
-                                            <input type="text" name="adults_booking" id="adults_booking" value="" class="qty form-control" placeholder="Adulti" required>
+                                            <input type="text" name="adults_booking" id="adults_booking" value="" class="qty form-control" placeholder="Erwachsene" required>
                                             <input type="button" value="-" class="qtyminus" name="adults_booking">
                                         </div>
                                     </div>
                                     <div class="col-6">
                                         <div class="qty-buttons mb-3 version_2">
                                             <input type="button" value="+" class="qtyplus" name="childs_booking">
-                                            <input type="text" name="childs_booking" id="childs_booking" value="" class="qty form-control" placeholder="Bambini" required>
+                                            <input type="text" name="childs_booking" id="childs_booking" value="" class="qty form-control" placeholder="Kinder" required>
                                             <input type="button" value="-" class="qtyminus" name="childs_booking">
                                         </div>
                                     </div>
@@ -377,7 +372,7 @@
                             </div>
 
                             <div class="col-md-6 mt-3">
-                                <input type="text" id="name_booking" name="name_booking" class="form-control" placeholder="Nome e cognome" required>
+                                <input type="text" id="name_booking" name="name_booking" class="form-control" placeholder="Name und Nachname" required>
                             </div>
 
                             <div class="col-md-6 mt-3">
@@ -385,13 +380,13 @@
                             </div>
 
                             <div class="col-md-6 mt-3">
-                                <input type="text" id="verify_booking" name="verify_booking" class="form-control" placeholder="Quanto fa 2 + 2?" required>
+                                <input type="text" id="verify_booking" name="verify_booking" class="form-control" placeholder="Was ergibt 2 + 2?" required>
                             </div>
                         </div>
                     </div>
 
                     <p class="text-end mt-4">
-                        <button type="submit" class="btn_1 outline" id="submit-booking">Invia richiesta</button>
+                        <button type="submit" class="btn_1 outline" id="submit-booking">Anfrage senden</button>
                     </p>
                 </form>
 
@@ -400,6 +395,7 @@
             </div>
             <!-- /row -->
         </div>
+        <!-- /container -->
     </main>
 
     <footer class="revealed">
@@ -410,7 +406,7 @@
         <div class="container">
             <div class="row move_content">
                 <div class="col-lg-4 col-md-12">
-                    <h5>Contatti</h5>
+                    <h5>Kontakt</h5>
                     <ul>
                         <li>Podere la Cavallara, Via Cannelle, 103<br>01027 Montefiascone (Viterbo)<br><br></li>
                         <li><strong><a href="#0">info@poderelacavallara.it</a></strong></li>
@@ -418,15 +414,14 @@
                     </ul>
                     <div class="social">
                         <ul>
-                            <li><a href="#0"><i class="bi bi-instagram"></i></a></li>
-                            <li><a href="#0"><i class="bi bi-whatsapp"></i></a></li>
-                            <li><a href="#0"><i class="bi bi-facebook"></i></a></li>
-                            <li><a href="#0"><i class="bi bi-twitter-x"></i></a></li>
+                            
+                            <li><a href="https://wa.me/393287344795?text=Ciao%20Podere%20La%20Cavallara,%20vorrei%20ricevere%20informazioni."><i class="bi bi-whatsapp"></i></a></li>
+                           
                         </ul>
                     </div>
                 </div>
                 <div class="col-lg-3 col-md-6 ms-lg-auto">
-                    <h5>Naviga il sito</h5>
+                    <h5>Website durchsuchen</h5>
                     <div class="footer_links">
                         <ul>
                             <li><a href="index.html">Home</a></li>
@@ -437,9 +432,9 @@
                             <li><a href="Riccardo_4.html">Casa Riccardo 4</a></li>
                             <li><a href="Alessandro_5.html">Casa Alessandro 5</a></li>
                             <li><a href="Alessandro_6.html">Casa Alessandro 6</a></li>
-                            <li><a href="Itinerari_ed_escursioni.html">Itinerari ed escursioni</a></li>
-                            <li><a href="contatti.html">Contatti</a></li>
-                            <li><a href="privacy.html">Privacy Policy</a></li>
+                            <li><a href="Itinerari_ed_escursioni.html">Routen und Ausflüge</a></li>
+                            <li><a href="contatti.html">Kontakt</a></li>
+                            <li><a href="privacy.html">Datenschutzrichtlinie</a></li>
                             
                         </ul>
                     </div>
@@ -451,7 +446,7 @@
         <!--/container-->
         <div class="copy">
             <div class="container">
-                © Podere la Cavallara
+                © Podere la Cavallara - Alle Rechte vorbehalten.
             </div>
         </div>
     </footer>
@@ -468,8 +463,8 @@
 <!-- COMMON SCRIPTS -->
 <script src="../js/common_scripts.js"></script>
 <script src="../js/common_functions.js"></script>
-<script src="../js/datepicker_inline.js"></script>
-<script src="../phpmailer/validate.js?v=8"></script>
+<script src="../js/datepicker_inline_DE.js"></script>
+<script src="../phpmailer/validate_DE.js"></script>
 <script>
     // Progress bars animation
     $(function() {
