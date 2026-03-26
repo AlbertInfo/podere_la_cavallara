@@ -6,23 +6,34 @@ error_reporting(E_ALL);
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
+// require __DIR__ . '/db.php';
 require __DIR__ . '/src/Exception.php';
 require __DIR__ . '/src/PHPMailer.php';
 require __DIR__ . '/src/SMTP.php';
-require __DIR__ . '/db.php';
+define('APP_INIT', true);
+
+require dirname(__DIR__, 2) . '/config/database.php';
+require dirname(__DIR__, 2) . '/config/mail.php';
+
+$pdo = getPDO();
+
+define('APP_INIT', true);
+
+
+
 
 $mail = new PHPMailer(true);
 
 try {
     // SMTP
     $mail->isSMTP();
-    $mail->Host       = 'smtp-relay.brevo.com';
-    $mail->SMTPAuth   = true;
-    $mail->Username   = '7816dd001@smtp-brevo.com';
-    $mail->Password   = 'bsky6Xzs02wNBXH';
-    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-    $mail->Port       = 587;
-    $mail->CharSet    = 'UTF-8';
+$mail->Host       = SMTP_HOST;
+$mail->SMTPAuth   = true;
+$mail->Username   = SMTP_USER;
+$mail->Password   = SMTP_PASS;
+$mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+$mail->Port       = SMTP_PORT;
+$mail->CharSet    = 'UTF-8';
 
     // Campi form
     $name_contact     = trim($_POST['name_contact'] ?? '');
