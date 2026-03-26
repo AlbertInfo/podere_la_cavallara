@@ -2794,3 +2794,38 @@ background-color: rgba(0, 0, 0, 0.811);
 footer a:focus{
     color:wheat !important
 }
+
+/* stato iniziale */
+#carousel-home .slide-text .owl-slide-animated {
+  opacity: 0;
+  transform: translateY(30px) scale(0.98);
+  filter: blur(8px);
+  transition:
+    opacity 0.9s ease,
+    transform 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.9s ease;
+  will-change: opacity, transform, filter;
+}
+
+/* slide attiva */
+#carousel-home .owl-item.active .slide-text .owl-slide-animated {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
+}
+
+/* animazione sfalsata */
+#carousel-home .owl-item.active .owl-slide-title {
+  transition-delay: 0.25s;
+}
+
+#carousel-home .owl-item.active .owl-slide-title-2 {
+  transition-delay: 0.5s;
+}
+
+#carousel-home .owl-item.active .owl-slide-title-3 {
+  transition-delay: 0.75s;
+}
+
+
+
