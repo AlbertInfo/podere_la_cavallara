@@ -12,7 +12,7 @@ require __DIR__ . '/src/SMTP.php';
 // require __DIR__ . '/db.php';
 
 require_once dirname(__DIR__, 2) . '/config/database.php';
-require_once dirname(__DIR__, 2) . '/config/mail.php';
+require_once dirname(__DIR__, 2) . '/config/email.php';
 
 $mail = new PHPMailer(true);
 try {
