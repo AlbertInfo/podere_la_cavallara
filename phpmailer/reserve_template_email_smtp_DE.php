@@ -9,7 +9,6 @@ use PHPMailer\PHPMailer\Exception;
 require __DIR__ . '/src/Exception.php';
 require __DIR__ . '/src/PHPMailer.php';
 require __DIR__ . '/src/SMTP.php';
-// require __DIR__ . '/db.php';
 
 $dbConfig   = dirname(__DIR__, 2) . '/config/database.php';
 $mailConfig = dirname(__DIR__, 2) . '/config/email.php';
