@@ -9,20 +9,22 @@ use PHPMailer\PHPMailer\Exception;
 require __DIR__ . '/src/Exception.php';
 require __DIR__ . '/src/PHPMailer.php';
 require __DIR__ . '/src/SMTP.php';
-require __DIR__ . '/db.php';
+
+
+require_once dirname(__DIR__, 2) . '/config/database.php';
+require_once dirname(__DIR__, 2) . '/config/email.php';
 
 $mail = new PHPMailer(true);
-
 try {
     // SMTP
     $mail->isSMTP();
-    $mail->Host       = 'smtp-relay.brevo.com';
-    $mail->SMTPAuth   = true;
-    $mail->Username   = '7816dd001@smtp-brevo.com';
-    $mail->Password   = 'bsky6Xzs02wNBXH';
-    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-    $mail->Port       = 587;
-    $mail->CharSet    = 'UTF-8';
+$mail->Host       = $SMTP_HOST;
+$mail->SMTPAuth   = true;
+$mail->Username   = $SMTP_USER;
+$mail->Password   = $SMTP_PASS;
+$mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+$mail->Port       = $SMTP_PORT;
+$mail->CharSet    = 'UTF-8';
 
     // Campi form
     $name_contact     = trim($_POST['name_contact'] ?? '');
@@ -131,8 +133,8 @@ if (count($requests) >= 3) {
     $body = str_replace(['message', 'messaggio'], $e_content, $email_html);
 
     // Mail a te
-    $mail->setFrom('alb.stend97@gmail.com', 'Podere La Cavallara');
-    $mail->addAddress('alb.stend97@gmail.com', 'Podere La Cavallara');
+    $mail->setFrom($MAIL_FROM, $MAIL_FROM_NAME);
+    $mail->addAddress($MAIL_ADMIN, $MAIL_ADMIN_NAME);
     $mail->addReplyTo($email_contact, $name_contact . ' ' . $lastname_contact);
     $mail->isHTML(true);
     $mail->Subject = 'Nuova richiesta informazioni - Podere La Cavallara';
@@ -167,9 +169,9 @@ if (count($requests) >= 3) {
 
     $confirm_body = str_replace(['message', 'messaggio'], $confirm_content, $email_html_confirm);
 
-    $mail->setFrom('alb.stend97@gmail.com', 'Podere La Cavallara');
+    $mail->setFrom($MAIL_FROM, $MAIL_FROM_NAME);
     $mail->addAddress($email_contact, $name_contact . ' ' . $lastname_contact);
-    $mail->addReplyTo('alb.stend97@gmail.com', 'Podere La Cavallara');
+    $mail->addReplyTo($MAIL_FROM, $MAIL_FROM_NAME);
     $mail->isHTML(true);
     $mail->Subject = 'Conferma richiesta informazioni - Podere La Cavallara';
     $mail->MsgHTML($confirm_body);
