@@ -12,7 +12,7 @@ require __DIR__ . '/src/SMTP.php';
 // require __DIR__ . '/db.php';
 
 $dbConfig   = dirname(__DIR__, 2) . '/config/database.php';
-$mailConfig = dirname(__DIR__, 2) . '/config/mail.php';
+$mailConfig = dirname(__DIR__, 2) . '/config/email.php';
 
 if (!file_exists($dbConfig)) {
     die('database.php non trovato in: ' . $dbConfig);
