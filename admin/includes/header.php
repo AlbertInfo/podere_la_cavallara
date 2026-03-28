@@ -2,39 +2,78 @@
 $flash = function_exists('get_flash') ? get_flash() : null;
 $currentAdmin = function_exists('current_admin') ? current_admin() : null;
 $pageTitle = $pageTitle ?? ADMIN_APP_NAME;
+$currentPath = basename(parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '');
+
+function admin_nav_active(array $targets, string $currentPath): string
+{
+    return in_array($currentPath, $targets, true) ? ' is-active' : '';
+}
 ?>
 <!DOCTYPE html>
 <html lang="it">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= e($pageTitle) ?></title>
-    <link rel="stylesheet" href="<?= e(admin_url('assets/css/admin-modern.css')) ?>">
-    <link rel="shortcut icon" href="assets/img/favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="/admin/assets/css/admin-modern.css?v=3">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="shortcut icon" href="<?= e(admin_url('assets/img/favicon.ico')) ?>" type="image/x-icon">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/it.js"></script>
 </head>
+
 <body>
-<div class="admin-shell">
-    <header class="admin-topbar">
-        <a class="brand" href="<?= e(admin_url('index.php')) ?>">
-            <img class="logo-desktop" src="<?= e(admin_url('assets/img/logo_sticky.png')) ?>" alt="Podere La Cavallara logo">
-            <img class="logo-mobile" src="<?= e(admin_url('assets/img/logo_mobile.png')) ?>" alt="Podere La Cavallara logo" style="display:none;">
-            <!-- <div class="brand-copy">
-                <strong>Podere La Cavallara</strong>
-                <span>Admin dashboard</span>
-            </div> -->
-        </a>
-
+    <div class="admin-app">
         <?php if ($currentAdmin): ?>
-            <nav class="topbar-actions" aria-label="Navigazione admin">
-                <a class="btn btn-light" href="<?= e(admin_url('index.php#booking-requests')) ?>">Richieste</a>
-                <a class="btn btn-light" href="<?= e(admin_url('index.php#registered-bookings')) ?>">Prenotazioni</a>
-                <a class="btn btn-primary" href="<?= e(admin_url('new-prenotazione.php')) ?>">Nuova prenotazione</a>
-                <a class="btn btn-light" href="<?= e(admin_url('logout.php')) ?>">Esci</a>
-            </nav>
-        <?php endif; ?>
-    </header>
+            <aside class="admin-sidebar" id="adminSidebar">
+                <a class="sidebar-brand" href="<?= e(admin_url('index.php')) ?>">
+                    <img class="sidebar-logo sidebar-logo-desktop" src="<?= e(admin_url('assets/img/logo_sticky.png')) ?>" alt="Podere La Cavallara">
+                    <img class="sidebar-logo sidebar-logo-mobile" src="<?= e(admin_url('assets/img/logo_mobile.png')) ?>" alt="Podere La Cavallara">
+                </a>
 
-    <div class="admin-wrap">
-        <?php if ($flash): ?>
-            <div class="flash <?= e($flash['type']) ?>"><?= e($flash['message']) ?></div>
+                <nav class="sidebar-nav" aria-label="Menu area admin">
+                    <a class="sidebar-link<?= admin_nav_active(['index.php'], $currentPath) ?>" href="<?= e(admin_url('index.php#overview')) ?>">Dashboard</a>
+                    <a class="sidebar-link<?= admin_nav_active(['index.php'], $currentPath) ?>" href="<?= e(admin_url('index.php#booking-requests')) ?>">Richieste prenotazione</a>
+                    <a class="sidebar-link<?= admin_nav_active(['index.php'], $currentPath) ?>" href="<?= e(admin_url('index.php#contact-requests')) ?>">Richieste contatto</a>
+                    <a class="sidebar-link<?= admin_nav_active(['index.php'], $currentPath) ?>" href="<?= e(admin_url('index.php#registered-bookings')) ?>">Prenotazioni registrate</a>
+                    <a class="sidebar-link<?= admin_nav_active(['new-prenotazione.php'], $currentPath) ?>" href="<?= e(admin_url('new-prenotazione.php')) ?>">Nuova prenotazione</a>
+                </nav>
+
+                <div class="sidebar-footer">
+                    <div class="sidebar-user">
+                        <span class="sidebar-user-label">Connesso come</span>
+                        <strong><?= e($currentAdmin['name'] ?? $currentAdmin['email'] ?? 'Admin') ?></strong>
+                    </div>
+                    <a class="btn btn-light btn-full" href="<?= e(admin_url('logout.php')) ?>">Esci</a>
+                </div>
+            </aside>
         <?php endif; ?>
+
+        <div class="admin-main">
+            <?php if ($currentAdmin): ?>
+                <header class="admin-topbar">
+                    <button class="mobile-menu-toggle" type="button" id="mobileMenuToggle" aria-controls="adminSidebar" aria-expanded="false">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </button>
+                    <a class="topbar-brand" href="<?= e(admin_url('index.php')) ?>">
+                        <img src="<?= e(admin_url('assets/img/logo_mobile.png')) ?>" alt="Podere La Cavallara">
+                    </a>
+                    <div class="topbar-actions">
+                        <a class="btn btn-primary btn-sm" href="<?= e(admin_url('new-prenotazione.php')) ?>">Nuova prenotazione</a>
+                    </div>
+                </header>
+            <?php endif; ?>
+
+            <main class="admin-content">
+                <?php if ($flash): ?>
+                    <div class="flash <?= e($flash['type']) ?>">
+                        <?= e($flash['message']) ?>
+                    </div>
+                <?php endif; ?>
