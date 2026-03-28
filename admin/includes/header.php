@@ -8,6 +8,7 @@ $admin = current_admin();
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= e(ADMIN_APP_NAME) ?></title>
     <link rel="stylesheet" href="<?= e(admin_url('assets/css/app.css')) ?>">
+    <link rel="stylesheet" href="<?= e(admin_url('assets/css/admin-modern.css')) ?>">
 </head>
 <body>
 <div class="app-shell">
