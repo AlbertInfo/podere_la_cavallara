@@ -130,6 +130,17 @@ require_once __DIR__ . '/includes/header.php';
                     <td><?= e($row['email_contact']) ?></td>
                     <td><?= e($row['phone_contact']) ?></td>
                     <td><?= nl2br(e($row['message_contact'])) ?></td>
+                    <td>
+            <div class="actions">
+                <form method="post"
+                      action="<?= e(admin_url('actions/delete-contact-request.php')) ?>"
+                      data-confirm="Vuoi davvero eliminare questa richiesta di contatto?">
+                    <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+                    <input type="hidden" name="contact_request_id" value="<?= (int)$row['id'] ?>">
+                    <button class="btn btn-danger btn-sm" type="submit">Cancella</button>
+                </form>
+            </div>
+        </td>
                 </tr>
             <?php endforeach; ?>
             </tbody>
