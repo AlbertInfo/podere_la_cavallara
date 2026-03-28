@@ -14,7 +14,7 @@ $admin = current_admin();
 <div class="app-shell">
     <aside class="sidebar">
         <div class="brand">
-            <img src="<?= e(admin_url('assets/img/logo_sticky.png')) ?>" alt="Podere La Cavallara">
+            <div><img src="<?= e(admin_url('assets/img/logo.png')) ?>" alt="Podere La Cavallara"></div>
             <div>
                 <strong>Admin Dashboard</strong>
                 <div class="muted">Podere La Cavallara</div>
