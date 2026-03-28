@@ -21,10 +21,7 @@ $admin = current_admin();
             </div>
             <div class="brand">
                 
-                <div>
-                    <strong>Admin Dashboard</strong>
-                    <div class="muted">Podere La Cavallara</div>
-                </div>
+                
             </div>
             <?php if ($admin): ?>
                 <nav class="nav">
