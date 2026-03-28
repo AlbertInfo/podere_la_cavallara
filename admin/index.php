@@ -44,6 +44,7 @@ require_once __DIR__ . '/includes/header.php';
         <div>
             <h2>Richieste prenotazione</h2>
             <p class="muted">Da qui puoi eliminare una richiesta o trasformarla in prenotazione confermata.</p>
+            <a class="btn btn-primary" href="<?= e(admin_url('new-prenotazione.php')) ?>">Nuova prenotazione</a>
         </div>
         <div class="toolbar">
             <input class="search-input" type="search" placeholder="Cerca richieste prenotazione..." data-table-filter="#booking-requests-table">
