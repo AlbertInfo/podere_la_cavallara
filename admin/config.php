@@ -9,6 +9,10 @@ if (session_status() === PHP_SESSION_NONE) {
 require_once dirname(__DIR__, 2) . '/config/database.php';
 require_once dirname(__DIR__, 2) . '/config/email.php';
 
+require_once dirname(__DIR__) . '/phpmailer/src/Exception.php';
+require_once dirname(__DIR__) . '/phpmailer/src/PHPMailer.php';
+require_once dirname(__DIR__) . '/phpmailer/src/SMTP.php';
+
 const ADMIN_APP_NAME = 'Podere La Cavallara | Admin';
 const ADMIN_BASE_URL = '/admin';
 const ADMIN_SESSION_KEY = 'admin_user';
