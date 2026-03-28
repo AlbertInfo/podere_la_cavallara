@@ -1558,9 +1558,9 @@ background-color: rgba(0, 0, 0, 0.811);
 }
 
 /* posizioni iniziali: da regolare sulla foto */
-.mobile-marker-1 { top: 55%; left: 58%; }
-.mobile-marker-2 { top: 60%; left: 25%; }
-.mobile-marker-3 { top: 67%; left: 75%; }
+.mobile-marker-1 { top: 60%; left: 58%; }
+.mobile-marker-2 { top: 63%; left: 25%; }
+.mobile-marker-3 { top: 72%; left: 75%; }
 
 /* testo hero sopra tutto */
 .mobile-markers-slide .mobile-hero-text {
@@ -2826,6 +2826,8 @@ footer a:focus{
 #carousel-home .owl-item.active .owl-slide-title-3 {
   transition-delay: 0.75s;
 }
+
+
 
 
 
