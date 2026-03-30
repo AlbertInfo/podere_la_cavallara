@@ -73,70 +73,7 @@
     padding-right: 20px;
 }
 
-/* .mobile-slide-card {
-    max-width: 340px;
-    padding: 22px 20px;
-    border-radius: 20px;
-    background: rgba(22, 22, 22, 0.22);
-    border: 1px solid rgba(255,255,255,0.14);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    color: #fff;
-}
 
-.mobile-slide-card small {
-    display: block;
-    margin-bottom: 10px;
-    font-size: 11px;
-    letter-spacing: 1.6px;
-    text-transform: uppercase;
-    opacity: .95;
-}
-
-.mobile-slide-card h2 {
-    font-size: 31px;
-    line-height: 1.08;
-    letter-spacing: -0.02em;
-    margin-bottom: 10px;
-    color: #fff;
-}
-
-.mobile-slide-card p {
-    font-size: 15px;
-    line-height: 1.45;
-    margin-bottom: 0;
-    color: rgba(255,255,255,.92);
-}
-
-.mobile-slide-card .btn_1 {
-    padding: 12px 18px;
-    font-size: 14px;
-}
-
-@media (max-width: 575.98px) {
-    .carousel-home-mobile,
-    .carousel-home-mobile .owl-carousel,
-    .carousel-home-mobile .owl-stage-outer,
-    .carousel-home-mobile .owl-stage,
-    .carousel-home-mobile .owl-item,
-    .carousel-home-mobile .owl-slide {
-        height: 74vh;
-        min-height: 560px;
-    }
-
-    .mobile-slide-card {
-        max-width: 100%;
-        padding: 20px 18px;
-    }
-
-    .mobile-slide-card h2 {
-        font-size: 28px;
-    }
-
-    .mobile-slide-card p {
-        font-size: 14px;
-    }
-} */
 
 /* HERO MOBILE MINIMAL */
 .carousel-home-mobile .opacity-mask {
@@ -2830,4 +2767,179 @@ footer a:focus{
 
 
 
+
+/* inizio test css su animazioni carousel mobile  */
+/* ================================
+   HOMEPAGE MOBILE HERO - PREMIUM REVEAL
+================================ */
+
+.carousel-home-mobile .owl-slide {
+    overflow: hidden;
+}
+
+.carousel-home-mobile .opacity-mask::before {
+    transition: background .9s ease, opacity .9s ease;
+}
+
+.carousel-home-mobile .owl-item.active .opacity-mask::before {
+    background: linear-gradient(
+        to bottom,
+        rgba(0,0,0,0.62) 0%,
+        rgba(0,0,0,0.28) 42%,
+        rgba(0,0,0,0.12) 100%
+    );
+}
+
+/* blocco testo */
+.carousel-home-mobile .mobile-hero-text {
+    position: relative;
+    z-index: 7;
+    max-width: 330px;
+    opacity: 0;
+    transform: translateY(26px) scale(.985);
+    filter: blur(5px);
+    transition:
+        opacity .8s cubic-bezier(.22,.61,.36,1),
+        transform .95s cubic-bezier(.22,.61,.36,1),
+        filter .8s cubic-bezier(.22,.61,.36,1);
+    will-change: opacity, transform, filter;
+}
+
+/* attivazione slide */
+.carousel-home-mobile .owl-item.active .mobile-hero-text {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+}
+
+/* elementi interni */
+.carousel-home-mobile .mobile-hero-text > * {
+    opacity: 0;
+    transform: translateY(22px);
+    transition:
+        opacity .7s cubic-bezier(.22,.61,.36,1),
+        transform .85s cubic-bezier(.22,.61,.36,1);
+    will-change: opacity, transform;
+}
+
+.carousel-home-mobile .owl-item.active .mobile-hero-text > * {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* titolo */
+.carousel-home-mobile .mobile-hero-text h2 {
+    position: relative;
+    margin-bottom: 14px;
+    text-shadow: 0 10px 28px rgba(0,0,0,.18);
+    transition-delay: .16s;
+}
+
+/* linea sotto titolo */
+.carousel-home-mobile .mobile-hero-text h2::after {
+    transform: scaleX(0);
+    transform-origin: left center;
+    opacity: 0;
+    transition:
+        transform .7s cubic-bezier(.22,.61,.36,1) .5s,
+        opacity .45s ease .5s;
+}
+
+.carousel-home-mobile .owl-item.active .mobile-hero-text h2::after {
+    transform: scaleX(1);
+    opacity: 1;
+}
+
+/* bottone */
+.carousel-home-mobile .mobile-hero-text .btn_1 {
+    opacity: 0;
+    transform: translateY(18px);
+    transition:
+        opacity .55s ease .38s,
+        transform .7s cubic-bezier(.22,.61,.36,1) .38s,
+        box-shadow .3s ease,
+        background-color .3s ease,
+        color .3s ease;
+}
+
+.carousel-home-mobile .owl-item.active .mobile-hero-text .btn_1 {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* fine css su animazioni carousel mobile  */
+
+/* inizio css su animazioni slide dekstop */
+/* HERO INTERNE DESKTOP - BASE COMUNE */
+.animate_hero .slide-animated {
+    opacity: 0;
+    transform: translateY(26px);
+    filter: blur(6px);
+    will-change: opacity, transform, filter;
+    animation: internalHeroReveal 0.95s cubic-bezier(.22,.61,.36,1) forwards;
+}
+
+/* timing in cascata */
+.animate_hero .slide-animated.one {
+    animation-delay: .22s;
+}
+
+.animate_hero .slide-animated.two {
+    animation-delay: .36s;
+}
+
+.animate_hero .slide-animated.three {
+    animation-delay: .50s;
+}
+
+.animate_hero .slide-animated.four {
+    animation-delay: .66s;
+}
+
+@keyframes internalHeroReveal {
+    from {
+        opacity: 0;
+        transform: translateY(26px);
+        filter: blur(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+        filter: blur(0);
+    }
+}
+/* fine css su animazioni slide dekstop  */
+
+/* HERO INTERNE MOBILE - CONTENITORE */
+.hero-mobile-minimal__inner {
+    max-width: 320px;
+}
+
+/* elementi interni */
+.hero-mobile-minimal__eyebrow,
+.hero-mobile-minimal__title,
+.hero-mobile-minimal__subtitle,
+.hero-mobile-minimal__link {
+    opacity: 0;
+    transform: translateY(22px);
+    filter: blur(5px);
+    will-change: opacity, transform, filter;
+    animation: internalHeroReveal 0.9s cubic-bezier(.22,.61,.36,1) forwards;
+}
+
+.hero-mobile-minimal__eyebrow {
+    animation-delay: .10s;
+}
+
+.hero-mobile-minimal__title {
+    animation-delay: .24s;
+}
+
+.hero-mobile-minimal__subtitle {
+    animation-delay: .38s;
+}
+
+.hero-mobile-minimal__link {
+    animation-delay: .52s;
+}
 
