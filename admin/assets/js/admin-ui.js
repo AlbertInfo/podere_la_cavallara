@@ -83,11 +83,12 @@ document.querySelectorAll('[data-mobile-expand-row]').forEach(function (row) {
 
     const isOpen = row.classList.contains('is-open');
 
-    document.querySelectorAll('.mobile-summary-row.is-open').forEach(function (openRow) {
-      openRow.classList.remove('is-open');
+    document.querySelectorAll('.mobile-summary-row.is-open').forEach(function (r) {
+      r.classList.remove('is-open');
     });
-    document.querySelectorAll('.mobile-detail-row.is-open').forEach(function (openDetail) {
-      openDetail.classList.remove('is-open');
+
+    document.querySelectorAll('.mobile-detail-row.is-open').forEach(function (r) {
+      r.classList.remove('is-open');
     });
 
     if (!isOpen) {
