@@ -29,7 +29,7 @@ require_once __DIR__ . '/includes/header.php';
 ?>
 <div class="auth-shell">
     <div class="card auth-card">
-        <img class="sidebar-logo sidebar-logo-desktop" src="<?= e(admin_url('assets/img/logo_sticky.png')) ?>" alt="Podere La Cavallara">
+        <img class="sidebar-logo sidebar-logo-desktop" src="<?= e(admin_url('assets/img/logo_sticky.png')) ?>" alt="Podere La Cavallara" style="position: relative;">
         <h2>Accedi all’area admin</h2>
         <p class="muted">Inserisci email e password per gestire richieste e prenotazioni.</p>
         <form method="post" class="form-grid">
