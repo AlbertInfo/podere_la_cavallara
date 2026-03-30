@@ -342,8 +342,16 @@ require_once __DIR__ . '/includes/header.php';
                     <tr class="desktop-row">
                         <td><?= e($row['created_at']) ?></td>
                         <td><?= e(($row['name_contact'] ?? '') . ' ' . ($row['lastname_contact'] ?? '')) ?></td>
-                        <td><?= e($row['email_contact']) ?></td>
-                        <td><?= e($row['phone_contact']) ?></td>
+                        <td>
+                            <a href="mailto:<?= e($row['email_contact']) ?>">
+                                <?= e($row['email_contact']) ?>
+                            </a>
+                        </td>
+                        <td>
+                            <a href="tel:<?= e(preg_replace('/[^0-9+]/', '', (string)$row['phone_contact'])) ?>">
+                                <?= e($row['phone_contact']) ?>
+                            </a>
+                        </td>
                         <td><?= nl2br(e($row['message_contact'])) ?></td>
                         <td>
                             <div class="actions">
@@ -372,11 +380,19 @@ require_once __DIR__ . '/includes/header.php';
                                     </div>
                                     <div>
                                         <span>Email</span>
-                                        <strong><?= e($row['email_contact']) ?></strong>
+                                        <strong>
+                                            <a href="mailto:<?= e($row['email_contact']) ?>">
+                                                <?= e($row['email_contact']) ?>
+                                            </a>
+                                        </strong>
                                     </div>
                                     <div>
                                         <span>Telefono</span>
-                                        <strong><?= e($row['phone_contact']) ?></strong>
+                                        <strong>
+                                            <a href="tel:<?= e(preg_replace('/[^0-9+]/', '', (string)$row['phone_contact'])) ?>">
+                                                <?= e($row['phone_contact']) ?>
+                                            </a>
+                                        </strong>
                                     </div>
                                     <div>
                                         <span>Data</span>
