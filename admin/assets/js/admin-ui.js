@@ -1,47 +1,34 @@
 document.addEventListener('DOMContentLoaded', function () {
   const body = document.body;
-  const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
-  const sidebarClose = document.querySelector('[data-sidebar-close]');
-  const sidebarBackdrop = document.querySelector('[data-sidebar-backdrop]');
-  const adminSidebar = document.querySelector('.admin-sidebar');
+  const sidebar = document.getElementById('adminSidebar');
+  const sidebarToggle = document.getElementById('mobileMenuToggle');
 
   function openSidebar() {
     body.classList.add('sidebar-open');
+    if (sidebarToggle) sidebarToggle.setAttribute('aria-expanded', 'true');
   }
 
   function closeSidebar() {
     body.classList.remove('sidebar-open');
+    if (sidebarToggle) sidebarToggle.setAttribute('aria-expanded', 'false');
   }
 
-  if (sidebarToggle) {
+  if (sidebarToggle && sidebar) {
     sidebarToggle.addEventListener('click', function () {
-      if (body.classList.contains('sidebar-open')) {
-        closeSidebar();
-      } else {
-        openSidebar();
-      }
+      body.classList.contains('sidebar-open') ? closeSidebar() : openSidebar();
+    });
+
+    document.addEventListener('click', function (e) {
+      if (window.innerWidth > 1024) return;
+      if (!body.classList.contains('sidebar-open')) return;
+      if (sidebar.contains(e.target) || sidebarToggle.contains(e.target)) return;
+      closeSidebar();
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeSidebar();
     });
   }
-
-  if (sidebarClose) {
-    sidebarClose.addEventListener('click', closeSidebar);
-  }
-
-  if (sidebarBackdrop) {
-    sidebarBackdrop.addEventListener('click', closeSidebar);
-  }
-
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') {
-      closeSidebar();
-    }
-  });
-
-  window.addEventListener('resize', function () {
-    if (window.innerWidth > 1024) {
-      closeSidebar();
-    }
-  });
 
   document.querySelectorAll('form[data-confirm]').forEach(function (form) {
     form.addEventListener('submit', function (e) {
@@ -68,54 +55,16 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
-  document.querySelectorAll('[data-flatpickr-range]').forEach(function (input) {
-    if (typeof flatpickr === 'undefined') return;
+  if (typeof flatpickr !== 'undefined') {
+    const locale = flatpickr.l10ns.it || 'it';
 
-    flatpickr(input, {
-      mode: 'range',
-      dateFormat: 'd/m/Y',
-      allowInput: true,
-      locale: 'it'
-    });
-  });
-
-  document.querySelectorAll('[data-flatpickr-single]').forEach(function (input) {
-    if (typeof flatpickr === 'undefined') return;
-
-    flatpickr(input, {
-      dateFormat: 'd/m/Y',
-      allowInput: true,
-      locale: 'it'
-    });
-  });
-
-  document.querySelectorAll('[data-table-card]').forEach(function (tableWrap) {
-    const table = tableWrap.querySelector('table');
-    if (!table) return;
-
-    const headers = Array.from(table.querySelectorAll('thead th')).map(function (th) {
-      return th.textContent.trim();
-    });
-
-    table.querySelectorAll('tbody tr').forEach(function (tr) {
-      Array.from(tr.children).forEach(function (td, index) {
-        if (!td.getAttribute('data-label') && headers[index]) {
-          td.setAttribute('data-label', headers[index]);
-        }
+    document.querySelectorAll('.js-date-range, [data-flatpickr-range]').forEach(function (input) {
+      flatpickr(input, {
+        mode: 'range',
+        dateFormat: 'd/m/Y',
+        allowInput: true,
+        locale: locale
       });
-    });
-  });
-
-  if (adminSidebar) {
-    const currentUrl = window.location.pathname.replace(/\/+$/, '');
-    adminSidebar.querySelectorAll('a[href]').forEach(function (link) {
-      try {
-        const linkUrl = new URL(link.href, window.location.origin);
-        const linkPath = linkUrl.pathname.replace(/\/+$/, '');
-        if (linkPath === currentUrl) {
-          link.classList.add('is-active');
-        }
-      } catch (err) {}
     });
   }
 });

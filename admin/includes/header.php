@@ -11,24 +11,19 @@ function admin_nav_active(array $targets, string $currentPath): string
 ?>
 <!DOCTYPE html>
 <html lang="it">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= e($pageTitle) ?></title>
-    <link rel="stylesheet" href="/admin/assets/css/admin-modern.css?v=3">
+    <link rel="stylesheet" href="/admin/assets/css/admin-modern.css?v=4">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="shortcut icon" href="<?= e(admin_url('assets/img/favicon.ico')) ?>" type="image/x-icon">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="https://npmcdn.com/flatpickr/dist/l10n/it.js"></script>
 </head>
-
 <body>
-    <div class="admin-app">
+    <div class="admin-app<?= $currentAdmin ? ' has-sidebar' : ' auth-layout' ?>">
         <?php if ($currentAdmin): ?>
             <aside class="admin-sidebar" id="adminSidebar">
                 <a class="sidebar-brand" href="<?= e(admin_url('index.php')) ?>">
@@ -38,10 +33,10 @@ function admin_nav_active(array $targets, string $currentPath): string
 
                 <nav class="sidebar-nav" aria-label="Menu area admin">
                     <a class="sidebar-link<?= admin_nav_active(['index.php'], $currentPath) ?>" href="<?= e(admin_url('index.php#overview')) ?>">Dashboard</a>
-                    <a class="sidebar-link<?= admin_nav_active(['index.php'], $currentPath) ?>" href="<?= e(admin_url('index.php#booking-requests')) ?>">Richieste prenotazione</a>
-                    <a class="sidebar-link<?= admin_nav_active(['index.php'], $currentPath) ?>" href="<?= e(admin_url('index.php#contact-requests')) ?>">Richieste contatto</a>
                     <a class="sidebar-link<?= admin_nav_active(['index.php'], $currentPath) ?>" href="<?= e(admin_url('index.php#registered-bookings')) ?>">Prenotazioni registrate</a>
                     <a class="sidebar-link<?= admin_nav_active(['new-prenotazione.php'], $currentPath) ?>" href="<?= e(admin_url('new-prenotazione.php')) ?>">Nuova prenotazione</a>
+                    <a class="sidebar-link<?= admin_nav_active(['index.php'], $currentPath) ?>" href="<?= e(admin_url('index.php#booking-requests')) ?>">Richieste prenotazione</a>
+                    <a class="sidebar-link<?= admin_nav_active(['index.php'], $currentPath) ?>" href="<?= e(admin_url('index.php#contact-requests')) ?>">Richieste contatto</a>
                 </nav>
 
                 <div class="sidebar-footer">

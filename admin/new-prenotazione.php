@@ -22,7 +22,7 @@ require_once __DIR__ . '/includes/header.php';
             <div class="booking-form-grid">
                 <label>
                     Periodo soggiorno *
-                    <input class="js-date-range" type="text" name="stay_period" placeholder="Seleziona check-in e check-out" required>
+                    <input class="js-date-range" type="text" name="stay_period" placeholder="Seleziona check-in e check-out" readonly required>
                 </label>
 
                 <label>

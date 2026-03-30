@@ -40,7 +40,62 @@ require_once __DIR__ . '/includes/header.php';
     </article>
 </section>
 
-<section id="booking-requests" class="card" style="margin-top:20px;">
+<section id="registered-bookings" class="card section-registered" style="margin-top:20px;">
+    <div class="section-title">
+        <div>
+            <h2>Prenotazioni registrate</h2>
+            <p class="muted">Elenco delle prenotazioni trasferite dall’admin o inserite manualmente dal gestionale.</p>
+        </div>
+        <div class="toolbar">
+            <input class="search-input" type="search" placeholder="Cerca prenotazioni..." data-table-filter="#registered-bookings-table">
+            <a class="btn btn-primary" href="<?= e(admin_url('new-prenotazione.php')) ?>">Nuova prenotazione</a>
+        </div>
+    </div>
+    <div class="table-wrap">
+        <table id="registered-bookings-table">
+            <thead>
+                <tr>
+                    <th>Data registrazione</th>
+                    <th>Cliente</th>
+                    <th>Soggiorno</th>
+                    <th>Camera</th>
+                    <th>Persone</th>
+                    <th>Stato</th>
+                    <th>Origine</th>
+                    <th>Azioni</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php foreach ($registeredBookings as $row): ?>
+                <tr>
+                    <td><?= e($row['created_at']) ?></td>
+                    <td>
+                        <strong><?= e($row['customer_name']) ?></strong><br>
+                        <span class="small muted"><?= e($row['customer_email']) ?></span>
+                    </td>
+                    <td><?= e($row['stay_period']) ?></td>
+                    <td><?= e($row['room_type']) ?></td>
+                    <td><?= (int)$row['adults'] ?> adulti / <?= (int)$row['children_count'] ?> bambini</td>
+                    <td><span class="badge success"><?= e($row['status']) ?></span></td>
+                    <td><span class="badge info"><?= e($row['source']) ?></span></td>
+                    <td>
+                        <div class="actions">
+                            <a class="btn btn-light btn-sm" href="<?= e(admin_url('edit-prenotazione.php?id=' . (int)$row['id'])) ?>">Modifica</a>
+                            <form method="post" action="<?= e(admin_url('actions/delete-prenotazione.php')) ?>" data-confirm="Vuoi davvero eliminare questa prenotazione?">
+                                <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+                                <input type="hidden" name="prenotazione_id" value="<?= (int)$row['id'] ?>">
+                                <button class="btn btn-danger btn-sm" type="submit">Cancella</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section id="booking-requests" class="card section-booking" style="margin-top:20px;">
     <div class="section-title">
         <div>
             <h2>Richieste prenotazione</h2>
@@ -48,7 +103,6 @@ require_once __DIR__ . '/includes/header.php';
         </div>
         <div class="toolbar">
             <input class="search-input" type="search" placeholder="Cerca richieste prenotazione..." data-table-filter="#booking-requests-table">
-            <a class="btn btn-light" href="<?= e(admin_url('api/bookingcom_sync.php')) ?>">Importa Booking.com</a>
         </div>
     </div>
     <div class="table-wrap">
@@ -80,7 +134,7 @@ require_once __DIR__ . '/includes/header.php';
                         <?= e($row['email_booking']) ?><br>
                         <span class="small muted"><?= e($row['phone_booking'] ?? '-') ?></span>
                     </td>
-                    <td><span class="badge <?= ($row['source'] ?? '') !== 'website_form' ? 'warning' : '' ?>"><?= e($row['source'] ?? 'website_form') ?></span></td>
+                    <td><span class="badge warning"><?= e($row['source'] ?? 'website_form') ?></span></td>
                     <td>
                         <div class="actions">
                             <form method="post" action="<?= e(admin_url('actions/register-booking.php')) ?>" data-confirm="Registrare questa richiesta come prenotazione confermata?">
@@ -102,13 +156,15 @@ require_once __DIR__ . '/includes/header.php';
     </div>
 </section>
 
-<section id="contact-requests" class="card" style="margin-top:20px;">
+<section id="contact-requests" class="card section-contacts" style="margin-top:20px;">
     <div class="section-title">
         <div>
             <h2>Richieste contatto</h2>
             <p class="muted">Storico dei messaggi arrivati dal form informazioni.</p>
         </div>
-        <input class="search-input" type="search" placeholder="Cerca richieste contatto..." data-table-filter="#contact-requests-table">
+        <div class="toolbar">
+            <input class="search-input" type="search" placeholder="Cerca richieste contatto..." data-table-filter="#contact-requests-table">
+        </div>
     </div>
     <div class="table-wrap">
         <table id="contact-requests-table">
@@ -143,80 +199,6 @@ require_once __DIR__ . '/includes/header.php';
             <?php endforeach; ?>
             </tbody>
         </table>
-    </div>
-</section>
-
-<section id="registered-bookings" class="card" style="margin-top:20px;">
-    <div class="section-title">
-        <div>
-            <h2>Prenotazioni registrate</h2>
-            <p class="muted">Elenco delle prenotazioni trasferite dall’admin o importate da Booking.com.</p>
-        </div>
-        <div class="toolbar">
-            <input class="search-input" type="search" placeholder="Cerca prenotazioni..." data-table-filter="#registered-bookings-table">
-            <a class="btn btn-primary" href="<?= e(admin_url('new-prenotazione.php')) ?>">Nuova prenotazione</a>
-        </div>
-    </div>
-    <div class="table-wrap">
-        <table id="registered-bookings-table">
-            <thead>
-                <tr>
-                    <th>Data registrazione</th>
-                    <th>Cliente</th>
-                    <th>Soggiorno</th>
-                    <th>Camera</th>
-                    <th>Persone</th>
-                    <th>Stato</th>
-                    <th>Origine</th>
-                    <th>Azioni</th>
-                </tr>
-            </thead>
-            <tbody>
-            <?php foreach ($registeredBookings as $row): ?>
-                <tr>
-                    <td><?= e($row['created_at']) ?></td>
-                    <td>
-                        <strong><?= e($row['customer_name']) ?></strong><br>
-                        <span class="small muted"><?= e($row['customer_email']) ?></span>
-                    </td>
-                    <td><?= e($row['stay_period']) ?></td>
-                    <td><?= e($row['room_type']) ?></td>
-                    <td><?= (int)$row['adults'] ?> adulti / <?= (int)$row['children_count'] ?> bambini</td>
-                    <td><span class="badge success"><?= e($row['status']) ?></span></td>
-                    <td><span class="badge"><?= e($row['source']) ?></span></td>
-                    <td>
-                        <div class="actions">
-                            <a class="btn btn-light btn-sm" href="<?= e(admin_url('edit-prenotazione.php?id=' . (int)$row['id'])) ?>">Modifica</a>
-                            <form method="post" action="<?= e(admin_url('actions/delete-prenotazione.php')) ?>" data-confirm="Vuoi davvero eliminare questa prenotazione?">
-                                <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
-                                <input type="hidden" name="prenotazione_id" value="<?= (int)$row['id'] ?>">
-                                <button class="btn btn-danger btn-sm" type="submit">Cancella</button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-            <?php endforeach; ?>
-            </tbody>
-        </table>
-    </div>
-</section>
-
-<section id="bookingcom" class="card" style="margin-top:20px;">
-    <div class="section-title">
-        <div>
-            <h2>Predisposizione Booking.com</h2>
-            <p class="muted">Endpoint pronto per importare prenotazioni esterne e salvarle nel database locale.</p>
-        </div>
-    </div>
-    <div class="grid" style="grid-template-columns:1fr 1fr;">
-        <div>
-            <div class="small muted">Endpoint previsto</div>
-            <div class="code">POST <?= e(BOOKINGCOM_ENDPOINT) ?></div>
-        </div>
-        <div>
-            <div class="small muted">Configurazione</div>
-            <div class="code">BOOKINGCOM_ENABLED / BOOKINGCOM_USERNAME / BOOKINGCOM_PASSWORD / BOOKINGCOM_HOTEL_ID</div>
-        </div>
     </div>
 </section>
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

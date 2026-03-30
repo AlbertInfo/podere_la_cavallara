@@ -35,7 +35,7 @@ require_once __DIR__ . '/includes/header.php';
             <div class="booking-form-grid">
                 <label>
                     Periodo soggiorno *
-                    <input class="js-date-range" type="text" name="stay_period" value="<?= e($prenotazione['stay_period']) ?>" required>
+                    <input class="js-date-range" type="text" name="stay_period" value="<?= e($prenotazione['stay_period']) ?>" readonly required>
                 </label>
 
                 <label>

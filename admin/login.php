@@ -24,6 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
+$pageTitle = 'Accesso area amministrazione';
 require_once __DIR__ . '/includes/header.php';
 ?>
 <div class="auth-shell">
@@ -33,10 +34,10 @@ require_once __DIR__ . '/includes/header.php';
         <form method="post" class="form-grid">
             <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
             <label>Email
-                <input type="email" name="email" required>
+                <input type="email" name="email" placeholder="nome@dominio.it" required>
             </label>
             <label>Password
-                <input type="password" name="password" required>
+                <input type="password" name="password" placeholder="Inserisci la password" required>
             </label>
             <button class="btn btn-primary" type="submit">Accedi</button>
             <a class="small muted" href="<?= e(admin_url('forgot-password.php')) ?>">Hai dimenticato la password?</a>
