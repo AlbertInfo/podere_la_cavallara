@@ -415,3 +415,22 @@ label{display:grid;gap:8px;font-weight:600;color:#334155}
     min-width: 100% !important;
   }
 }
+
+.contact-link{
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px dashed rgba(37, 99, 235, 0.35);
+  transition: color .18s ease, border-color .18s ease, opacity .18s ease;
+}
+
+.contact-link:hover{
+  color: #1d4ed8;
+  border-bottom-color: rgba(29, 78, 216, 0.7);
+}
+
+.contact-link:focus-visible{
+  outline: none;
+  border-bottom-color: rgba(29, 78, 216, 0.9);
+  box-shadow: 0 2px 0 rgba(29, 78, 216, 0.25);
+}

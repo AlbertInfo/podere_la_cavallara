@@ -343,12 +343,12 @@ require_once __DIR__ . '/includes/header.php';
                         <td><?= e($row['created_at']) ?></td>
                         <td><?= e(($row['name_contact'] ?? '') . ' ' . ($row['lastname_contact'] ?? '')) ?></td>
                         <td>
-                            <a href="mailto:<?= e($row['email_contact']) ?>">
+                            <a class="contact-link" href="mailto:<?= e($row['email_contact']) ?>">
                                 <?= e($row['email_contact']) ?>
                             </a>
                         </td>
                         <td>
-                            <a href="tel:<?= e(preg_replace('/[^0-9+]/', '', (string)$row['phone_contact'])) ?>">
+                            <a class="contact-link" href="tel:<?= e(preg_replace('/[^0-9+]/', '', (string)$row['phone_contact'])) ?>">
                                 <?= e($row['phone_contact']) ?>
                             </a>
                         </td>
@@ -381,7 +381,7 @@ require_once __DIR__ . '/includes/header.php';
                                     <div>
                                         <span>Email</span>
                                         <strong>
-                                            <a href="mailto:<?= e($row['email_contact']) ?>">
+                                            <a class="contact-link" href="mailto:<?= e($row['email_contact'])?>">
                                                 <?= e($row['email_contact']) ?>
                                             </a>
                                         </strong>
@@ -389,7 +389,7 @@ require_once __DIR__ . '/includes/header.php';
                                     <div>
                                         <span>Telefono</span>
                                         <strong>
-                                            <a href="tel:<?= e(preg_replace('/[^0-9+]/', '', (string)$row['phone_contact'])) ?>">
+                                            <a class="contact-link" href="tel:<?= e(preg_replace('/[^0-9+]/', '', (string)$row['phone_contact'])) ?>">
                                                 <?= e($row['phone_contact']) ?>
                                             </a>
                                         </strong>
