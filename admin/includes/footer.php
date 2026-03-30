@@ -9,6 +9,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/it.js"></script>
-    <script src="<?= e(admin_url('assets/js/admin-ui.js')) ?>?v=6"></script>
+    <script src="<?= e(admin_url('assets/js/admin-ui.js')) ?>?v=10"></script>
+
 </body>
 </html>
