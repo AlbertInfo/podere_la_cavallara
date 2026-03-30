@@ -28,7 +28,7 @@ function admin_nav_active(array $targets, string $currentPath): string
             <aside class="admin-sidebar" id="adminSidebar">
                 <a class="sidebar-brand" href="<?= e(admin_url('index.php')) ?>">
                     <img class="sidebar-logo sidebar-logo-desktop" src="<?= e(admin_url('assets/img/logo.png')) ?>" alt="Podere La Cavallara">
-                    <img class="sidebar-logo sidebar-logo-mobile" src="<?= e(admin_url('assets/img/logo_mobile.png')) ?>" alt="Podere La Cavallara">
+                    <img class="sidebar-logo sidebar-logo-mobile" src="<?= e(admin_url('assets/img/logo.png')) ?>" alt="Podere La Cavallara">
                 </a>
 
                 <nav class="sidebar-nav" aria-label="Menu area admin">

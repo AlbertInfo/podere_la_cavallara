@@ -33,11 +33,12 @@ require_once __DIR__ . '/includes/header.php';
         <div class="value"><?= $stats['registered_bookings'] ?></div>
         <div class="small muted">Confermate dall’admin</div>
     </article>
-    <article class="kpi-card">
+    <!-- <article class="kpi-card">
         <div class="label">Nuove richieste oggi</div>
-        <div class="value"><?= $stats['today_requests'] ?></div>
+        <div class="value"> inserire il php today request se serve</div>
         <div class="small muted">Solo booking requests</div>
-    </article>
+    </article> -->
+
 </section>
 
 <section id="registered-bookings" class="card section-registered" style="margin-top:20px;">
@@ -337,7 +338,8 @@ require_once __DIR__ . '/includes/header.php';
             </thead>
             <tbody>
                 <?php foreach ($contactRequests as $row): ?>
-                    <tr>
+                    <!-- DESKTOP ROW -->
+                    <tr class="desktop-row">
                         <td><?= e($row['created_at']) ?></td>
                         <td><?= e(($row['name_contact'] ?? '') . ' ' . ($row['lastname_contact'] ?? '')) ?></td>
                         <td><?= e($row['email_contact']) ?></td>
@@ -345,6 +347,69 @@ require_once __DIR__ . '/includes/header.php';
                         <td><?= nl2br(e($row['message_contact'])) ?></td>
                         <td>
                             <div class="actions">
+                                <form method="post" action="<?= e(admin_url('actions/delete-contact-request.php')) ?>" data-confirm="Vuoi davvero eliminare questa richiesta di contatto?">
+                                    <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+                                    <input type="hidden" name="contact_request_id" value="<?= (int)$row['id'] ?>">
+                                    <button class="btn btn-danger btn-sm" type="submit">Cancella</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- MOBILE SUMMARY -->
+                    <tr class="mobile-summary-row" data-mobile-expand-row>
+                        <td>
+                            <div class="mobile-summary-card">
+                                <div class="mobile-summary-head">
+                                    <strong><?= e(($row['name_contact'] ?? '') . ' ' . ($row['lastname_contact'] ?? '')) ?></strong>
+                                    <span class="mobile-chevron">▾</span>
+                                </div>
+
+                                <div class="mobile-summary-grid">
+                                    <div>
+                                        <span>Nome</span>
+                                        <strong><?= e(($row['name_contact'] ?? '') . ' ' . ($row['lastname_contact'] ?? '')) ?></strong>
+                                    </div>
+                                    <div>
+                                        <span>Email</span>
+                                        <strong><?= e($row['email_contact']) ?></strong>
+                                    </div>
+                                    <div>
+                                        <span>Telefono</span>
+                                        <strong><?= e($row['phone_contact']) ?></strong>
+                                    </div>
+                                    <div>
+                                        <span>Data</span>
+                                        <strong><?= e($row['created_at']) ?></strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- MOBILE DETAIL -->
+                    <tr class="mobile-detail-row">
+                        <td>
+                            <div class="mobile-detail-grid">
+                                <div>
+                                    <span>Data</span>
+                                    <strong><?= e($row['created_at']) ?></strong>
+                                </div>
+                                <div>
+                                    <span>Email</span>
+                                    <strong><?= e($row['email_contact']) ?></strong>
+                                </div>
+                                <div>
+                                    <span>Telefono</span>
+                                    <strong><?= e($row['phone_contact']) ?></strong>
+                                </div>
+                                <div class="full">
+                                    <span>Messaggio</span>
+                                    <strong><?= nl2br(e($row['message_contact'])) ?></strong>
+                                </div>
+                            </div>
+
+                            <div class="mobile-detail-actions">
                                 <form method="post" action="<?= e(admin_url('actions/delete-contact-request.php')) ?>" data-confirm="Vuoi davvero eliminare questa richiesta di contatto?">
                                     <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
                                     <input type="hidden" name="contact_request_id" value="<?= (int)$row['id'] ?>">
