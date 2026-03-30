@@ -450,3 +450,9 @@ label{display:grid;gap:8px;font-weight:600;color:#334155}
   border-color: rgba(37, 99, 235, 0.34);
   box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.10);
 }
+
+.card, .auth-card {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+}
