@@ -231,3 +231,188 @@ label{display:grid;gap:8px;font-weight:600;color:#334155}
   .sidebar-logo-desktop{display:none}
   .sidebar-logo-mobile{display:block}
 }
+
+
+/* Mobile accordion tables: booking requests + registered bookings */
+.desktop-only {
+  display: table-cell;
+}
+
+.mobile-compact-list,
+.mobile-detail-row {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  #booking-requests-table,
+  #registered-bookings-table {
+    min-width: 100%;
+    table-layout: fixed;
+  }
+
+  #booking-requests-table thead,
+  #registered-bookings-table thead {
+    display: none;
+  }
+
+  #booking-requests-table tbody,
+  #registered-bookings-table tbody {
+    display: block;
+  }
+
+  #booking-requests-table tbody tr,
+  #registered-bookings-table tbody tr {
+    display: block;
+    width: 100%;
+  }
+
+  #booking-requests-table .mobile-summary-row,
+  #registered-bookings-table .mobile-summary-row {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+    margin-bottom: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  }
+
+  #booking-requests-table .mobile-summary-row:hover,
+  #registered-bookings-table .mobile-summary-row:hover,
+  #booking-requests-table .mobile-summary-row.is-open,
+  #registered-bookings-table .mobile-summary-row.is-open {
+    transform: translateY(-1px);
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.10);
+    border-color: #cbd5e1;
+  }
+
+  #booking-requests-table .mobile-summary-row > td,
+  #registered-bookings-table .mobile-summary-row > td {
+    display: block;
+    width: 100%;
+    border: 0;
+    padding: 14px 14px 12px;
+  }
+
+  #booking-requests-table .mobile-summary-row .desktop-only,
+  #registered-bookings-table .mobile-summary-row .desktop-only {
+    display: none !important;
+  }
+
+  .mobile-primary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+
+  .mobile-primary strong {
+    font-size: 15px;
+    line-height: 1.2;
+  }
+
+  .mobile-chevron {
+    flex: 0 0 auto;
+    font-size: 18px;
+    color: var(--muted);
+    transition: transform .18s ease;
+  }
+
+  .mobile-summary-row.is-open .mobile-chevron {
+    transform: rotate(180deg);
+  }
+
+  .mobile-compact-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .mobile-compact-list > div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 12px;
+    background: #f8fafc;
+    border-radius: 12px;
+  }
+
+  .mobile-compact-list span {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--muted);
+  }
+
+  .mobile-compact-list strong {
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.35;
+  }
+
+  .mobile-detail-row {
+    display: none !important;
+  }
+
+  .mobile-detail-row.is-open {
+    display: block !important;
+    margin-top: -4px;
+    margin-bottom: 14px;
+  }
+
+  .mobile-detail-row > td {
+    display: block;
+    width: 100%;
+    border: 1px solid var(--line);
+    border-top: 0;
+    border-radius: 0 0 18px 18px;
+    background: #ffffff;
+    padding: 14px;
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
+  }
+
+  .mobile-detail-grid {
+    display: grid;
+    gap: 10px;
+  }
+
+  .mobile-detail-grid > div {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 10px 12px;
+    background: #f8fafc;
+    border-radius: 12px;
+  }
+
+  .mobile-detail-grid > div.full {
+    grid-column: 1 / -1;
+  }
+
+  .mobile-detail-grid span {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--muted);
+  }
+
+  .mobile-detail-grid strong {
+    font-size: 14px;
+    line-height: 1.4;
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .mobile-detail-actions {
+    display: grid;
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  .mobile-detail-actions .btn,
+  .mobile-detail-actions form,
+  .mobile-detail-actions form button {
+    width: 100%;
+  }
+}

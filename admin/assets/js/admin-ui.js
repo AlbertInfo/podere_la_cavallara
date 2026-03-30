@@ -68,3 +68,31 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 });
+
+
+document.querySelectorAll('[data-mobile-expand-row]').forEach(function (row) {
+  row.addEventListener('click', function (e) {
+    if (window.innerWidth > 768) return;
+
+    if (e.target.closest('a, button, form, input, select, textarea, label')) {
+      return;
+    }
+
+    const detailRow = row.nextElementSibling;
+    if (!detailRow || !detailRow.classList.contains('mobile-detail-row')) return;
+
+    const isOpen = row.classList.contains('is-open');
+
+    document.querySelectorAll('.mobile-summary-row.is-open').forEach(function (openRow) {
+      openRow.classList.remove('is-open');
+    });
+    document.querySelectorAll('.mobile-detail-row.is-open').forEach(function (openDetail) {
+      openDetail.classList.remove('is-open');
+    });
+
+    if (!isOpen) {
+      row.classList.add('is-open');
+      detailRow.classList.add('is-open');
+    }
+  });
+});

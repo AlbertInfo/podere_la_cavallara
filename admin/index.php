@@ -66,30 +66,70 @@ require_once __DIR__ . '/includes/header.php';
                 </tr>
             </thead>
             <tbody>
-            <?php foreach ($registeredBookings as $row): ?>
-                <tr>
-                    <td><?= e($row['created_at']) ?></td>
-                    <td>
-                        <strong><?= e($row['customer_name']) ?></strong><br>
-                        <span class="small muted"><?= e($row['customer_email']) ?></span>
-                    </td>
-                    <td><?= e($row['stay_period']) ?></td>
-                    <td><?= e($row['room_type']) ?></td>
-                    <td><?= (int)$row['adults'] ?> adulti / <?= (int)$row['children_count'] ?> bambini</td>
-                    <td><span class="badge success"><?= e($row['status']) ?></span></td>
-                    <td><span class="badge info"><?= e($row['source']) ?></span></td>
-                    <td>
-                        <div class="actions">
-                            <a class="btn btn-light btn-sm" href="<?= e(admin_url('edit-prenotazione.php?id=' . (int)$row['id'])) ?>">Modifica</a>
-                            <form method="post" action="<?= e(admin_url('actions/delete-prenotazione.php')) ?>" data-confirm="Vuoi davvero eliminare questa prenotazione?">
-                                <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
-                                <input type="hidden" name="prenotazione_id" value="<?= (int)$row['id'] ?>">
-                                <button class="btn btn-danger btn-sm" type="submit">Cancella</button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-            <?php endforeach; ?>
+            <tbody>
+                <?php foreach ($registeredBookings as $row): ?>
+                    <tr class="mobile-summary-row" data-mobile-expand-row>
+                        <td data-label="Data registrazione">
+                            <div class="mobile-primary">
+                                <strong><?= e($row['customer_name']) ?></strong>
+                                <span class="mobile-chevron">▾</span>
+                            </div>
+                            <div class="mobile-compact-list">
+                                <div><span>Cliente</span><strong><?= e($row['customer_name']) ?></strong></div>
+                                <div><span>Soggiorno</span><strong><?= e($row['stay_period']) ?></strong></div>
+                                <div><span>Camera</span><strong><?= e($row['room_type']) ?></strong></div>
+                                <div><span>Persone</span><strong><?= (int)$row['adults'] ?> adulti / <?= (int)$row['children_count'] ?> bambini</strong></div>
+                            </div>
+                            <div class="desktop-only"><?= e($row['created_at']) ?></div>
+                        </td>
+                        <td data-label="Cliente" class="desktop-only">
+                            <strong><?= e($row['customer_name']) ?></strong><br>
+                            <span class="small muted"><?= e($row['customer_email']) ?></span>
+                        </td>
+                        <td data-label="Soggiorno" class="desktop-only"><?= e($row['stay_period']) ?></td>
+                        <td data-label="Camera" class="desktop-only"><?= e($row['room_type']) ?></td>
+                        <td data-label="Persone" class="desktop-only"><?= (int)$row['adults'] ?> adulti / <?= (int)$row['children_count'] ?> bambini</td>
+                        <td data-label="Stato" class="desktop-only"><span class="badge success"><?= e($row['status']) ?></span></td>
+                        <td data-label="Origine" class="desktop-only"><span class="badge"><?= e($row['source']) ?></span></td>
+                        <td data-label="Azioni" class="desktop-only">
+                            <div class="actions">
+                                <a class="btn btn-light btn-sm" href="<?= e(admin_url('edit-prenotazione.php?id=' . (int)$row['id'])) ?>">Modifica</a>
+                                <form method="post" action="<?= e(admin_url('actions/delete-prenotazione.php')) ?>" data-confirm="Vuoi davvero eliminare questa prenotazione?">
+                                    <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+                                    <input type="hidden" name="prenotazione_id" value="<?= (int)$row['id'] ?>">
+                                    <button class="btn btn-danger btn-sm" type="submit">Cancella</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <tr class="mobile-detail-row">
+                        <td colspan="8">
+                            <div class="mobile-detail-grid">
+                                <div><span>Data registrazione</span><strong><?= e($row['created_at']) ?></strong></div>
+                                <div><span>Email</span><strong><?= e($row['customer_email']) ?></strong></div>
+                                <div><span>Telefono</span><strong><?= e($row['customer_phone'] ?? '-') ?></strong></div>
+                                <div><span>Stato</span><strong><?= e($row['status']) ?></strong></div>
+                                <div><span>Origine</span><strong><?= e($row['source']) ?></strong></div>
+                                <?php if (!empty($row['external_reference'])): ?>
+                                    <div><span>Riferimento esterno</span><strong><?= e($row['external_reference']) ?></strong></div>
+                                <?php endif; ?>
+                                <?php if (!empty($row['notes'])): ?>
+                                    <div class="full"><span>Note</span><strong><?= nl2br(e($row['notes'])) ?></strong></div>
+                                <?php endif; ?>
+                            </div>
+
+                            <div class="mobile-detail-actions">
+                                <a class="btn btn-light btn-sm" href="<?= e(admin_url('edit-prenotazione.php?id=' . (int)$row['id'])) ?>">Modifica</a>
+                                <form method="post" action="<?= e(admin_url('actions/delete-prenotazione.php')) ?>" data-confirm="Vuoi davvero eliminare questa prenotazione?">
+                                    <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+                                    <input type="hidden" name="prenotazione_id" value="<?= (int)$row['id'] ?>">
+                                    <button class="btn btn-danger btn-sm" type="submit">Cancella</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
             </tbody>
         </table>
     </div>
@@ -120,37 +160,78 @@ require_once __DIR__ . '/includes/header.php';
                 </tr>
             </thead>
             <tbody>
-            <?php foreach ($bookingRequests as $row): ?>
-                <tr>
-                    <td><?= e($row['created_at']) ?></td>
-                    <td>
-                        <strong><?= e($row['name_booking']) ?></strong><br>
-                        <span class="small muted"><?= e($row['message_booking'] ?? '') ?></span>
-                    </td>
-                    <td><?= e($row['date_booking']) ?></td>
-                    <td><?= e($row['rooms_booking']) ?></td>
-                    <td><?= (int)$row['adults_booking'] ?> adulti / <?= (int)$row['childs_booking'] ?> bambini</td>
-                    <td>
-                        <?= e($row['email_booking']) ?><br>
-                        <span class="small muted"><?= e($row['phone_booking'] ?? '-') ?></span>
-                    </td>
-                    <td><span class="badge warning"><?= e($row['source'] ?? 'website_form') ?></span></td>
-                    <td>
-                        <div class="actions">
-                            <form method="post" action="<?= e(admin_url('actions/register-booking.php')) ?>" data-confirm="Registrare questa richiesta come prenotazione confermata?">
-                                <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
-                                <input type="hidden" name="booking_request_id" value="<?= (int)$row['id'] ?>">
-                                <button class="btn btn-success btn-sm" type="submit">Registra prenotazione</button>
-                            </form>
-                            <form method="post" action="<?= e(admin_url('actions/delete-booking-request.php')) ?>" data-confirm="Vuoi davvero eliminare questa richiesta?">
-                                <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
-                                <input type="hidden" name="booking_request_id" value="<?= (int)$row['id'] ?>">
-                                <button class="btn btn-danger btn-sm" type="submit">Cancella</button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-            <?php endforeach; ?>
+                <?php foreach ($bookingRequests as $row): ?>
+                    <tr class="mobile-summary-row" data-mobile-expand-row>
+                        <td data-label="Data richiesta">
+                            <div class="mobile-primary">
+                                <strong><?= e($row['name_booking']) ?></strong>
+                                <span class="mobile-chevron">▾</span>
+                            </div>
+                            <div class="mobile-compact-list">
+                                <div><span>Cliente</span><strong><?= e($row['name_booking']) ?></strong></div>
+                                <div><span>Soggiorno</span><strong><?= e($row['date_booking']) ?></strong></div>
+                                <div><span>Camera</span><strong><?= e($row['rooms_booking']) ?></strong></div>
+                                <div><span>Persone</span><strong><?= (int)$row['adults_booking'] ?> adulti / <?= (int)$row['childs_booking'] ?> bambini</strong></div>
+                            </div>
+                            <div class="desktop-only"><?= e($row['created_at']) ?></div>
+                        </td>
+                        <td data-label="Cliente" class="desktop-only">
+                            <strong><?= e($row['name_booking']) ?></strong><br>
+                            <span class="small muted"><?= e($row['message_booking'] ?? '') ?></span>
+                        </td>
+                        <td data-label="Soggiorno" class="desktop-only"><?= e($row['date_booking']) ?></td>
+                        <td data-label="Camera" class="desktop-only"><?= e($row['rooms_booking']) ?></td>
+                        <td data-label="Persone" class="desktop-only"><?= (int)$row['adults_booking'] ?> adulti / <?= (int)$row['childs_booking'] ?> bambini</td>
+                        <td data-label="Contatti" class="desktop-only">
+                            <?= e($row['email_booking']) ?><br>
+                            <span class="small muted"><?= e($row['phone_booking'] ?? '-') ?></span>
+                        </td>
+                        <td data-label="Origine" class="desktop-only">
+                            <span class="badge <?= ($row['source'] ?? '') !== 'website_form' ? 'warning' : '' ?>"><?= e($row['source'] ?? 'website_form') ?></span>
+                        </td>
+                        <td data-label="Azioni" class="desktop-only">
+                            <div class="actions">
+                                <form method="post" action="<?= e(admin_url('actions/register-booking.php')) ?>" data-confirm="Registrare questa richiesta come prenotazione confermata?">
+                                    <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+                                    <input type="hidden" name="booking_request_id" value="<?= (int)$row['id'] ?>">
+                                    <button class="btn btn-success btn-sm" type="submit">Registra prenotazione</button>
+                                </form>
+                                <form method="post" action="<?= e(admin_url('actions/delete-booking-request.php')) ?>" data-confirm="Vuoi davvero eliminare questa richiesta?">
+                                    <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+                                    <input type="hidden" name="booking_request_id" value="<?= (int)$row['id'] ?>">
+                                    <button class="btn btn-danger btn-sm" type="submit">Cancella</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <tr class="mobile-detail-row">
+                        <td colspan="8">
+                            <div class="mobile-detail-grid">
+                                <div><span>Data richiesta</span><strong><?= e($row['created_at']) ?></strong></div>
+                                <div><span>Email</span><strong><?= e($row['email_booking']) ?></strong></div>
+                                <div><span>Telefono</span><strong><?= e($row['phone_booking'] ?? '-') ?></strong></div>
+                                <div><span>Origine</span><strong><?= e($row['source'] ?? 'website_form') ?></strong></div>
+                                <?php if (!empty($row['message_booking'])): ?>
+                                    <div class="full"><span>Messaggio</span><strong><?= e($row['message_booking']) ?></strong></div>
+                                <?php endif; ?>
+                            </div>
+
+                            <div class="mobile-detail-actions">
+                                <form method="post" action="<?= e(admin_url('actions/register-booking.php')) ?>" data-confirm="Registrare questa richiesta come prenotazione confermata?">
+                                    <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+                                    <input type="hidden" name="booking_request_id" value="<?= (int)$row['id'] ?>">
+                                    <button class="btn btn-success btn-sm" type="submit">Registra prenotazione</button>
+                                </form>
+                                <form method="post" action="<?= e(admin_url('actions/delete-booking-request.php')) ?>" data-confirm="Vuoi davvero eliminare questa richiesta?">
+                                    <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+                                    <input type="hidden" name="booking_request_id" value="<?= (int)$row['id'] ?>">
+                                    <button class="btn btn-danger btn-sm" type="submit">Cancella</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
             </tbody>
         </table>
     </div>
@@ -179,24 +260,24 @@ require_once __DIR__ . '/includes/header.php';
                 </tr>
             </thead>
             <tbody>
-            <?php foreach ($contactRequests as $row): ?>
-                <tr>
-                    <td><?= e($row['created_at']) ?></td>
-                    <td><?= e(($row['name_contact'] ?? '') . ' ' . ($row['lastname_contact'] ?? '')) ?></td>
-                    <td><?= e($row['email_contact']) ?></td>
-                    <td><?= e($row['phone_contact']) ?></td>
-                    <td><?= nl2br(e($row['message_contact'])) ?></td>
-                    <td>
-                        <div class="actions">
-                            <form method="post" action="<?= e(admin_url('actions/delete-contact-request.php')) ?>" data-confirm="Vuoi davvero eliminare questa richiesta di contatto?">
-                                <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
-                                <input type="hidden" name="contact_request_id" value="<?= (int)$row['id'] ?>">
-                                <button class="btn btn-danger btn-sm" type="submit">Cancella</button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-            <?php endforeach; ?>
+                <?php foreach ($contactRequests as $row): ?>
+                    <tr>
+                        <td><?= e($row['created_at']) ?></td>
+                        <td><?= e(($row['name_contact'] ?? '') . ' ' . ($row['lastname_contact'] ?? '')) ?></td>
+                        <td><?= e($row['email_contact']) ?></td>
+                        <td><?= e($row['phone_contact']) ?></td>
+                        <td><?= nl2br(e($row['message_contact'])) ?></td>
+                        <td>
+                            <div class="actions">
+                                <form method="post" action="<?= e(admin_url('actions/delete-contact-request.php')) ?>" data-confirm="Vuoi davvero eliminare questa richiesta di contatto?">
+                                    <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+                                    <input type="hidden" name="contact_request_id" value="<?= (int)$row['id'] ?>">
+                                    <button class="btn btn-danger btn-sm" type="submit">Cancella</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
             </tbody>
         </table>
     </div>
