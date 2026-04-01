@@ -2943,3 +2943,15 @@ footer a:focus{
     animation-delay: .52s;
 }
 
+@media (max-width: 991.98px) {
+  #mainNav ul li a.btn_1.open_close_menu {
+    display: block !important;
+    width: 100% !important;
+   
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    line-height: inherit !important;
+  }
+}
