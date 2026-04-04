@@ -49,6 +49,7 @@ require_once __DIR__ . '/includes/header.php';
         </div>
         <div class="toolbar">
             <input class="search-input" type="search" placeholder="Cerca prenotazioni..." data-table-filter="#registered-bookings-table">
+            <a class="btn btn-light" href="<?= e(admin_url('import-interhome-pdf.php')) ?>">Importa PDF Interhome</a>
             <a class="btn btn-primary" href="<?= e(admin_url('new-prenotazione.php')) ?>">Nuova prenotazione</a>
         </div>
     </div>

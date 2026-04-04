@@ -97,3 +97,13 @@ document.querySelectorAll('[data-mobile-expand-row]').forEach(function (row) {
     }
   });
 });
+
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('[data-row-href]').forEach(function (row) {
+    row.addEventListener('click', function (e) {
+      if (e.target.closest('a, button, form, input, select, textarea, label')) return;
+      const href = row.getAttribute('data-row-href');
+      if (href) window.location.href = href;
+    });
+  });
+});

@@ -35,6 +35,7 @@ function admin_nav_active(array $targets, string $currentPath): string
                     <a class="sidebar-link<?= admin_nav_active(['index.php'], $currentPath) ?>" href="<?= e(admin_url('index.php#overview')) ?>">Dashboard</a>
                     <a class="sidebar-link<?= admin_nav_active(['index.php'], $currentPath) ?>" href="<?= e(admin_url('index.php#registered-bookings')) ?>">Prenotazioni registrate</a>
                     <a class="sidebar-link<?= admin_nav_active(['new-prenotazione.php'], $currentPath) ?>" href="<?= e(admin_url('new-prenotazione.php')) ?>">Nuova prenotazione</a>
+                    <a class="sidebar-link<?= admin_nav_active(['import-interhome-pdf.php','import-interhome-review.php'], $currentPath) ?>" href="<?= e(admin_url('import-interhome-pdf.php')) ?>">Importa PDF Interhome</a>
                     <a class="sidebar-link<?= admin_nav_active(['index.php'], $currentPath) ?>" href="<?= e(admin_url('index.php#booking-requests')) ?>">Richieste prenotazione</a>
                     <a class="sidebar-link<?= admin_nav_active(['index.php'], $currentPath) ?>" href="<?= e(admin_url('index.php#contact-requests')) ?>">Richieste contatto</a>
                 </nav>
@@ -61,6 +62,7 @@ function admin_nav_active(array $targets, string $currentPath): string
                         <img src="<?= e(admin_url('assets/img/logo_mobile.png')) ?>" alt="Podere La Cavallara">
                     </a>
                     <div class="topbar-actions">
+                        <a class="btn btn-light btn-sm" href="<?= e(admin_url('import-interhome-pdf.php')) ?>">Importa PDF</a>
                         <a class="btn btn-primary btn-sm" href="<?= e(admin_url('new-prenotazione.php')) ?>">Nuova prenotazione</a>
                     </div>
                 </header>
