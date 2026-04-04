@@ -1,6 +1,9 @@
 <?php
-require_once dirname(__DIR__) . '/includes/auth.php';
-require_once dirname(__DIR__) . '/includes/db.php';
+declare(strict_types=1);
+
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/db.php';
+
 require_admin();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -10,59 +13,45 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 verify_csrf();
 
-$key = (string) ($_POST['import_key'] ?? '');
-$rows = $_SESSION['interhome_import_rows'] ?? [];
-
-if ($key === '' || !isset($rows[$key])) {
-    set_flash('error', 'Prenotazione Interhome non trovata o sessione scaduta.');
+$id = (int) ($_POST['import_row_id'] ?? -1);
+$rows = $_SESSION['interhome_import']['rows'] ?? [];
+if (!isset($rows[$id]) || !is_array($rows[$id])) {
+    set_flash('error', 'Prenotazione importata non trovata in sessione.');
     header('Location: ' . admin_url('import-interhome-pdf.php'));
     exit;
 }
 
-$data = [
-    'customer_name' => trim((string) ($_POST['customer_name'] ?? '')),
-    'customer_email' => trim((string) ($_POST['customer_email'] ?? '')),
-    'customer_phone' => trim((string) ($_POST['customer_phone'] ?? '')),
-    'stay_period' => trim((string) ($_POST['stay_period'] ?? '')),
-    'room_type' => trim((string) ($_POST['room_type'] ?? '')),
-    'adults' => (int) ($_POST['adults'] ?? 0),
-    'children_count' => (int) ($_POST['children_count'] ?? 0),
-    'notes' => trim((string) ($_POST['notes'] ?? '')),
-    'status' => trim((string) ($_POST['status'] ?? 'confermata')),
-    'source' => trim((string) ($_POST['source'] ?? 'interhome_pdf')),
-    'external_reference' => trim((string) ($_POST['external_reference'] ?? '')),
-];
+$customerName = trim((string) ($_POST['customer_name'] ?? ''));
+$customerEmail = trim((string) ($_POST['customer_email'] ?? ''));
+$customerPhone = trim((string) ($_POST['customer_phone'] ?? ''));
+$stayPeriod = trim((string) ($_POST['stay_period'] ?? ''));
+$roomType = trim((string) ($_POST['room_type'] ?? ''));
+$adults = max(0, (int) ($_POST['adults'] ?? 0));
+$children = max(0, (int) ($_POST['children_count'] ?? 0));
+$status = trim((string) ($_POST['status'] ?? 'confermata')) ?: 'confermata';
+$notes = trim((string) ($_POST['notes'] ?? ''));
+$externalReference = trim((string) ($_POST['external_reference'] ?? ''));
+$source = trim((string) ($_POST['source'] ?? 'interhome_pdf')) ?: 'interhome_pdf';
 
-if ($data['customer_name'] === '' || $data['stay_period'] === '' || $data['room_type'] === '') {
-    set_flash('error', 'Compila i campi obbligatori della prenotazione prima del salvataggio.');
-    header('Location: ' . admin_url('import-interhome-review.php?row=' . urlencode($key)));
+if ($customerName === '' || $stayPeriod === '' || $roomType === '') {
+    set_flash('error', 'Compila almeno nome cliente, soggiorno e camera.');
+    header('Location: ' . admin_url('import-interhome-review.php?id=' . $id));
     exit;
 }
 
-if ($data['customer_email'] !== '' && !filter_var($data['customer_email'], FILTER_VALIDATE_EMAIL)) {
-    set_flash('error', 'L’indirizzo email non è valido.');
-    header('Location: ' . admin_url('import-interhome-review.php?row=' . urlencode($key)));
-    exit;
-}
-
-if (!in_array($data['status'], ['confermata', 'in_attesa', 'annullata'], true)) {
-    set_flash('error', 'Stato prenotazione non valido.');
-    header('Location: ' . admin_url('import-interhome-review.php?row=' . urlencode($key)));
-    exit;
-}
-
-if ($data['external_reference'] !== '') {
-    $dup = $pdo->prepare('SELECT id FROM prenotazioni WHERE external_reference = :external_reference LIMIT 1');
-    $dup->execute(['external_reference' => $data['external_reference']]);
-    if ($dup->fetchColumn()) {
-        set_flash('error', 'Questa prenotazione Interhome è già presente nel gestionale.');
-        unset($_SESSION['interhome_import_rows'][$key]);
+if ($externalReference !== '') {
+    $check = $pdo->prepare('SELECT id FROM prenotazioni WHERE external_reference = :external_reference LIMIT 1');
+    $check->execute(['external_reference' => $externalReference]);
+    if ($check->fetchColumn()) {
+        set_flash('error', 'Questa prenotazione risulta già presente in archivio.');
         header('Location: ' . admin_url('import-interhome-pdf.php'));
         exit;
     }
 }
 
-$stmt = $pdo->prepare('INSERT INTO prenotazioni (
+$rawPayload = json_encode($rows[$id], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+$sql = 'INSERT INTO prenotazioni (
     booking_request_id,
     customer_name,
     customer_email,
@@ -71,13 +60,12 @@ $stmt = $pdo->prepare('INSERT INTO prenotazioni (
     room_type,
     adults,
     children_count,
-    notes,
     status,
     source,
     external_reference,
+    notes,
     raw_payload,
-    created_at,
-    updated_at
+    created_at
 ) VALUES (
     NULL,
     :customer_name,
@@ -87,34 +75,34 @@ $stmt = $pdo->prepare('INSERT INTO prenotazioni (
     :room_type,
     :adults,
     :children_count,
-    :notes,
     :status,
     :source,
     :external_reference,
+    :notes,
     :raw_payload,
-    NOW(),
     NOW()
-)');
+)';
 
-$rawPayload = json_encode($rows[$key], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-
+$stmt = $pdo->prepare($sql);
 $stmt->execute([
-    'customer_name' => $data['customer_name'],
-    'customer_email' => $data['customer_email'] !== '' ? $data['customer_email'] : null,
-    'customer_phone' => $data['customer_phone'] !== '' ? $data['customer_phone'] : null,
-    'stay_period' => $data['stay_period'],
-    'room_type' => $data['room_type'],
-    'adults' => $data['adults'],
-    'children_count' => $data['children_count'],
-    'notes' => $data['notes'] !== '' ? $data['notes'] : null,
-    'status' => $data['status'],
-    'source' => $data['source'],
-    'external_reference' => $data['external_reference'] !== '' ? $data['external_reference'] : null,
+    'customer_name' => $customerName,
+    'customer_email' => $customerEmail,
+    'customer_phone' => $customerPhone,
+    'stay_period' => $stayPeriod,
+    'room_type' => $roomType,
+    'adults' => $adults,
+    'children_count' => $children,
+    'status' => $status,
+    'source' => $source,
+    'external_reference' => $externalReference,
+    'notes' => $notes !== '' ? $notes : null,
     'raw_payload' => $rawPayload,
 ]);
 
-unset($_SESSION['interhome_import_rows'][$key]);
+unset($_SESSION['interhome_import']['rows'][$id]);
+$_SESSION['interhome_import']['rows'] = array_values($_SESSION['interhome_import']['rows']);
+$_SESSION['interhome_import']['summary']['found_total'] = count($_SESSION['interhome_import']['rows']);
 
-set_flash('success', 'Prenotazione Interhome salvata correttamente.');
+set_flash('success', 'Prenotazione Interhome importata correttamente.');
 header('Location: ' . admin_url('index.php#registered-bookings'));
 exit;
