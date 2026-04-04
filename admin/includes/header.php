@@ -32,7 +32,7 @@ function admin_nav_active(array $targets, string $currentPath): string
         <?php if ($currentAdmin): ?>
             <aside class="admin-sidebar" id="adminSidebar">
                 <a class="sidebar-brand" href="<?= e(admin_url('index.php')) ?>">
-                    <img class="sidebar-logo sidebar-logo-desktop" src="<?= e(admin_url('assets/img/logo.png')) ?>" alt="Podere La Cavallara">
+                    <img class="sidebar-logo sidebar-logo-desktop" src="<?= e(admin_url('assets/img/logo.svg')) ?>" alt="Podere La Cavallara">
                     <img class="sidebar-logo sidebar-logo-mobile" src="<?= e(admin_url('assets/img/logo_mobile.svg')) ?>" alt="Podere La Cavallara">
                 </a>
 
