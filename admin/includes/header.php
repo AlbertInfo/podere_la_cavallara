@@ -29,6 +29,7 @@ function admin_nav_active(array $targets, string $currentPath): string
 
 <body>
     <div class="admin-app <?= $currentAdmin ? 'has-sidebar' : 'auth-layout' ?>">
+        <?php if ($currentAdmin): ?>
             <aside class="admin-sidebar" id="adminSidebar">
                 <a class="sidebar-brand" href="<?= e(admin_url('index.php')) ?>">
                     <img class="sidebar-logo sidebar-logo-desktop" src="<?= e(admin_url('assets/img/logo_sticky.png')) ?>" alt="Podere La Cavallara">
