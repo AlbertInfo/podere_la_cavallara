@@ -1,490 +1,688 @@
 <?php
 declare(strict_types=1);
 
-function interhome_pdf_require_command(string $command): ?string
-{
-    $check = trim((string) @shell_exec('command -v ' . escapeshellarg($command) . ' 2>/dev/null'));
-    return $check !== '' ? $check : null;
-}
+/**
+ * Interhome PDF import helper.
+ *
+ * Strategy:
+ * - text extraction from raw PDF streams (pure PHP, no pdftotext needed)
+ * - page rasterization with Imagick
+ * - status detection from first icon column
+ * - safe fail: if per-page status count != parsed rows count, import is blocked
+ */
 
-function interhome_pdf_get_imagemagick_command(): ?string
+function interhome_import_parse_pdf(string $pdfPath, PDO $pdo): array
 {
-    foreach (['magick', '/opt/imagemagick/bin/convert', 'convert'] as $cmd) {
-        $path = str_starts_with($cmd, '/') ? (is_file($cmd) ? $cmd : null) : interhome_pdf_require_command($cmd);
-        if ($path) {
-            return $cmd;
-        }
-    }
-    return null;
-}
-
-function interhome_pdf_parse(string $pdfPath, PDO $pdo): array
-{
-    if (!is_file($pdfPath)) {
+    if (!file_exists($pdfPath)) {
         throw new RuntimeException('PDF non trovato.');
     }
 
-    if (!interhome_pdf_require_command('pdftotext')) {
-        throw new RuntimeException('pdftotext non disponibile sul server.');
+    $pages = interhome_pdf_extract_pages($pdfPath);
+    if (!$pages) {
+        throw new RuntimeException('Impossibile leggere il contenuto testuale del PDF Interhome.');
     }
 
-    if (!interhome_pdf_require_command('pdftoppm')) {
-        throw new RuntimeException('pdftoppm non disponibile sul server.');
+    $allRows = [];
+    $globalNotes = [];
+    $tmpDir = sys_get_temp_dir() . '/interhome_import_' . bin2hex(random_bytes(6));
+
+    if (!is_dir($tmpDir) && !mkdir($tmpDir, 0775, true) && !is_dir($tmpDir)) {
+        throw new RuntimeException('Impossibile creare la cartella temporanea di parsing.');
     }
 
-    if (!interhome_pdf_get_imagemagick_command()) {
-        throw new RuntimeException('ImageMagick non disponibile sul server.');
-    }
+    try {
+        foreach ($pages as $pageNo => $pageData) {
+            $rows = interhome_parse_page_tokens($pageData['tokens'], $pageNo);
+            foreach ($pageData['notes'] as $ref => $note) {
+                $globalNotes[$ref] = $note;
+            }
+            foreach ($rows['notes'] as $ref => $note) {
+                $globalNotes[$ref] = $note;
+            }
 
-    $layoutText = (string) @shell_exec('pdftotext -layout ' . escapeshellarg($pdfPath) . ' - 2>/dev/null');
-    $bboxXml = (string) @shell_exec('pdftotext -bbox-layout ' . escapeshellarg($pdfPath) . ' - 2>/dev/null');
-
-    if (trim($layoutText) === '' || trim($bboxXml) === '') {
-        throw new RuntimeException('Impossibile leggere il PDF con i tool di sistema.');
-    }
-
-    $plainPages = preg_split("/\f/u", $layoutText) ?: [];
-    $xml = @simplexml_load_string($bboxXml);
-
-    if (!$xml) {
-        throw new RuntimeException('Impossibile interpretare la struttura del PDF.');
-    }
-
-    $xml->registerXPathNamespace('x', 'http://www.w3.org/1999/xhtml');
-    $pages = $xml->xpath('//x:page') ?: [];
-
-    $rows = [];
-    $notes = [];
-
-    foreach ($pages as $pageIndex => $page) {
-        $pageNumber = $pageIndex + 1;
-        $pageText = $plainPages[$pageIndex] ?? '';
-        $pageRows = interhome_pdf_extract_rows_from_page($page, $pageNumber);
-        $statuses = interhome_pdf_detect_statuses_for_page($pdfPath, $pageNumber, $pageRows);
-
-        foreach ($pageRows as $rowIndex => &$row) {
-            $row['icon_status'] = $statuses[$rowIndex] ?? 'existing_ok';
-            $row['status_label'] = match ($row['icon_status']) {
-                'cancelled_skip' => 'Cancellata',
-                'new_ok' => 'Nuova prenotazione',
-                default => 'Prenotazione esistente',
-            };
-        }
-        unset($row);
-
-        $notes = array_merge($notes, interhome_pdf_extract_notes_from_page_text($pageText));
-        $rows = array_merge($rows, $pageRows);
-    }
-
-    $rows = interhome_pdf_attach_notes($rows, $notes);
-    $rows = interhome_pdf_filter_duplicates($pdo, $rows);
-
-    $filteredRows = array_values(array_filter($rows, static function (array $row): bool {
-        return $row['icon_status'] !== 'cancelled_skip' && !$row['is_duplicate'];
-    }));
-
-    return [
-        'all_rows' => $rows,
-        'rows' => $filteredRows,
-        'stats' => [
-            'total_found' => count($rows),
-            'new_rows' => count($filteredRows),
-            'duplicates' => count(array_filter($rows, static fn(array $row): bool => $row['is_duplicate'])),
-            'cancelled' => count(array_filter($rows, static fn(array $row): bool => $row['icon_status'] === 'cancelled_skip')),
-            'notes' => count($notes),
-        ],
-    ];
-}
-
-function interhome_pdf_extract_rows_from_page(SimpleXMLElement $page, int $pageNumber): array
-{
-    $lines = [];
-    foreach (($page->xpath('.//x:line') ?: []) as $line) {
-        $textParts = [];
-        foreach (($line->xpath('./x:word') ?: []) as $word) {
-            $textParts[] = trim((string) $word);
-        }
-        $text = trim(preg_replace('/\s+/u', ' ', implode(' ', array_filter($textParts, static fn(string $v): bool => $v !== ''))));
-        if ($text === '') {
-            continue;
-        }
-        $lines[] = [
-            'text' => $text,
-            'xMin' => (float) $line['xMin'],
-            'xMax' => (float) $line['xMax'],
-            'yMin' => (float) $line['yMin'],
-            'yMax' => (float) $line['yMax'],
-        ];
-    }
-
-    $dateLines = array_values(array_filter($lines, static function (array $line): bool {
-        return $line['xMin'] < 130
-            && $line['yMin'] > 440
-            && preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $line['text']) === 1;
-    }));
-
-    $rows = [];
-    for ($i = 0; $i < count($dateLines); $i += 2) {
-        if (!isset($dateLines[$i + 1])) {
-            break;
-        }
-
-        $checkinLine = $dateLines[$i];
-        $checkoutLine = $dateLines[$i + 1];
-        $nextStart = $dateLines[$i + 2]['yMin'] ?? ((float) $page['height'] - 70.0);
-        $rowStart = $checkinLine['yMin'] - 2.0;
-        $rowEnd = $nextStart - 2.0;
-        $centerY = (($checkinLine['yMin'] + $checkoutLine['yMax']) / 2.0) + 5.0;
-
-        $houseLines = [];
-        $clientLines = [];
-        $detailLines = [];
-
-        foreach ($lines as $line) {
-            if ($line['yMin'] < $rowStart || $line['yMin'] >= $rowEnd) {
+            $expectedCount = count($rows['rows']);
+            if ($expectedCount === 0) {
                 continue;
             }
 
-            if ($line['xMin'] >= 145 && $line['xMin'] < 275) {
-                $houseLines[] = $line['text'];
-            } elseif ($line['xMin'] >= 280 && $line['xMin'] < 465) {
-                $clientLines[] = $line['text'];
-            } elseif ($line['xMin'] >= 475) {
-                $detailLines[] = $line['text'];
+            $pngPath = interhome_render_pdf_page_to_png($pdfPath, $pageNo - 1, $tmpDir);
+            $statuses = interhome_detect_statuses_from_png($pngPath, $expectedCount);
+
+            if (count($statuses) !== $expectedCount) {
+                throw new RuntimeException(
+                    sprintf(
+                        'Controllo di sicurezza fallito alla pagina %d: rilevate %d icone stato per %d prenotazioni. Import bloccato per evitare errori.',
+                        $pageNo,
+                        count($statuses),
+                        $expectedCount
+                    )
+                );
+            }
+
+            foreach ($rows['rows'] as $index => $row) {
+                $row['status_icon'] = $statuses[$index]['status'] ?? 'unknown';
+                $row['_page'] = $pageNo;
+                $row['_page_index'] = $index;
+                $row['notes'] = $globalNotes[$row['external_reference']] ?? ($row['notes'] ?? null);
+                $allRows[] = $row;
             }
         }
-
-        $rows[] = interhome_pdf_build_row(
-            $pageNumber,
-            count($rows),
-            $checkinLine['text'],
-            $checkoutLine['text'],
-            $houseLines,
-            $clientLines,
-            $detailLines,
-            $centerY
-        );
+    } finally {
+        interhome_remove_dir($tmpDir);
     }
 
-    return $rows;
-}
-
-function interhome_pdf_build_row(
-    int $pageNumber,
-    int $rowIndex,
-    string $checkin,
-    string $checkout,
-    array $houseLines,
-    array $clientLines,
-    array $detailLines,
-    float $centerY
-): array {
-    $houseCode = '';
-    $houseDescriptorLines = [];
-    $houseExternalCode = '';
-
-    foreach ($houseLines as $line) {
-        if ($houseCode === '' && preg_match('/^IT[\d\.]+$/i', $line)) {
-            $houseCode = $line;
-            continue;
-        }
-        if ($houseExternalCode === '' && preg_match('/^\(BOL\d+\)$/i', $line)) {
-            $houseExternalCode = trim($line, '()');
-            continue;
-        }
-        $houseDescriptorLines[] = $line;
-    }
-
-    $houseDescriptor = trim(implode(' ', $houseDescriptorLines));
-    $roomType = interhome_pdf_map_room_type($houseDescriptor . ' ' . $houseExternalCode);
-
-    $customerName = trim($clientLines[0] ?? '');
-    $peopleRaw = '';
-    $customerPhone = '';
-    $emailFragments = [];
-
-    foreach (array_slice($clientLines, 1) as $line) {
-        if ($peopleRaw === '' && interhome_pdf_is_people_line($line)) {
-            $peopleRaw = $line;
-            continue;
-        }
-        if ($customerPhone === '' && interhome_pdf_is_phone_line($line)) {
-            $customerPhone = $line;
-            continue;
-        }
-        if ($line !== '-') {
-            $emailFragments[] = $line;
+    // attach notes found globally to rows parsed on previous pages
+    foreach ($allRows as &$row) {
+        if (!empty($row['external_reference']) && isset($globalNotes[$row['external_reference']])) {
+            $row['notes'] = $globalNotes[$row['external_reference']];
         }
     }
+    unset($row);
 
-    $customerEmail = trim(preg_replace('/\s+/u', '', implode('', $emailFragments)));
+    $allRows = array_values(array_filter($allRows, static function (array $row): bool {
+        return ($row['status_icon'] ?? '') !== 'cancelled';
+    }));
 
-    $externalReference = '';
-    $language = '';
+    $allRows = interhome_filter_existing_rows($pdo, $allRows);
 
-    foreach ($detailLines as $line) {
-        if ($externalReference === '' && preg_match('/^\d{9,}$/', preg_replace('/\s+/u', '', $line))) {
-            $externalReference = preg_replace('/\s+/u', '', $line);
-            continue;
-        }
-        if ($language === '' && $line !== '') {
-            $language = $line;
-        }
-    }
-
-    ['adults' => $adults, 'children' => $children] = interhome_pdf_parse_guest_counts($peopleRaw);
+    $summary = [
+        'found_total' => count($allRows),
+        'duplicates_skipped' => 0,
+        'cancelled_skipped' => 0,
+        'pages' => count($pages),
+    ];
 
     return [
-        'row_key' => sha1($pageNumber . '|' . $rowIndex . '|' . $checkin . '|' . $checkout . '|' . $customerName . '|' . $externalReference),
-        'page_number' => $pageNumber,
-        'page_row_index' => $rowIndex,
-        'center_y_pt' => $centerY,
-        'checkin' => $checkin,
-        'checkout' => $checkout,
-        'stay_period' => $checkin . ' - ' . $checkout,
-        'house_code' => $houseCode,
-        'house_external_code' => $houseExternalCode,
-        'house_descriptor' => $houseDescriptor,
-        'room_type' => $roomType,
-        'customer_name' => $customerName,
-        'people_raw' => $peopleRaw,
-        'adults' => $adults,
-        'children_count' => $children,
-        'customer_phone' => $customerPhone,
-        'customer_email' => $customerEmail,
-        'external_reference' => $externalReference,
-        'language' => $language,
-        'notes' => '',
-        'source' => 'interhome_pdf',
-        'raw_payload' => [],
-        'is_duplicate' => false,
-        'icon_status' => 'existing_ok',
-        'status_label' => 'Prenotazione esistente',
+        'rows' => $allRows,
+        'summary' => $summary,
     ];
 }
 
-function interhome_pdf_is_people_line(string $line): bool
+function interhome_filter_existing_rows(PDO $pdo, array $rows): array
 {
-    return $line === '-'
-        || preg_match('/adulti|bambin/i', $line) === 1;
+    $refs = [];
+    foreach ($rows as $row) {
+        if (!empty($row['external_reference'])) {
+            $refs[] = (string) $row['external_reference'];
+        }
+    }
+
+    $existingRefs = [];
+    if ($refs) {
+        $placeholders = implode(',', array_fill(0, count($refs), '?'));
+        $stmt = $pdo->prepare("SELECT external_reference FROM prenotazioni WHERE external_reference IN ($placeholders)");
+        $stmt->execute($refs);
+        foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $ref) {
+            $existingRefs[(string) $ref] = true;
+        }
+    }
+
+    $seenInDocument = [];
+    $filtered = [];
+    foreach ($rows as $row) {
+        $key = trim((string) ($row['external_reference'] ?? ''));
+        if ($key !== '') {
+            if (isset($existingRefs[$key])) {
+                continue;
+            }
+            if (isset($seenInDocument[$key])) {
+                continue;
+            }
+            $seenInDocument[$key] = true;
+        }
+        $filtered[] = $row;
+    }
+
+    return $filtered;
 }
 
-function interhome_pdf_is_phone_line(string $line): bool
+function interhome_pdf_extract_pages(string $pdfPath): array
 {
-    return preg_match('/^\+?[0-9][0-9\s\-]+$/', $line) === 1;
+    $content = file_get_contents($pdfPath);
+    if ($content === false) {
+        throw new RuntimeException('Impossibile leggere il PDF.');
+    }
+
+    preg_match_all('/stream\r?\n(.*?)endstream/s', $content, $matches);
+    $pages = [];
+
+    foreach ($matches[1] as $rawStream) {
+        $stream = $rawStream;
+
+        $decoded = @gzuncompress($stream);
+        if ($decoded === false) {
+            // Some streams are binary/font streams or use different filters
+            continue;
+        }
+
+        if (strpos($decoded, 'BT') === false || (strpos($decoded, 'TJ') === false && strpos($decoded, 'Tj') === false)) {
+            continue;
+        }
+
+        $tokens = interhome_extract_pdf_tokens($decoded);
+        if (!$tokens) {
+            continue;
+        }
+
+        $joined = implode(' ', $tokens);
+        if (strpos($joined, 'Dettagli') === false) {
+            continue;
+        }
+
+        if (!preg_match('/\b([1-9]\d*)\/([1-9]\d*)\b/', $joined, $m)) {
+            continue;
+        }
+
+        $pageNo = (int) $m[1];
+        $pages[$pageNo] = [
+            'tokens' => $tokens,
+            'notes' => interhome_extract_notes_from_tokens($tokens),
+        ];
+    }
+
+    ksort($pages);
+    return $pages;
 }
 
-function interhome_pdf_parse_guest_counts(string $peopleRaw): array
+function interhome_extract_notes_from_tokens(array $tokens): array
 {
-    $peopleRaw = trim(mb_strtolower($peopleRaw));
-    if ($peopleRaw === '' || $peopleRaw === '-') {
-        return ['adults' => 0, 'children' => 0];
+    $notes = [];
+    foreach ($tokens as $token) {
+        if (stripos($token, 'Note:') === 0) {
+            if (preg_match('/prenotazione n\.?\s*([0-9]{9,15})/i', $token, $m)) {
+                $notes[$m[1]] = trim($token);
+            }
+        }
+    }
+    return $notes;
+}
+
+function interhome_extract_pdf_tokens(string $decodedStream): array
+{
+    $tokens = [];
+
+    if (!preg_match_all('/BT(.*?)ET/s', $decodedStream, $blocks)) {
+        return [];
+    }
+
+    foreach ($blocks[1] as $block) {
+        if (preg_match_all('/\[(.*?)\]\s*TJ/s', $block, $arrayMatches)) {
+            foreach ($arrayMatches[1] as $arrayContent) {
+                if (preg_match_all('/\((?:\\\\.|[^\\\\)])*\)/s', $arrayContent, $parts)) {
+                    $text = '';
+                    foreach ($parts[0] as $part) {
+                        $text .= interhome_unescape_pdf_string(substr($part, 1, -1));
+                    }
+                    $text = trim(preg_replace('/\s+/u', ' ', $text));
+                    if ($text !== '') {
+                        $tokens[] = $text;
+                    }
+                }
+            }
+        }
+
+        if (preg_match_all('/(\((?:\\\\.|[^\\\\)])*\))\s*Tj/s', $block, $stringMatches)) {
+            foreach ($stringMatches[1] as $part) {
+                $text = trim(preg_replace('/\s+/u', ' ', interhome_unescape_pdf_string(substr($part, 1, -1))));
+                if ($text !== '') {
+                    $tokens[] = $text;
+                }
+            }
+        }
+    }
+
+    return $tokens;
+}
+
+function interhome_unescape_pdf_string(string $text): string
+{
+    $result = '';
+    $len = strlen($text);
+
+    for ($i = 0; $i < $len; $i++) {
+        $char = $text[$i];
+        if ($char !== '\\') {
+            $result .= $char;
+            continue;
+        }
+
+        if ($i + 1 >= $len) {
+            break;
+        }
+
+        $i++;
+        $next = $text[$i];
+
+        $map = [
+            'n' => "\n",
+            'r' => "\r",
+            't' => "\t",
+            'b' => "\b",
+            'f' => "\f",
+            '(' => '(',
+            ')' => ')',
+            '\\' => '\\',
+        ];
+
+        if (isset($map[$next])) {
+            $result .= $map[$next];
+            continue;
+        }
+
+        if (ctype_digit($next)) {
+            $octal = $next;
+            for ($j = 0; $j < 2 && $i + 1 < $len && ctype_digit($text[$i + 1]); $j++) {
+                $i++;
+                $octal .= $text[$i];
+            }
+            $result .= chr(octdec($octal));
+            continue;
+        }
+
+        $result .= $next;
+    }
+
+    return $result;
+}
+
+function interhome_parse_page_tokens(array $tokens, int $pageNo): array
+{
+    $rows = [];
+    $notes = [];
+
+    $startIndex = 0;
+    foreach ($tokens as $i => $token) {
+        if ($token === 'Dettagli') {
+            $startIndex = $i + 1;
+            break;
+        }
+    }
+
+    $count = count($tokens);
+    for ($i = $startIndex; $i < $count; $i++) {
+        $token = $tokens[$i];
+
+        if (stripos($token, 'Note:') === 0) {
+            if (preg_match('/prenotazione n\.?\s*([0-9]{9,15})/i', $token, $m)) {
+                $notes[$m[1]] = trim($token);
+            }
+            continue;
+        }
+
+        if (!preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $token)) {
+            continue;
+        }
+
+        $checkIn = $token;
+        $checkOut = $tokens[$i + 1] ?? '';
+        if (!preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $checkOut)) {
+            continue;
+        }
+
+        $cursor = $i + 2;
+        $propertyCode = trim((string) ($tokens[$cursor] ?? ''));
+        $cursor++;
+
+        $propertyParts = [];
+        while ($cursor < $count) {
+            $candidate = trim((string) $tokens[$cursor]);
+            if ($candidate === '') {
+                $cursor++;
+                continue;
+            }
+            if (preg_match('/^\(BOL\d+\)$/', $candidate)) {
+                $propertyParts[] = $candidate;
+                $cursor++;
+                break;
+            }
+            $propertyParts[] = $candidate;
+            $cursor++;
+        }
+
+        $name = trim((string) ($tokens[$cursor] ?? ''));
+        $cursor++;
+
+        $peopleRaw = trim((string) ($tokens[$cursor] ?? '-'));
+        $cursor++;
+
+        $phone = '';
+        $email = '';
+        $externalReference = '';
+        $language = '';
+
+        if ($cursor < $count && interhome_looks_like_phone($tokens[$cursor])) {
+            $phone = trim((string) $tokens[$cursor]);
+            $cursor++;
+        }
+
+        if ($cursor < $count && (strpos((string) $tokens[$cursor], '@') !== false || interhome_looks_like_email_fragment((string) $tokens[$cursor]))) {
+            $email = trim((string) $tokens[$cursor]);
+            $cursor++;
+            while ($cursor < $count && !interhome_email_looks_complete($email)) {
+                $fragment = trim((string) $tokens[$cursor]);
+                if ($fragment === '' || preg_match('/^[0-9]{9,15}$/', $fragment) || preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $fragment)) {
+                    break;
+                }
+                if (interhome_looks_like_phone($fragment)) {
+                    break;
+                }
+                $email .= $fragment;
+                $cursor++;
+            }
+        }
+
+        if ($cursor < $count && preg_match('/^[0-9]{9,15}$/', (string) $tokens[$cursor])) {
+            $externalReference = trim((string) $tokens[$cursor]);
+            $cursor++;
+        }
+
+        if ($cursor < $count) {
+            $language = trim((string) $tokens[$cursor]);
+        }
+
+        $roomType = interhome_map_room_type($propertyCode . ' ' . implode(' ', $propertyParts));
+        [$adults, $children] = interhome_parse_people($peopleRaw);
+
+        $rows[] = [
+            'stay_period' => $checkIn . ' - ' . $checkOut,
+            'check_in' => $checkIn,
+            'check_out' => $checkOut,
+            'room_type' => $roomType,
+            'customer_name' => $name,
+            'customer_phone' => $phone,
+            'customer_email' => $email,
+            'adults' => $adults,
+            'children_count' => $children,
+            'external_reference' => $externalReference,
+            'source' => 'interhome_pdf',
+            'status' => 'confermata',
+            'notes' => null,
+            '_raw_people' => $peopleRaw,
+            '_raw_property' => trim($propertyCode . ' ' . implode(' ', $propertyParts)),
+            '_language' => $language,
+            '_page' => $pageNo,
+        ];
+
+        $i = max($i, $cursor - 1);
+    }
+
+    return [
+        'rows' => $rows,
+        'notes' => $notes,
+    ];
+}
+
+function interhome_looks_like_phone(string $value): bool
+{
+    $value = trim($value);
+    return $value !== '' && (str_starts_with($value, '+') || preg_match('/^[0-9][0-9 \/\-]{5,}$/', $value));
+}
+
+function interhome_looks_like_email_fragment(string $value): bool
+{
+    $value = trim($value);
+    return $value !== '' && preg_match('/^[A-Za-z0-9._%+\-]+$/', $value);
+}
+
+function interhome_email_looks_complete(string $email): bool
+{
+    return (bool) preg_match('/\.[A-Za-z]{2,}$/', trim($email));
+}
+
+function interhome_parse_people(string $raw): array
+{
+    $raw = trim(mb_strtolower($raw));
+    if ($raw === '' || $raw === '-') {
+        return [0, 0];
     }
 
     $adults = 0;
     $children = 0;
 
-    if (preg_match('/(\d+)\s*adulti/u', $peopleRaw, $matches)) {
-        $adults = (int) $matches[1];
+    if (preg_match('/(\d+)\s*adulti?/', $raw, $m)) {
+        $adults = (int) $m[1];
+    }
+    if (preg_match('/(\d+)\s*bambin[io]/', $raw, $m)) {
+        $children = (int) $m[1];
     }
 
-    if (preg_match('/(\d+)\s*bambin(?:i|o)/u', $peopleRaw, $matches)) {
-        $children = (int) $matches[1];
-    } elseif (preg_match('/(\d+)\s*child/iu', $peopleRaw, $matches)) {
-        $children = (int) $matches[1];
-    }
-
-    return ['adults' => $adults, 'children' => $children];
+    return [$adults, $children];
 }
 
-function interhome_pdf_map_room_type(string $rawHouse): string
+function interhome_map_room_type(string $rawProperty): string
 {
-    $rawHouse = mb_strtolower($rawHouse);
-    if (preg_match('/n[°º]?\s*,?\s*([1-6])/u', $rawHouse, $matches)) {
-        return match ((int) $matches[1]) {
-            1 => 'Casa Domenico 1',
-            2 => 'Casa Domenico 2',
-            3 => 'Casa Riccardo 3',
-            4 => 'Casa Riccardo 4',
-            5 => 'Casa Alessandro 5',
-            6 => 'Casa Alessandro 6',
-            default => '',
-        };
+    if (preg_match('/n[°ºo]?\s*1\b/ui', $rawProperty)) {
+        return 'Casa Domenico 1';
+    }
+    if (preg_match('/n[°ºo]?\s*2\b/ui', $rawProperty)) {
+        return 'Casa Domenico 2';
+    }
+    if (preg_match('/n[°ºo]?\s*3\b/ui', $rawProperty)) {
+        return 'Casa Riccardo 3';
+    }
+    if (preg_match('/n[°ºo]?\s*4\b/ui', $rawProperty)) {
+        return 'Casa Riccardo 4';
+    }
+    if (preg_match('/n[°ºo]?\s*5\b/ui', $rawProperty)) {
+        return 'Casa Alessandro 5';
+    }
+    if (preg_match('/n[°ºo]?\s*6\b/ui', $rawProperty)) {
+        return 'Casa Alessandro 6';
     }
 
     return '';
 }
 
-function interhome_pdf_extract_notes_from_page_text(string $pageText): array
+function interhome_render_pdf_page_to_png(string $pdfPath, int $pageIndex, string $tmpDir): string
 {
-    $notes = [];
-    foreach (preg_split('/\R/u', $pageText) ?: [] as $line) {
-        $trimmed = trim($line);
-        if ($trimmed === '' || stripos($trimmed, 'Note:') !== 0) {
-            continue;
-        }
+    $imagick = new Imagick();
+    $imagick->setResolution(150, 150);
+    $imagick->readImage($pdfPath . '[' . $pageIndex . ']');
+    $imagick->setImageBackgroundColor('white');
+    $imagick = $imagick->mergeImageLayers(Imagick::LAYERMETHOD_FLATTEN);
+    $imagick->setImageFormat('png');
 
-        $reference = '';
-        if (preg_match('/prenotazione\s*n\.\s*(\d{6,})/iu', $trimmed, $matches)) {
-            $reference = $matches[1];
-        }
+    $path = $tmpDir . '/page-' . ($pageIndex + 1) . '.png';
+    $imagick->writeImage($path);
+    $imagick->clear();
+    $imagick->destroy();
 
-        $notes[] = [
-            'text' => $trimmed,
-            'reference' => $reference,
-        ];
-    }
-
-    return $notes;
+    return $path;
 }
 
-function interhome_pdf_attach_notes(array $rows, array $notes): array
+function interhome_detect_statuses_from_png(string $pngPath, int $expectedCount): array
 {
-    foreach ($notes as $note) {
-        if ($note['reference'] === '') {
-            continue;
-        }
+    $img = new Imagick($pngPath);
+    $width = $img->getImageWidth();
+    $height = $img->getImageHeight();
 
-        foreach ($rows as &$row) {
-            if ($row['external_reference'] === $note['reference']) {
-                $row['notes'] = trim($row['notes'] . "\n" . $note['text']);
-                break;
+    $headerY = interhome_find_table_header_y($img, $width, $height);
+    $scanStartY = (int) max(0, $headerY + 40);
+    $scanEndY = (int) min($height - 140, $height - 1);
+
+    $xStart = (int) max(20, $width * 0.03);
+    $xEnd = (int) min(110, $width * 0.09);
+    $regionWidth = max(1, $xEnd - $xStart);
+    $regionHeight = max(1, $scanEndY - $scanStartY);
+
+    $pixels = $img->exportImagePixels($xStart, $scanStartY, $regionWidth, $regionHeight, 'RGB', Imagick::PIXEL_CHAR);
+    $img->clear();
+    $img->destroy();
+
+    $scores = [];
+    $classScores = [];
+    $idx = 0;
+    for ($y = 0; $y < $regionHeight; $y++) {
+        $rowScore = 0;
+        $green = 0;
+        $red = 0;
+        $gray = 0;
+
+        for ($x = 0; $x < $regionWidth; $x++) {
+            $r = $pixels[$idx++];
+            $g = $pixels[$idx++];
+            $b = $pixels[$idx++];
+
+            // ignore light background pixels
+            if ($r > 200 && $g > 210 && $b > 220) {
+                continue;
+            }
+            if ($r > 240 && $g > 240 && $b > 240) {
+                continue;
+            }
+
+            if ($g > 120 && $r < 120 && $b < 180) {
+                $green++;
+                $rowScore++;
+                continue;
+            }
+
+            if ($r > 170 && $g < 130 && $b < 130) {
+                $red++;
+                $rowScore++;
+                continue;
+            }
+
+            if ($r > 45 && $r < 145 && abs($r - $g) < 24 && abs($g - $b) < 24) {
+                $gray++;
+                $rowScore++;
+                continue;
             }
         }
-        unset($row);
-    }
 
-    return $rows;
-}
-
-function interhome_pdf_filter_duplicates(PDO $pdo, array $rows): array
-{
-    $references = array_values(array_filter(array_unique(array_map(
-        static fn(array $row): string => trim((string) $row['external_reference']),
-        $rows
-    ))));
-
-    if ($references === []) {
-        return $rows;
-    }
-
-    $placeholders = implode(',', array_fill(0, count($references), '?'));
-    $stmt = $pdo->prepare('SELECT external_reference FROM prenotazioni WHERE external_reference IN (' . $placeholders . ')');
-    $stmt->execute($references);
-    $existing = array_map('strval', $stmt->fetchAll(PDO::FETCH_COLUMN));
-
-    foreach ($rows as &$row) {
-        $row['is_duplicate'] = in_array((string) $row['external_reference'], $existing, true);
-        $row['raw_payload'] = [
-            'page_number' => $row['page_number'],
-            'page_row_index' => $row['page_row_index'],
-            'house_code' => $row['house_code'],
-            'house_external_code' => $row['house_external_code'],
-            'house_descriptor' => $row['house_descriptor'],
-            'language' => $row['language'],
-            'icon_status' => $row['icon_status'],
-            'status_label' => $row['status_label'],
-            'people_raw' => $row['people_raw'],
+        $scores[$y] = $rowScore;
+        $classScores[$y] = [
+            'green' => $green,
+            'red' => $red,
+            'gray' => $gray,
         ];
     }
-    unset($row);
 
-    return $rows;
-}
+    $bands = [];
+    $inBand = false;
+    $start = 0;
+    $minScore = 8;
 
-function interhome_pdf_detect_statuses_for_page(string $pdfPath, int $pageNumber, array $rows): array
-{
-    $command = interhome_pdf_get_imagemagick_command();
-    if (!$command) {
-        return array_fill(0, count($rows), 'existing_ok');
+    for ($y = 0; $y < $regionHeight; $y++) {
+        $active = $scores[$y] >= $minScore;
+        if ($active && !$inBand) {
+            $start = $y;
+            $inBand = true;
+        } elseif (!$active && $inBand) {
+            $bands[] = [$start, $y - 1];
+            $inBand = false;
+        }
+    }
+    if ($inBand) {
+        $bands[] = [$start, $regionHeight - 1];
     }
 
-    $tmpBase = sys_get_temp_dir() . '/interhome_import_' . md5($pdfPath . '|' . $pageNumber . '|' . microtime(true));
-    $imagePath = $tmpBase . '.png';
-
-    @shell_exec(
-        'pdftoppm -singlefile -png -f ' . (int) $pageNumber .
-        ' -l ' . (int) $pageNumber . ' ' .
-        escapeshellarg($pdfPath) . ' ' . escapeshellarg($tmpBase) . ' 2>/dev/null'
-    );
-
-    if (!is_file($imagePath)) {
-        return array_fill(0, count($rows), 'existing_ok');
+    // merge nearby fragments
+    $merged = [];
+    foreach ($bands as $band) {
+        if (!$merged) {
+            $merged[] = $band;
+            continue;
+        }
+        $lastIndex = count($merged) - 1;
+        if ($band[0] - $merged[$lastIndex][1] <= 3) {
+            $merged[$lastIndex][1] = $band[1];
+        } else {
+            $merged[] = $band;
+        }
     }
 
-    $imageSize = @getimagesize($imagePath);
-    if (!$imageSize) {
-        @unlink($imagePath);
-        return array_fill(0, count($rows), 'existing_ok');
-    }
+    // drop very small bands
+    $merged = array_values(array_filter($merged, static fn(array $band): bool => ($band[1] - $band[0]) >= 8));
 
-    [$imgWidth, $imgHeight] = $imageSize;
-    $pageHeight = 842.0;
-    $scaleX = $imgWidth / 595.35;
-    $scaleY = $imgHeight / $pageHeight;
+    // ignore footer legend if extra bands exist
+    if (count($merged) > $expectedCount) {
+        $merged = array_slice($merged, 0, $expectedCount);
+    }
 
     $statuses = [];
-    foreach ($rows as $row) {
-        $centerY = (int) round($row['center_y_pt'] * $scaleY);
-        $cropX = (int) round(18 * $scaleX);
-        $cropY = max(0, $centerY - (int) round(18 * $scaleY));
-        $cropW = (int) round(50 * $scaleX);
-        $cropH = (int) round(36 * $scaleY);
+    foreach ($merged as $band) {
+        $green = $red = $gray = 0;
+        for ($y = $band[0]; $y <= $band[1]; $y++) {
+            $green += $classScores[$y]['green'];
+            $red += $classScores[$y]['red'];
+            $gray += $classScores[$y]['gray'];
+        }
 
-        $histogram = interhome_pdf_crop_histogram($command, $imagePath, $cropW, $cropH, $cropX, $cropY);
-        $statuses[] = interhome_pdf_classify_histogram($histogram);
+        $status = 'existing';
+        if ($red > max($green, $gray) && $red > 25) {
+            $status = 'cancelled';
+        } elseif ($green >= $gray && $green > 25) {
+            $status = 'new';
+        } else {
+            $status = 'existing';
+        }
+
+        $statuses[] = [
+            'status' => $status,
+            'score' => ['green' => $green, 'red' => $red, 'gray' => $gray],
+            'y_start' => $band[0],
+            'y_end' => $band[1],
+        ];
     }
 
-    @unlink($imagePath);
     return $statuses;
 }
 
-function interhome_pdf_crop_histogram(string $command, string $imagePath, int $w, int $h, int $x, int $y): string
+function interhome_find_table_header_y(Imagick $img, int $width, int $height): int
 {
-    if ($command === 'magick') {
-        $cmd = 'magick ' . escapeshellarg($imagePath) . ' -crop ' . "{$w}x{$h}+{$x}+{$y}" . ' -format %c histogram:info:- 2>/dev/null';
-        return (string) @shell_exec($cmd);
+    $x = (int) max(40, $width * 0.10);
+    $w = (int) min($width - 80, $width * 0.80);
+    $pixels = $img->exportImagePixels($x, 0, $w, $height, 'RGB', Imagick::PIXEL_CHAR);
+
+    $lightBlueScores = [];
+    $idx = 0;
+    for ($y = 0; $y < $height; $y++) {
+        $score = 0;
+        for ($px = 0; $px < $w; $px++) {
+            $r = $pixels[$idx++];
+            $g = $pixels[$idx++];
+            $b = $pixels[$idx++];
+
+            if ($r > 180 && $g > 205 && $b > 220 && ($b - $r) > 10) {
+                $score++;
+            }
+        }
+        $lightBlueScores[$y] = $score;
     }
 
-    $binary = str_starts_with($command, '/') ? $command : escapeshellcmd($command);
-    $cmd = $binary . ' ' . escapeshellarg($imagePath) . ' -crop ' . "{$w}x{$h}+{$x}+{$y}" . ' -format %c histogram:info:- 2>/dev/null';
-    return (string) @shell_exec($cmd);
+    $threshold = (int) max(40, $w * 0.35);
+    for ($y = 0; $y < $height; $y++) {
+        if ($lightBlueScores[$y] >= $threshold) {
+            return $y;
+        }
+    }
+
+    return (int) ($height * 0.40);
 }
 
-function interhome_pdf_classify_histogram(string $histogram): string
+function interhome_remove_dir(string $dir): void
 {
-    $best = ['count' => 0, 'r' => 0, 'g' => 0, 'b' => 0];
+    if (!is_dir($dir)) {
+        return;
+    }
 
-    foreach (preg_split('/\R/u', $histogram) ?: [] as $line) {
-        if (!preg_match('/^\s*(\d+): \((\d+),(\d+),(\d+)/', $line, $matches)) {
+    $items = scandir($dir);
+    if (!$items) {
+        return;
+    }
+
+    foreach ($items as $item) {
+        if ($item === '.' || $item === '..') {
             continue;
         }
-
-        $count = (int) $matches[1];
-        $r = (int) $matches[2];
-        $g = (int) $matches[3];
-        $b = (int) $matches[4];
-
-        if ($r > 215 && $g > 215 && $b > 215) {
-            continue;
-        }
-
-        if ($count > $best['count']) {
-            $best = ['count' => $count, 'r' => $r, 'g' => $g, 'b' => $b];
+        $path = $dir . DIRECTORY_SEPARATOR . $item;
+        if (is_dir($path)) {
+            interhome_remove_dir($path);
+        } elseif (file_exists($path)) {
+            @unlink($path);
         }
     }
 
-    if ($best['count'] === 0) {
-        return 'existing_ok';
-    }
-
-    if ($best['r'] > ($best['g'] + 40) && $best['r'] > ($best['b'] + 40)) {
-        return 'cancelled_skip';
-    }
-
-    if ($best['g'] > ($best['r'] + 20) && $best['g'] > ($best['b'] + 10)) {
-        return 'new_ok';
-    }
-
-    return 'existing_ok';
+    @rmdir($dir);
 }

@@ -3,70 +3,37 @@ require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/db.php';
 require_admin();
 
-$import = $_SESSION['interhome_import'] ?? null;
-$rowKey = trim((string) ($_GET['row'] ?? ''));
-
-if (!$import || $rowKey === '') {
-    set_flash('error', 'Nessuna prenotazione Interhome selezionata.');
+$rows = $_SESSION['interhome_import_rows'] ?? [];
+$key = (string) ($_GET['row'] ?? '');
+if ($key === '' || !isset($rows[$key])) {
+    set_flash('error', 'Prenotazione Interhome non trovata o sessione scaduta.');
     header('Location: ' . admin_url('import-interhome-pdf.php'));
     exit;
 }
 
-$selectedRow = null;
-foreach (($import['rows'] ?? []) as $row) {
-    if (($row['row_key'] ?? '') === $rowKey) {
-        $selectedRow = $row;
-        break;
-    }
-}
-
-if (!$selectedRow) {
-    set_flash('error', 'La prenotazione selezionata non è più disponibile.');
-    header('Location: ' . admin_url('import-interhome-pdf.php'));
-    exit;
-}
-
+$row = $rows[$key];
 $pageTitle = 'Conferma prenotazione Interhome';
 require_once __DIR__ . '/includes/header.php';
 ?>
-<div class="review-shell">
+<div class="booking-page">
     <div class="booking-hero">
         <div class="booking-hero-copy">
             <h1>Conferma prenotazione Interhome</h1>
-            <p class="muted">Controlla i dati estratti dal PDF, modifica se necessario e conferma il salvataggio nella sezione Prenotazioni registrate.</p>
+            <p class="muted">Controlla i dati estratti dal PDF, correggi se necessario e salva la prenotazione nel gestionale.</p>
         </div>
-        <a class="btn btn-light" href="<?= e(admin_url('import-interhome-pdf.php')) ?>">Torna all’elenco PDF</a>
+        <a class="btn btn-light" href="<?= e(admin_url('import-interhome-pdf.php')) ?>">Torna all’elenco import</a>
     </div>
-
-    <div class="review-meta">
-        <div class="review-meta-card">
-            <span class="meta-label">Riferimento prenotazione</span>
-            <strong><?= e($selectedRow['external_reference']) ?></strong>
-        </div>
-        <div class="review-meta-card">
-            <span class="meta-label">Stato nel PDF</span>
-            <strong><?= e($selectedRow['status_label']) ?></strong>
-        </div>
-        <div class="review-meta-card">
-            <span class="meta-label">Origine</span>
-            <strong>Interhome PDF</strong>
-        </div>
-    </div>
-
-    <?php if (trim((string) $selectedRow['customer_email']) === ''): ?>
-        <div class="review-warning">Nel PDF non è stata trovata un’email cliente. Inseriscila manualmente prima di confermare la prenotazione.</div>
-    <?php endif; ?>
 
     <form class="booking-form" method="post" action="<?= e(admin_url('actions/create-prenotazione-from-interhome.php')) ?>">
         <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
-        <input type="hidden" name="row_key" value="<?= e($selectedRow['row_key']) ?>">
+        <input type="hidden" name="import_key" value="<?= e($key) ?>">
 
         <section class="form-section">
             <h2 class="form-section-title">Soggiorno</h2>
             <div class="booking-form-grid">
                 <label>
                     Periodo soggiorno *
-                    <input class="js-date-range readonly-field" type="text" name="stay_period" value="<?= e($selectedRow['stay_period']) ?>" readonly required>
+                    <input class="js-date-range" type="text" name="stay_period" value="<?= e($row['stay_period']) ?>" required>
                 </label>
 
                 <label>
@@ -75,19 +42,19 @@ require_once __DIR__ . '/includes/header.php';
                     <select name="room_type" required>
                         <option value="">Scegli soluzione</option>
                         <?php foreach ($rooms as $room): ?>
-                            <option value="<?= e($room) ?>" <?= $selectedRow['room_type'] === $room ? 'selected' : '' ?>><?= e($room) ?></option>
+                            <option value="<?= e($room) ?>" <?= ($row['room_type'] ?? '') === $room ? 'selected' : '' ?>><?= e($room) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </label>
 
                 <label>
-                    Adulti
-                    <input type="number" name="adults" min="0" step="1" value="<?= (int) $selectedRow['adults'] ?>">
+                    Adulti *
+                    <input type="number" name="adults" min="0" step="1" value="<?= (int) ($row['adults'] ?? 0) ?>" required>
                 </label>
 
                 <label>
                     Bambini
-                    <input type="number" name="children_count" min="0" step="1" value="<?= (int) $selectedRow['children_count'] ?>">
+                    <input type="number" name="children_count" min="0" step="1" value="<?= (int) ($row['children_count'] ?? 0) ?>">
                 </label>
             </div>
         </section>
@@ -97,56 +64,59 @@ require_once __DIR__ . '/includes/header.php';
             <div class="booking-form-grid">
                 <label>
                     Nome e cognome *
-                    <input type="text" name="customer_name" value="<?= e($selectedRow['customer_name']) ?>" required>
+                    <input type="text" name="customer_name" value="<?= e($row['customer_name'] ?? '') ?>" required>
                 </label>
 
                 <label>
-                    Email *
-                    <input type="email" name="customer_email" value="<?= e($selectedRow['customer_email']) ?>" required>
+                    Email
+                    <input type="email" name="customer_email" value="<?= e($row['customer_email'] ?? '') ?>">
                 </label>
 
                 <label>
                     Telefono
-                    <input type="text" name="customer_phone" value="<?= e($selectedRow['customer_phone']) ?>">
-                </label>
-
-                <label>
-                    Lingua
-                    <input class="readonly-field" type="text" value="<?= e($selectedRow['language']) ?>" readonly>
+                    <input type="text" name="customer_phone" value="<?= e($row['customer_phone'] ?? '') ?>">
                 </label>
             </div>
         </section>
 
         <section class="form-section">
-            <h2 class="form-section-title">Import e note</h2>
+            <h2 class="form-section-title">Gestione prenotazione</h2>
             <div class="booking-form-grid">
-                <label>
-                    Origine *
-                    <input class="readonly-field" type="text" name="source" value="interhome_pdf" readonly required>
-                </label>
-
-                <label>
-                    Riferimento esterno *
-                    <input class="readonly-field" type="text" name="external_reference" value="<?= e($selectedRow['external_reference']) ?>" readonly required>
-                </label>
-
                 <label>
                     Stato *
                     <select name="status" required>
-                        <option value="confermata" selected>Confermata</option>
+                        <option value="confermata" <?= ($row['status'] ?? '') === 'confermata' ? 'selected' : '' ?>>Confermata</option>
                         <option value="in_attesa">In attesa</option>
                         <option value="annullata">Annullata</option>
                     </select>
                 </label>
 
+                <label>
+                    Origine *
+                    <input type="text" name="source" value="<?= e($row['source'] ?? 'interhome_pdf') ?>" required>
+                </label>
+
+                <label>
+                    Riferimento esterno
+                    <input type="text" name="external_reference" value="<?= e($row['external_reference'] ?? '') ?>">
+                </label>
+
                 <label class="full">
                     Note
-                    <textarea name="notes"><?= e($selectedRow['notes']) ?></textarea>
+                    <textarea name="notes"><?= e($row['notes'] ?? '') ?></textarea>
                 </label>
             </div>
 
-            <div class="form-hint" style="margin-top:12px;">
-                Casa vacanze PDF: <strong><?= e(trim($selectedRow['house_code'] . ' ' . $selectedRow['house_descriptor'] . ' ' . $selectedRow['house_external_code'])) ?></strong>
+            <div class="interhome-meta-strip">
+                <span class="badge <?= ($row['status_icon'] ?? '') === 'new' ? 'success' : '' ?>">
+                    <?= ($row['status_icon'] ?? '') === 'new' ? 'Icona PDF: verde' : 'Icona PDF: grigia' ?>
+                </span>
+                <?php if (!empty($row['_raw_property'])): ?>
+                    <span class="badge">Origine PDF: <?= e($row['_raw_property']) ?></span>
+                <?php endif; ?>
+                <?php if (!empty($row['_language'])): ?>
+                    <span class="badge">Lingua: <?= e($row['_language']) ?></span>
+                <?php endif; ?>
             </div>
         </section>
 
