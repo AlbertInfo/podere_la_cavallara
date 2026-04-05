@@ -8,6 +8,6 @@
 </div>
 
 <script src="<?= e(admin_url('assets/js/admin-ui.js')) ?>?v=20"></script>
-<script src="<?= e(admin_url('assets/js/interhome-import.js')) ?>?v=30"></script>
+<script src="<?= e(admin_url('assets/js/interhome-import.js')) ?>?v=40"></script>
 </body>
 </html>

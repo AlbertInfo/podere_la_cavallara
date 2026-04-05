@@ -1,103 +1,115 @@
 <?php
+declare(strict_types=1);
+
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/db.php';
+
 require_admin();
+
 $pageTitle = 'Importa PDF Interhome';
+$import = $_SESSION['interhome_import'] ?? null;
+$rows = is_array($import['rows'] ?? null) ? $import['rows'] : [];
+$summary = is_array($import['summary'] ?? null) ? $import['summary'] : [];
+$filename = (string)($import['filename'] ?? '');
+
 require_once __DIR__ . '/includes/header.php';
-
-$data = $_SESSION['interhome_import'] ?? null;
-$rows = $data['rows'] ?? [];
-$summary = $data['summary'] ?? ['pages' => 0, 'found_total' => 0, 'cancelled_skipped' => 0, 'duplicates_skipped' => 0, 'missing_reference_skipped' => 0];
 ?>
-<div class="booking-page import-shell">
-    <div class="booking-hero">
-        <div class="booking-hero-copy">
-            <h1>Importa PDF Interhome</h1>
-            <p class="muted">Carica il PDF degli arrivi. Il sistema mostrerà solo le prenotazioni nuove, con riferimento prenotazione valido, escludendo quelle marcate come “cancellata”.</p>
-        </div>
-        <a class="btn btn-primary" href="<?= e(admin_url('new-prenotazione.php')) ?>">Nuova prenotazione</a>
-    </div>
-
+<div class="import-shell">
     <div class="card upload-card">
-        <form class="upload-grid" method="post" action="<?= e(admin_url('actions/parse-interhome-pdf.php')) ?>" enctype="multipart/form-data">
+        <div class="section-title">
+            <div>
+                <h2>Importa PDF Interhome</h2>
+                <p class="muted">Carica un PDF Interhome. Il sistema legge in modo accurato periodo, casa, nominativo, contatti e riferimento prenotazione, escludendo automaticamente le prenotazioni già registrate.</p>
+            </div>
+        </div>
+
+        <form class="upload-grid" action="<?= e(admin_url('actions/parse-interhome-pdf.php')) ?>" method="post" enctype="multipart/form-data">
             <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
-            <label class="full">
-                PDF Interhome *
-                <input type="file" name="pdf_file" accept="application/pdf" required>
-            </label>
-            <div class="form-actions">
-                <button class="btn btn-primary" type="submit">Analizza PDF</button>
+            <div class="full">
+                <label>File PDF Interhome
+                    <input type="file" name="pdf_file" accept="application/pdf" required>
+                </label>
+            </div>
+            <div class="full">
+                <button type="submit" class="btn btn-primary">Analizza PDF</button>
             </div>
         </form>
     </div>
 
-    <?php if ($data): ?>
+    <?php if ($import): ?>
         <div class="import-summary-grid">
-            <div class="summary-card summary-blue">
-                <span class="summary-label">Pagine lette</span>
-                <strong><?= (int)($summary['pages'] ?? 0) ?></strong>
-                <span class="summary-meta">Documento: <?= e((string)($data['document_name'] ?? '')) ?></span>
-            </div>
-            <div class="summary-card summary-green">
+            <article class="summary-card summary-blue">
+                <span class="summary-label">File analizzato</span>
+                <strong><?= e($filename) ?></strong>
+                <span class="summary-meta"><?= e((string)($import['generated_at'] ?? '')) ?></span>
+            </article>
+            <article class="summary-card summary-green">
                 <span class="summary-label">Nuove prenotazioni</span>
                 <strong><?= (int)($summary['found_total'] ?? 0) ?></strong>
-                <span class="summary-meta">Pronte per la revisione</span>
-            </div>
-            <div class="summary-card summary-red">
-                <span class="summary-label">Cancellate escluse</span>
-                <strong><?= (int)($summary['cancelled_skipped'] ?? 0) ?></strong>
-                <span class="summary-meta">Marker testuale “cancellata”</span>
-            </div>
-            <div class="summary-card summary-amber">
-                <span class="summary-label">Duplicati esclusi</span>
+                <span class="summary-meta">Pronte da confermare</span>
+            </article>
+            <article class="summary-card summary-amber">
+                <span class="summary-label">Già registrate</span>
                 <strong><?= (int)($summary['duplicates_skipped'] ?? 0) ?></strong>
-                <span class="summary-meta">+ senza riferimento: <?= (int)($summary['missing_reference_skipped'] ?? 0) ?></span>
-            </div>
+                <span class="summary-meta">Escluse automaticamente</span>
+            </article>
+            <article class="summary-card summary-red">
+                <span class="summary-label">Pagine lette</span>
+                <strong><?= (int)($summary['pages'] ?? 0) ?></strong>
+                <span class="summary-meta">Parsing completato</span>
+            </article>
         </div>
 
         <div class="card import-table-card">
             <div class="section-title">
                 <div>
                     <h2>Nuove prenotazioni trovate</h2>
-                    <p class="muted">Clicca una riga per aprire il form modificabile e confermare l’inserimento in Prenotazioni registrate.</p>
+                    <p class="muted">Sono mostrate solo le prenotazioni con riferimento univoco non già presenti in “Prenotazioni registrate”.</p>
                 </div>
             </div>
 
             <?php if (!$rows): ?>
-                <div class="empty-note">Nessuna prenotazione nuova disponibile dopo il filtro su cancellate, duplicati e riferimenti mancanti.</div>
+                <div class="empty-note">Non ci sono nuove prenotazioni nel file PDF.</div>
             <?php else: ?>
                 <div class="table-wrap">
                     <table class="import-table">
                         <thead>
                             <tr>
-                                <th>Cliente</th>
-                                <th>Soggiorno</th>
+                                <th>Periodo</th>
                                 <th>Casa</th>
+                                <th>Cliente</th>
                                 <th>Persone</th>
+                                <th>Telefono</th>
+                                <th>Email</th>
                                 <th>Riferimento</th>
-                                <th>Note</th>
-                                <th>Azione</th>
+                                <th>Azioni</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($rows as $idx => $row): ?>
+                            <?php foreach ($rows as $row): ?>
                                 <tr class="import-row">
+                                    <td><?= e($row['stay_period'] ?? '') ?></td>
+                                    <td><?= e($row['room_type'] ?? '') ?></td>
                                     <td>
-                                        <strong><?= e((string)($row['customer_name'] ?? '')) ?></strong><br>
-                                        <span class="small muted"><?= e((string)($row['customer_email'] ?? '')) ?></span>
+                                        <strong><?= e($row['customer_name'] ?? '') ?></strong>
+                                        <?php if (!empty($row['notes'])): ?>
+                                            <div class="interhome-meta-strip"><span class="import-note-badge">Nota presente</span></div>
+                                        <?php endif; ?>
                                     </td>
-                                    <td><?= e((string)($row['stay_period'] ?? '')) ?></td>
-                                    <td><?= e((string)($row['room_type'] ?? '')) ?></td>
                                     <td><?= (int)($row['adults'] ?? 0) ?> adulti / <?= (int)($row['children_count'] ?? 0) ?> bambini</td>
-                                    <td><span class="code"><?= e((string)($row['external_reference'] ?? '')) ?></span></td>
-                                    <td><?= !empty($row['notes']) ? '<span class="import-note-badge">Presente</span>' : 'Nessuna' ?></td>
+                                    <td><?= e($row['customer_phone'] ?? '') ?></td>
+                                    <td><?= e($row['customer_email'] ?? '') ?></td>
+                                    <td><code class="code"><?= e($row['external_reference'] ?? '') ?></code></td>
                                     <td>
                                         <div class="actions">
-                                            <a class="btn btn-primary btn-sm" href="<?= e(admin_url('import-interhome-review.php?row=' . $idx)) ?>">Apri</a>
-                                            <form method="post" action="<?= e(admin_url('actions/remove-interhome-row.php')) ?>">
+                                            <a class="btn btn-primary btn-sm" href="<?= e(admin_url('import-interhome-review.php?ref=' . urlencode((string)($row['external_reference'] ?? '')))) ?>">Apri</a>
+                                            <form method="post" action="<?= e(admin_url('actions/remove-interhome-row.php')) ?>" data-confirm="Vuoi rimuovere questa riga dall’elenco del PDF?">
                                                 <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
-                                                <input type="hidden" name="row_key" value="<?= e((string)$idx) ?>">
-                                                <button class="btn btn-light btn-sm" type="submit">Cancella</button>
+                                                <input type="hidden" name="external_reference" value="<?= e((string)($row['external_reference'] ?? '')) ?>">
+                                                <button type="submit" class="btn btn-danger btn-sm" title="Rimuovi riga">
+                                                    <span aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg></span>
+                                                    Cancella
+                                                </button>
                                             </form>
                                         </div>
                                     </td>

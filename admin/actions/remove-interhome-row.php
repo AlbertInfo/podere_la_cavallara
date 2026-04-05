@@ -1,6 +1,8 @@
 <?php
-require_once dirname(__DIR__) . '/includes/auth.php';
-require_once dirname(__DIR__) . '/includes/db.php';
+declare(strict_types=1);
+
+require_once __DIR__ . '/../includes/auth.php';
+
 require_admin();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -10,21 +12,16 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 verify_csrf();
 
-$rowKey = trim((string)($_POST['row_key'] ?? ''));
-if ($rowKey === '' || !isset($_SESSION['interhome_import']['rows'])) {
-    header('Location: ' . admin_url('import-interhome-pdf.php'));
-    exit;
+$ref = trim((string)($_POST['external_reference'] ?? ''));
+$rows = $_SESSION['interhome_import']['rows'] ?? [];
+
+if ($ref !== '' && is_array($rows)) {
+    $_SESSION['interhome_import']['rows'] = array_values(array_filter($rows, static function ($row) use ($ref) {
+        return trim((string)($row['external_reference'] ?? '')) !== $ref;
+    }));
 }
 
-foreach ($_SESSION['interhome_import']['rows'] as $idx => $row) {
-    if ((string)$idx === $rowKey) {
-        unset($_SESSION['interhome_import']['rows'][$idx]);
-        $_SESSION['interhome_import']['rows'] = array_values($_SESSION['interhome_import']['rows']);
-        $_SESSION['interhome_import']['summary']['found_total'] = count($_SESSION['interhome_import']['rows']);
-        set_flash('success', 'Riga rimossa dall’elenco letto.');
-        break;
-    }
-}
-
+set_flash('success', 'Riga rimossa dall’elenco del PDF.');
 header('Location: ' . admin_url('import-interhome-pdf.php'));
 exit;
+?>
