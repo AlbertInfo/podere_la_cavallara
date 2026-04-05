@@ -1,10 +1,7 @@
 <?php
-declare(strict_types=1);
-
-require_once __DIR__ . '/../includes/auth.php';
-require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/interhome_pdf_import.php';
-
+require_once dirname(__DIR__) . '/includes/auth.php';
+require_once dirname(__DIR__) . '/includes/db.php';
+require_once dirname(__DIR__) . '/includes/interhome_pdf_import.php';
 require_admin();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -14,58 +11,41 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 verify_csrf();
 
-if (empty($_FILES['interhome_pdf']) || !is_array($_FILES['interhome_pdf'])) {
-    set_flash('error', 'Nessun file PDF caricato.');
+if (empty($_FILES['pdf_file']) || !is_uploaded_file($_FILES['pdf_file']['tmp_name'])) {
+    set_flash('error', 'Seleziona un PDF valido.');
     header('Location: ' . admin_url('import-interhome-pdf.php'));
     exit;
 }
 
-$file = $_FILES['interhome_pdf'];
-if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-    set_flash('error', 'Errore durante l\'upload del PDF.');
+$file = $_FILES['pdf_file'];
+$originalName = (string)($file['name'] ?? 'documento.pdf');
+$ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+if ($ext !== 'pdf') {
+    set_flash('error', 'Il file deve essere in formato PDF.');
     header('Location: ' . admin_url('import-interhome-pdf.php'));
     exit;
 }
 
-$tmpName = (string) ($file['tmp_name'] ?? '');
-$originalName = (string) ($file['name'] ?? 'interhome.pdf');
-$extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
-if ($extension !== 'pdf') {
-    set_flash('error', 'Carica un file PDF valido.');
-    header('Location: ' . admin_url('import-interhome-pdf.php'));
-    exit;
-}
-
-$sessionDir = sys_get_temp_dir() . '/interhome_admin_uploads';
-if (!is_dir($sessionDir) && !mkdir($sessionDir, 0775, true) && !is_dir($sessionDir)) {
-    set_flash('error', 'Impossibile creare la cartella temporanea di lavoro.');
-    header('Location: ' . admin_url('import-interhome-pdf.php'));
-    exit;
-}
-
-$target = $sessionDir . '/interhome_' . session_id() . '_' . bin2hex(random_bytes(6)) . '.pdf';
-if (!move_uploaded_file($tmpName, $target)) {
-    set_flash('error', 'Impossibile salvare il PDF caricato.');
+$tmpPath = sys_get_temp_dir() . '/interhome_upload_' . bin2hex(random_bytes(6)) . '.pdf';
+if (!move_uploaded_file($file['tmp_name'], $tmpPath)) {
+    set_flash('error', 'Impossibile caricare il PDF.');
     header('Location: ' . admin_url('import-interhome-pdf.php'));
     exit;
 }
 
 try {
-    $result = interhome_import_parse_pdf($target, $pdo);
+    $parsed = interhome_import_parse_pdf($tmpPath, $pdo);
     $_SESSION['interhome_import'] = [
-        'file' => $target,
-        'original_name' => $originalName,
-        'rows' => $result['rows'],
-        'summary' => $result['summary'],
-        'created_at' => time(),
+        'document_name' => $originalName,
+        'summary' => $parsed['summary'],
+        'rows' => array_values($parsed['rows']),
+        'parsed_at' => date('Y-m-d H:i:s'),
     ];
-
     set_flash('success', 'PDF analizzato correttamente.');
 } catch (Throwable $e) {
-    @unlink($target);
-    unset($_SESSION['interhome_import']);
     set_flash('error', 'Analisi PDF interrotta: ' . $e->getMessage());
 }
 
+@unlink($tmpPath);
 header('Location: ' . admin_url('import-interhome-pdf.php'));
 exit;
