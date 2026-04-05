@@ -82,14 +82,23 @@ function interhome_import_parse_pdf(string $pdfPath, PDO $pdo): array
     $duplicatesSkipped = $beforeDuplicates - count($allRows);
 
     return [
-        'rows' => $allRows,
-        'summary' => [
-            'found_total' => count($allRows),
-            'duplicates_skipped' => $duplicatesSkipped,
-            'cancelled_skipped' => 0,
-            'pages' => $pageCount,
-        ],
-    ];
+    'rows' => $allRows,
+    'summary' => [
+        'found_total' => count($allRows),
+        'duplicates_skipped' => $duplicatesSkipped,
+        'pages' => count($pages),
+        'debug_first_row' => $allRows[0] ?? null,
+    ],
+];
+    // return [
+    //     'rows' => $allRows,
+    //     'summary' => [
+    //         'found_total' => count($allRows),
+    //         'duplicates_skipped' => $duplicatesSkipped,
+    //         'cancelled_skipped' => 0,
+    //         'pages' => $pageCount,
+    //     ],
+    // ];
 }
 
 function interhome_filter_existing_rows(PDO $pdo, array $rows): array
