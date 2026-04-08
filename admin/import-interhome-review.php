@@ -51,6 +51,9 @@ $statuses = ['confermata' => 'Confermata', 'in_attesa' => 'In attesa', 'annullat
         <div><span class="summary-label">Riferimento prenotazione</span><strong><?= e($row['external_reference']) ?></strong></div>
         <div><span class="summary-label">Pagina PDF</span><strong><?= (int) ($row['_page'] ?? 0) ?></strong></div>
         <div><span class="summary-label">Origine</span><strong><?= e($row['source']) ?></strong></div>
+        <div><span class="summary-label">Lingua letta</span><strong><?= e($row['_language'] ?? '-') ?></strong></div>
+        <div><span class="summary-label">Persone lette</span><strong><?= e($row['_raw_people'] ?? '-') ?></strong></div>
+        <div><span class="summary-label">Casa letta dal parser</span><strong><?= e($row['_raw_property'] ?? '-') ?></strong></div>
     </div>
 
     <form class="booking-form" method="post" action="<?= e(admin_url('actions/create-prenotazione-from-interhome.php')) ?>" data-confirm="Confermi l’inserimento di questa prenotazione tra quelle registrate?">
@@ -92,12 +95,12 @@ $statuses = ['confermata' => 'Confermata', 'in_attesa' => 'In attesa', 'annullat
                     <input type="text" name="customer_name" value="<?= e($row['customer_name']) ?>" required>
                 </label>
                 <label>
-                    Email *
-                    <input type="email" name="customer_email" value="<?= e($row['customer_email']) ?>" required>
+                    Email
+                    <input type="email" name="customer_email" value="<?= e($row['customer_email']) ?>" placeholder="Non presente nel PDF">
                 </label>
                 <label>
                     Telefono
-                    <input type="text" name="customer_phone" value="<?= e($row['customer_phone']) ?>">
+                    <input type="text" name="customer_phone" value="<?= e($row['customer_phone']) ?>" placeholder="Non presente nel PDF">
                 </label>
                 <label>
                     Riferimento esterno *
@@ -123,7 +126,7 @@ $statuses = ['confermata' => 'Confermata', 'in_attesa' => 'In attesa', 'annullat
                 </label>
                 <label class="full">
                     Note
-                    <textarea name="notes"><?= e((string) ($row['notes'] ?? '')) ?></textarea>
+                    <textarea name="notes" placeholder="Annotazioni del parser o note inserite dall'admin"><?= e((string) ($row['notes'] ?? '')) ?></textarea>
                 </label>
             </div>
         </section>

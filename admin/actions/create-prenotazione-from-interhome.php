@@ -42,13 +42,13 @@ $source = 'interhome_pdf';
 $externalReference = trim((string) ($_POST['external_reference'] ?? ''));
 $notes = trim((string) ($_POST['notes'] ?? ''));
 
-if ($stayPeriod === '' || $roomType === '' || $customerName === '' || $customerEmail === '' || $externalReference === '') {
-    set_flash('error', 'Compila tutti i campi obbligatori, incluso il riferimento prenotazione.');
+if ($stayPeriod === '' || $roomType === '' || $customerName === '' || $externalReference === '') {
+    set_flash('error', 'Compila tutti i campi obbligatori, incluso il riferimento prenotazione. L’email può restare vuota se nel PDF non è presente.');
     header('Location: ' . admin_url('import-interhome-review.php?row=' . urlencode($rowId)));
     exit;
 }
-if (!filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
-    set_flash('error', 'Inserisci un indirizzo email valido.');
+if ($customerEmail !== '' && !filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
+    set_flash('error', 'Inserisci un indirizzo email valido oppure lascia il campo vuoto.');
     header('Location: ' . admin_url('import-interhome-review.php?row=' . urlencode($rowId)));
     exit;
 }
@@ -108,7 +108,7 @@ $rawPayload = json_encode([
 
 $success = $stmt->execute([
     'customer_name' => $customerName,
-    'customer_email' => $customerEmail,
+    'customer_email' => $customerEmail !== '' ? $customerEmail : null,
     'customer_phone' => $customerPhone !== '' ? $customerPhone : null,
     'stay_period' => $stayPeriod,
     'room_type' => $roomType,

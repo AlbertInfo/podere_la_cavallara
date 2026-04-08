@@ -22,7 +22,7 @@ require_once __DIR__ . '/includes/header.php';
         <div class="section-title">
             <div>
                 <h2>Carica PDF</h2>
-                <p class="muted">Il parser leggerà date, casa, cliente, recapiti, riferimento prenotazione e note collegate. Le prenotazioni già registrate non verranno mostrate.</p>
+                <p class="muted">Il parser legge tutte le pagine, ricompone email spezzate, gestisce righe senza recapiti e collega eventuali note alle prenotazioni corrette.</p>
             </div>
         </div>
         <form class="interhome-upload-form" method="post" action="<?= e(admin_url('actions/parse-interhome-pdf.php')) ?>" enctype="multipart/form-data">
@@ -53,7 +53,7 @@ require_once __DIR__ . '/includes/header.php';
             <article class="card interhome-summary-card is-amber">
                 <span class="summary-label">Prenotazioni trovate</span>
                 <strong><?= (int) ($importState['summary']['parsed_total'] ?? 0) ?></strong>
-                <span class="summary-meta">Tutte le righe rilevate dal parser</span>
+                <span class="summary-meta">Totale righe interpretate dal parser</span>
             </article>
             <article class="card interhome-summary-card is-green">
                 <span class="summary-label">Nuove prenotazioni</span>
@@ -70,77 +70,88 @@ require_once __DIR__ . '/includes/header.php';
         <?php if (!empty($importState['rows'])): ?>
             <div class="interhome-workspace" data-pdf-workspace>
                 <section class="card interhome-table-card">
-                <div class="section-title">
-                    <div>
-                        <h2>Nuove prenotazioni trovate</h2>
-                        <p class="muted">Clicca una riga per aprire la scheda di verifica. Puoi anche eliminare subito le righe che non vuoi lavorare.</p>
+                    <div class="section-title">
+                        <div>
+                            <h2>Nuove prenotazioni trovate</h2>
+                            <p class="muted">Clicca una riga per aprire la scheda di verifica. Il PDF resta visibile accanto così il controllo è rapido.</p>
+                        </div>
+                        <div class="toolbar">
+                            <input class="search-input" type="search" placeholder="Cerca prenotazioni nel PDF..." data-table-filter="#interhome-import-table">
+                            <form method="post" action="<?= e(admin_url('actions/remove-interhome-row.php')) ?>">
+                                <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+                                <input type="hidden" name="clear_all" value="1">
+                                <button class="btn btn-light btn-sm" type="submit">Svuota elenco</button>
+                            </form>
+                        </div>
                     </div>
-                    <div class="toolbar">
-                        <input class="search-input" type="search" placeholder="Cerca prenotazioni nel PDF..." data-table-filter="#interhome-import-table">
-                        <form method="post" action="<?= e(admin_url('actions/remove-interhome-row.php')) ?>">
-                            <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
-                            <input type="hidden" name="clear_all" value="1">
-                            <button class="btn btn-light btn-sm" type="submit">Svuota elenco</button>
-                        </form>
+                    <div class="table-wrap">
+                        <table id="interhome-import-table" class="interhome-import-table">
+                            <thead>
+                                <tr>
+                                    <th>Cliente</th>
+                                    <th>Soggiorno</th>
+                                    <th>Casa</th>
+                                    <th>Persone</th>
+                                    <th>Riferimento</th>
+                                    <th>Contatti</th>
+                                    <th>Note</th>
+                                    <th>Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php foreach (($importState['rows'] ?? []) as $row): ?>
+                                <tr class="interhome-import-row" data-row-href="<?= e(admin_url('import-interhome-review.php?row=' . urlencode((string) $row['import_row_id']))) ?>">
+                                    <td>
+                                        <strong><?= e($row['customer_name']) ?></strong><br>
+                                        <span class="small muted"><?= e($row['_language'] ?? '') ?></span>
+                                    </td>
+                                    <td><?= e($row['stay_period']) ?></td>
+                                    <td>
+                                        <strong><?= e($row['room_type'] ?: 'Da verificare') ?></strong><br>
+                                        <span class="small muted"><?= e($row['_raw_property'] ?? '') ?></span>
+                                    </td>
+                                    <td><?= (int) $row['adults'] ?> adulti / <?= (int) $row['children_count'] ?> bambini</td>
+                                    <td><span class="code"><?= e($row['external_reference']) ?></span></td>
+                                    <td>
+                                        <?php if (!empty($row['customer_email'])): ?>
+                                            <a class="contact-link" href="mailto:<?= e($row['customer_email']) ?>"><?= e($row['customer_email']) ?></a><br>
+                                        <?php else: ?>
+                                            <span class="small muted">Email non presente</span><br>
+                                        <?php endif; ?>
+                                        <?php if (!empty($row['customer_phone'])): ?>
+                                            <a class="contact-link" href="tel:<?= e(preg_replace('/[^0-9+]/', '', (string) $row['customer_phone'])) ?>"><?= e($row['customer_phone']) ?></a>
+                                        <?php else: ?>
+                                            <span class="small muted">Telefono non presente</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <?php if (!empty($row['notes'])): ?>
+                                            <?= nl2br(e((string) $row['notes'])) ?>
+                                        <?php else: ?>
+                                            <span class="small muted">Nessuna</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <div class="actions interhome-inline-actions">
+                                            <a class="btn btn-primary btn-sm" href="<?= e(admin_url('import-interhome-review.php?row=' . urlencode((string) $row['import_row_id']))) ?>">Apri</a>
+                                            <form method="post" action="<?= e(admin_url('actions/remove-interhome-row.php')) ?>" class="js-row-action" data-confirm="Vuoi togliere questa riga dall’elenco importato?">
+                                                <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+                                                <input type="hidden" name="row_id" value="<?= e((string) $row['import_row_id']) ?>">
+                                                <button class="btn btn-danger btn-sm" type="submit" aria-label="Togli riga">
+                                                    <span class="trash-icon" aria-hidden="true">
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg>
+                                                    </span>
+                                                    <span>Elimina</span>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                            </tbody>
+                        </table>
                     </div>
-                </div>
-                <div class="table-wrap">
-                    <table id="interhome-import-table" class="interhome-import-table">
-                        <thead>
-                            <tr>
-                                <th>Cliente</th>
-                                <th>Soggiorno</th>
-                                <th>Casa</th>
-                                <th>Persone</th>
-                                <th>Riferimento</th>
-                                <th>Contatti</th>
-                                <th>Note</th>
-                                <th>Azioni</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        <?php foreach (($importState['rows'] ?? []) as $row): ?>
-                            <tr class="interhome-import-row" data-row-href="<?= e(admin_url('import-interhome-review.php?row=' . urlencode((string) $row['import_row_id']))) ?>">
-                                <td>
-                                    <strong><?= e($row['customer_name']) ?></strong><br>
-                                    <span class="small muted"><?= e($row['_language'] ?? '') ?></span>
-                                </td>
-                                <td><?= e($row['stay_period']) ?></td>
-                                <td><?= e($row['room_type']) ?></td>
-                                <td><?= (int) $row['adults'] ?> adulti / <?= (int) $row['children_count'] ?> bambini</td>
-                                <td><span class="code"><?= e($row['external_reference']) ?></span></td>
-                                <td>
-                                    <?php if (!empty($row['customer_email'])): ?>
-                                        <a class="contact-link" href="mailto:<?= e($row['customer_email']) ?>"><?= e($row['customer_email']) ?></a><br>
-                                    <?php endif; ?>
-                                    <?php if (!empty($row['customer_phone'])): ?>
-                                        <a class="contact-link" href="tel:<?= e(preg_replace('/[^0-9+]/', '', (string) $row['customer_phone'])) ?>"><?= e($row['customer_phone']) ?></a>
-                                    <?php else: ?>
-                                        <span class="small muted">Nessun recapito telefonico</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td><?= !empty($row['notes']) ? e($row['notes']) : '<span class="small muted">Nessuna</span>' ?></td>
-                                <td>
-                                    <div class="actions interhome-inline-actions">
-                                        <a class="btn btn-primary btn-sm" href="<?= e(admin_url('import-interhome-review.php?row=' . urlencode((string) $row['import_row_id']))) ?>">Apri</a>
-                                        <form method="post" action="<?= e(admin_url('actions/remove-interhome-row.php')) ?>" class="js-row-action" data-confirm="Vuoi togliere questa riga dall’elenco importato?">
-                                            <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
-                                            <input type="hidden" name="row_id" value="<?= e((string) $row['import_row_id']) ?>">
-                                            <button class="btn btn-danger btn-sm" type="submit" aria-label="Togli riga">
-                                                <span class="trash-icon" aria-hidden="true">
-                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg>
-                                                </span>
-                                                <span>Elimina</span>
-                                            </button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+                </section>
                 <?php if (!empty($importState['pdf_url'])): ?>
                     <aside class="card interhome-pdf-panel">
                         <div class="section-title">
@@ -167,14 +178,18 @@ require_once __DIR__ . '/includes/header.php';
     <div class="interhome-modal card" role="dialog" aria-modal="true" aria-labelledby="interhomeModalTitle">
         <h2 id="interhomeModalTitle">Analisi completata</h2>
         <p>Il parser ha trovato <strong><?= (int) ($importState['summary']['parsed_total'] ?? 0) ?></strong> prenotazioni nel PDF.</p>
-        <p class="muted">Il numero ti sembra corretto? Se confermi, mostriamo la tabella completa per la revisione.</p>
+        <p class="muted">Se il numero ti sembra corretto, conferma e apri la tabella completa per la revisione.</p>
         <div class="form-actions">
             <form method="post" action="<?= e(admin_url('actions/remove-interhome-row.php')) ?>">
                 <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
                 <input type="hidden" name="dismiss_modal" value="1">
-                <button class="btn btn-light" type="submit">Chiudi e rivedi dopo</button>
+                <button class="btn btn-light" type="submit">Rivedi più tardi</button>
             </form>
-            <button class="btn btn-primary" type="button" data-interhome-modal-confirm>Il numero è corretto</button>
+            <form method="post" action="<?= e(admin_url('actions/remove-interhome-row.php')) ?>">
+                <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+                <input type="hidden" name="dismiss_modal" value="1">
+                <button class="btn btn-primary" type="submit">Il numero è corretto</button>
+            </form>
         </div>
     </div>
 </div>
