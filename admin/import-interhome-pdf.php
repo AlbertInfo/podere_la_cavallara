@@ -1,197 +1,178 @@
 <?php
-require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/includes/db.php';
+declare(strict_types=1);
+
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/db.php';
 require_admin();
+verify_csrf();
 
-$pageTitle = 'Importa PDF Interhome';
-$importState = $_SESSION['interhome_import'] ?? null;
-$showConfirmModal = !empty($importState['pending_confirmation']) && !empty($importState['rows']);
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    exit('Metodo non consentito.');
+}
 
-require_once __DIR__ . '/includes/header.php';
-?>
-<div class="booking-page interhome-shell">
-    <div class="booking-hero">
-        <div class="booking-hero-copy">
-            <h1>Importa PDF Interhome</h1>
-            <p class="muted">Carica il PDF arrivi dell’agenzia, verifica il riepilogo e poi lavora su ogni prenotazione con un flusso rapido e pulito.</p>
-        </div>
-        <a class="btn btn-light" href="<?= e(admin_url('index.php#registered-bookings')) ?>">Torna alle prenotazioni</a>
-    </div>
+if (
+    !isset($_FILES['interhome_pdf']) ||
+    !is_array($_FILES['interhome_pdf']) ||
+    ($_FILES['interhome_pdf']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK
+) {
+    set_flash('error', 'Caricamento PDF non riuscito.');
+    header('Location: ' . admin_url('import-interhome-pdf.php'));
+    exit;
+}
 
-    <section class="card interhome-upload-card">
-        <div class="section-title">
-            <div>
-                <h2>Carica PDF</h2>
-                <p class="muted">Il parser legge tutte le pagine, ricompone email spezzate, gestisce righe senza recapiti e collega eventuali note alle prenotazioni corrette.</p>
-            </div>
-        </div>
-        <form class="interhome-upload-form" method="post" action="<?= e(admin_url('actions/parse-interhome-pdf.php')) ?>" enctype="multipart/form-data">
-            <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
-            <label class="interhome-file-drop" for="interhomePdfInput">
-                <span class="interhome-file-title">Seleziona il PDF arrivi</span>
-                <span class="interhome-file-subtitle">Formato .pdf, preferibilmente il documento originale Interhome.</span>
-                <input id="interhomePdfInput" type="file" name="interhome_pdf" accept="application/pdf" required>
-            </label>
-            <div class="form-actions">
-                <button class="btn btn-primary" type="submit">Analizza PDF</button>
-            </div>
-        </form>
-    </section>
+$tmpFile = $_FILES['interhome_pdf']['tmp_name'];
+$originalName = (string)($_FILES['interhome_pdf']['name'] ?? 'interhome.pdf');
+$extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
 
-    <?php if ($importState): ?>
-        <div class="interhome-toolbar">
-            <?php if (!empty($importState['pdf_url'])): ?>
-                <button type="button" class="btn btn-light" data-pdf-toggle aria-expanded="true">Chiudi PDF</button>
-            <?php endif; ?>
-        </div>
-        <section class="interhome-summary-grid">
-            <article class="card interhome-summary-card is-blue">
-                <span class="summary-label">Pagine lette</span>
-                <strong><?= (int) ($importState['summary']['pages_read'] ?? 0) ?></strong>
-                <span class="summary-meta">Documento: <?= e($importState['file_name'] ?? 'PDF caricato') ?></span>
-            </article>
-            <article class="card interhome-summary-card is-amber">
-                <span class="summary-label">Prenotazioni trovate</span>
-                <strong><?= (int) ($importState['summary']['parsed_total'] ?? 0) ?></strong>
-                <span class="summary-meta">Totale righe interpretate dal parser</span>
-            </article>
-            <article class="card interhome-summary-card is-green">
-                <span class="summary-label">Nuove prenotazioni</span>
-                <strong><?= (int) ($importState['summary']['new_total'] ?? 0) ?></strong>
-                <span class="summary-meta">Pronte per la revisione</span>
-            </article>
-            <article class="card interhome-summary-card is-purple">
-                <span class="summary-label">Duplicati esclusi</span>
-                <strong><?= (int) ($importState['summary']['duplicates_skipped'] ?? 0) ?></strong>
-                <span class="summary-meta">Già presenti nelle prenotazioni registrate</span>
-            </article>
-        </section>
+if ($extension !== 'pdf') {
+    set_flash('error', 'Il file caricato deve essere un PDF.');
+    header('Location: ' . admin_url('import-interhome-pdf.php'));
+    exit;
+}
 
-        <?php if (!empty($importState['rows'])): ?>
-            <div class="interhome-workspace" data-pdf-workspace>
-                <section class="card interhome-table-card">
-                    <div class="section-title">
-                        <div>
-                            <h2>Nuove prenotazioni trovate</h2>
-                            <p class="muted">Clicca una riga per aprire la scheda di verifica. Il PDF resta visibile accanto così il controllo è rapido.</p>
-                        </div>
-                        <div class="toolbar">
-                            <input class="search-input" type="search" placeholder="Cerca prenotazioni nel PDF..." data-table-filter="#interhome-import-table">
-                            <form method="post" action="<?= e(admin_url('actions/remove-interhome-row.php')) ?>">
-                                <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
-                                <input type="hidden" name="clear_all" value="1">
-                                <button class="btn btn-light btn-sm" type="submit">Svuota elenco</button>
-                            </form>
-                        </div>
-                    </div>
-                    <div class="table-wrap">
-                        <table id="interhome-import-table" class="interhome-import-table">
-                            <thead>
-                                <tr>
-                                    <th>Cliente</th>
-                                    <th>Soggiorno</th>
-                                    <th>Casa</th>
-                                    <th>Persone</th>
-                                    <th>Riferimento</th>
-                                    <th>Contatti</th>
-                                    <th>Note</th>
-                                    <th>Azioni</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                            <?php foreach (($importState['rows'] ?? []) as $row): ?>
-                                <tr class="interhome-import-row" data-row-href="<?= e(admin_url('import-interhome-review.php?row=' . urlencode((string) $row['import_row_id']))) ?>">
-                                    <td>
-                                        <strong><?= e($row['customer_name']) ?></strong><br>
-                                        <span class="small muted"><?= e($row['_language'] ?? '') ?></span>
-                                    </td>
-                                    <td><?= e($row['stay_period']) ?></td>
-                                    <td>
-                                        <strong><?= e($row['room_type'] ?: 'Da verificare') ?></strong><br>
-                                        <span class="small muted"><?= e($row['_raw_property'] ?? '') ?></span>
-                                    </td>
-                                    <td><?= (int) $row['adults'] ?> adulti / <?= (int) $row['children_count'] ?> bambini</td>
-                                    <td><span class="code"><?= e($row['external_reference']) ?></span></td>
-                                    <td>
-                                        <?php if (!empty($row['customer_email'])): ?>
-                                            <a class="contact-link" href="mailto:<?= e($row['customer_email']) ?>"><?= e($row['customer_email']) ?></a><br>
-                                        <?php else: ?>
-                                            <span class="small muted">Email non presente</span><br>
-                                        <?php endif; ?>
-                                        <?php if (!empty($row['customer_phone'])): ?>
-                                            <a class="contact-link" href="tel:<?= e(preg_replace('/[^0-9+]/', '', (string) $row['customer_phone'])) ?>"><?= e($row['customer_phone']) ?></a>
-                                        <?php else: ?>
-                                            <span class="small muted">Telefono non presente</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td>
-                                        <?php if (!empty($row['notes'])): ?>
-                                            <?= nl2br(e((string) $row['notes'])) ?>
-                                        <?php else: ?>
-                                            <span class="small muted">Nessuna</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td>
-                                        <div class="actions interhome-inline-actions">
-                                            <a class="btn btn-primary btn-sm" href="<?= e(admin_url('import-interhome-review.php?row=' . urlencode((string) $row['import_row_id']))) ?>">Apri</a>
-                                            <form method="post" action="<?= e(admin_url('actions/remove-interhome-row.php')) ?>" class="js-row-action" data-confirm="Vuoi togliere questa riga dall’elenco importato?">
-                                                <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
-                                                <input type="hidden" name="row_id" value="<?= e((string) $row['import_row_id']) ?>">
-                                                <button class="btn btn-danger btn-sm" type="submit" aria-label="Togli riga">
-                                                    <span class="trash-icon" aria-hidden="true">
-                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg>
-                                                    </span>
-                                                    <span>Elimina</span>
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
-                <?php if (!empty($importState['pdf_url'])): ?>
-                    <aside class="card interhome-pdf-panel">
-                        <div class="section-title">
-                            <div>
-                                <h2>PDF di lavoro</h2>
-                                <p class="muted">Confronta rapidamente le prenotazioni con il documento senza uscire dalla dashboard.</p>
-                            </div>
-                        </div>
-                        <iframe src="<?= e($importState['pdf_url']) ?>" title="Viewer PDF Interhome"></iframe>
-                    </aside>
-                <?php endif; ?>
-            </div>
-        <?php else: ?>
-            <section class="card empty-note interhome-empty-state">
-                <h2>Nessuna nuova prenotazione</h2>
-                <p class="muted">Non ci sono nuove prenotazioni nel file PDF. Tutti i riferimenti trovati risultano già presenti oppure il file non contiene nuove righe importabili.</p>
-            </section>
-        <?php endif; ?>
-    <?php endif; ?>
-</div>
+$storageDir = realpath(__DIR__ . '/../storage');
+if ($storageDir === false) {
+    set_flash('error', 'Cartella storage non trovata.');
+    header('Location: ' . admin_url('import-interhome-pdf.php'));
+    exit;
+}
 
-<?php if ($showConfirmModal): ?>
-<div class="interhome-modal-backdrop" data-interhome-modal>
-    <div class="interhome-modal card" role="dialog" aria-modal="true" aria-labelledby="interhomeModalTitle">
-        <h2 id="interhomeModalTitle">Analisi completata</h2>
-        <p>Il parser ha trovato <strong><?= (int) ($importState['summary']['parsed_total'] ?? 0) ?></strong> prenotazioni nel PDF.</p>
-        <p class="muted">Se il numero ti sembra corretto, conferma e apri la tabella completa per la revisione.</p>
-        <div class="form-actions">
-            <form method="post" action="<?= e(admin_url('actions/remove-interhome-row.php')) ?>">
-                <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
-                <input type="hidden" name="dismiss_modal" value="1">
-                <button class="btn btn-light" type="submit">Rivedi più tardi</button>
-            </form>
-            <form method="post" action="<?= e(admin_url('actions/remove-interhome-row.php')) ?>">
-                <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
-                <input type="hidden" name="dismiss_modal" value="1">
-                <button class="btn btn-primary" type="submit">Il numero è corretto</button>
-            </form>
-        </div>
-    </div>
-</div>
-<?php endif; ?>
-<?php require_once __DIR__ . '/includes/footer.php'; ?>
+$importsDir = $storageDir . '/imports';
+$logsDir = $storageDir . '/parser-logs';
+
+if (!is_dir($importsDir) || !is_writable($importsDir)) {
+    set_flash('error', 'La cartella imports non è disponibile in scrittura.');
+    header('Location: ' . admin_url('import-interhome-pdf.php'));
+    exit;
+}
+
+if (!is_dir($logsDir) || !is_writable($logsDir)) {
+    set_flash('error', 'La cartella parser-logs non è disponibile in scrittura.');
+    header('Location: ' . admin_url('import-interhome-pdf.php'));
+    exit;
+}
+
+$storedBasename = 'interhome_' . date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . '.pdf';
+$storedPdfPath = $importsDir . '/' . $storedBasename;
+
+if (!move_uploaded_file($tmpFile, $storedPdfPath)) {
+    set_flash('error', 'Impossibile salvare il PDF caricato.');
+    header('Location: ' . admin_url('import-interhome-pdf.php'));
+    exit;
+}
+
+$pythonBin = '/usr/bin/python3';
+$parserScript = realpath(__DIR__ . '/../python/interhome_parser.py');
+
+if ($parserScript === false || !file_exists($parserScript)) {
+    set_flash('error', 'Script parser Python non trovato.');
+    header('Location: ' . admin_url('import-interhome-pdf.php'));
+    exit;
+}
+
+$descriptorspec = [
+    0 => ['pipe', 'r'],
+    1 => ['pipe', 'w'],
+    2 => ['pipe', 'w'],
+];
+
+$process = proc_open(
+    [$pythonBin, $parserScript, $storedPdfPath],
+    $descriptorspec,
+    $pipes,
+    dirname(__DIR__)
+);
+
+if (!is_resource($process)) {
+    set_flash('error', 'Impossibile avviare il parser Python.');
+    header('Location: ' . admin_url('import-interhome-pdf.php'));
+    exit;
+}
+
+fclose($pipes[0]);
+
+$stdout = stream_get_contents($pipes[1]);
+fclose($pipes[1]);
+
+$stderr = stream_get_contents($pipes[2]);
+fclose($pipes[2]);
+
+$exitCode = proc_close($process);
+
+$logPayload = [
+    'time' => date('c'),
+    'file' => $storedBasename,
+    'exit_code' => $exitCode,
+    'stdout' => $stdout,
+    'stderr' => $stderr,
+];
+
+file_put_contents(
+    $logsDir . '/interhome_parser_' . date('Ymd_His') . '.log',
+    json_encode($logPayload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
+);
+
+if ($exitCode !== 0) {
+    set_flash('error', 'Il parser Python ha restituito un errore.');
+    header('Location: ' . admin_url('import-interhome-pdf.php'));
+    exit;
+}
+
+$data = json_decode($stdout, true);
+
+if (!is_array($data) || empty($data['ok']) || !isset($data['rows']) || !is_array($data['rows'])) {
+    set_flash('error', 'Output parser non valido.');
+    header('Location: ' . admin_url('import-interhome-pdf.php'));
+    exit;
+}
+
+$rows = [];
+$duplicatesSkipped = 0;
+
+$checkStmt = $pdo->prepare('SELECT id FROM prenotazioni WHERE external_reference = :external_reference LIMIT 1');
+
+foreach ($data['rows'] as $idx => $row) {
+    $externalReference = trim((string)($row['external_reference'] ?? ''));
+
+    if ($externalReference === '') {
+        continue;
+    }
+
+    $checkStmt->execute([
+        'external_reference' => $externalReference,
+    ]);
+
+    if ($checkStmt->fetch(PDO::FETCH_ASSOC)) {
+        $duplicatesSkipped++;
+        continue;
+    }
+
+    $row['import_row_id'] = 'imp_' . bin2hex(random_bytes(8));
+    $row['source'] = 'interhome_pdf';
+    $row['status'] = $row['status'] ?? 'confermata';
+    $row['customer_email'] = trim((string)($row['customer_email'] ?? ''));
+    $row['customer_phone'] = trim((string)($row['customer_phone'] ?? ''));
+    $row['notes'] = trim((string)($row['notes'] ?? '')) ?: null;
+    $row['adults'] = (int)($row['adults'] ?? 0);
+    $row['children_count'] = (int)($row['children_count'] ?? 0);
+
+    $rows[] = $row;
+}
+
+$_SESSION['interhome_import'] = [
+    'file_name' => $originalName,
+    'pdf_url' => admin_url('storage/imports/' . $storedBasename),
+    'pending_confirmation' => !empty($rows),
+    'summary' => [
+        'pages_read' => (int)($data['summary']['pages_read'] ?? 0),
+        'parsed_total' => (int)($data['summary']['parsed_total'] ?? 0),
+        'new_total' => count($rows),
+        'duplicates_skipped' => $duplicatesSkipped,
+    ],
+    'rows' => $rows,
+];
+
+set_flash('success', 'PDF analizzato correttamente.');
+header('Location: ' . admin_url('import-interhome-pdf.php'));
+exit;
