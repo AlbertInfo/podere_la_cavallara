@@ -33,7 +33,8 @@ function interhome_safe_trim(mixed $value): string
 function interhome_safe_spaces(mixed $value): string
 {
     $text = (string) ($value ?? '');
-    $normalized = preg_replace('/\s+/u', ' ', $text);
+    $normalized = preg_replace('/[ \t\x{00A0}]+/u', ' ', $text);
+    $normalized = preg_replace('/\s*\n\s*/u', "\n", (string) ($normalized ?? $text));
     return trim((string) ($normalized ?? $text));
 }
 
@@ -57,12 +58,12 @@ function interhome_import_parse_pdf(string $pdfPath, PDO $pdo): array
     $pagesRead = 0;
 
     foreach ($pages as $index => $page) {
-        $text = interhome_safe_spaces($page->getText());
-        if ($text === '') {
+        $rawText = (string) $page->getText();
+        if (interhome_safe_trim($rawText) === '') {
             continue;
         }
         $pagesRead++;
-        $pageResult = interhome_parse_page_text((string) $page->getText(), $index + 1);
+        $pageResult = interhome_parse_page_text($rawText, $index + 1);
         foreach ($pageResult['notes'] as $ref => $note) {
             $notesByReference[$ref] = $note;
         }
@@ -74,7 +75,8 @@ function interhome_import_parse_pdf(string $pdfPath, PDO $pdo): array
     foreach ($allRows as &$row) {
         $ref = interhome_safe_trim($row['external_reference'] ?? '');
         if ($ref !== '' && isset($notesByReference[$ref])) {
-            $row['notes'] = $notesByReference[$ref];
+            $existingNote = interhome_safe_trim($row['notes'] ?? '');
+            $row['notes'] = $existingNote !== '' ? ($existingNote . ' · ' . $notesByReference[$ref]) : $notesByReference[$ref];
         }
     }
     unset($row);
@@ -104,152 +106,54 @@ function interhome_parse_page_text(string $pageText, int $pageNo): array
     $lines = interhome_prepare_lines($pageText);
     $notes = [];
     $rows = [];
-    $lastRowIndex = null;
 
-    $startIndex = 0;
-    foreach ($lines as $i => $line) {
-        if (str_contains(mb_strtolower($line), 'data casa vacanze clienti dettagli')) {
-            $startIndex = $i + 1;
-            break;
-        }
+    $rowStarts = interhome_find_row_starts($lines);
+    if (!$rowStarts) {
+        return ['rows' => [], 'notes' => []];
     }
 
-    $i = $startIndex;
-    $count = count($lines);
-
-    while ($i < $count) {
-        $line = $lines[$i];
-
+    $footerStart = count($lines);
+    foreach ($lines as $idx => $line) {
         if (interhome_is_footer_line($line)) {
+            $footerStart = $idx;
             break;
         }
-
-        if (str_starts_with(mb_strtolower($line), 'note:')) {
-            $note = $line;
-            if (preg_match('/prenotazione n\.\s*([0-9]{9,15})/iu', $note, $m)) {
-                $notes[(string) $m[1]] = $note;
-            }
-            $i++;
-            continue;
-        }
-
-        if (!interhome_is_date($line)) {
-            if ($lastRowIndex !== null && interhome_can_attach_inline_note($line)) {
-                $existing = interhome_safe_trim($rows[$lastRowIndex]['notes'] ?? '');
-                $rows[$lastRowIndex]['notes'] = $existing !== '' ? ($existing . ' · ' . $line) : $line;
-            }
-            $i++;
-            continue;
-        }
-
-        $checkIn = $line;
-        $checkOut = $lines[$i + 1] ?? '';
-        if (!interhome_is_date($checkOut)) {
-            $i++;
-            continue;
-        }
-        $i += 2;
-
-        $propertyCode = interhome_safe_trim($lines[$i] ?? '');
-        if (!interhome_is_property_code($propertyCode)) {
-            continue;
-        }
-        $i++;
-
-        $propertyParts = [];
-        while ($i < $count) {
-            $candidate = $lines[$i] ?? '';
-            if ($candidate === '') {
-                $i++;
-                continue;
-            }
-            if (interhome_looks_like_customer_name($candidate) || interhome_is_date($candidate) || interhome_is_footer_line($candidate)) {
-                break;
-            }
-            $propertyParts[] = $candidate;
-            $i++;
-            if (preg_match('/^\(BOL\d+\)$/i', $candidate)) {
-                break;
-            }
-        }
-
-        $name = interhome_safe_trim($lines[$i] ?? '');
-        if ($name === '' || interhome_is_date($name) || interhome_is_property_code($name) || interhome_is_footer_line($name)) {
-            continue;
-        }
-        $i++;
-
-        $people = interhome_safe_trim($lines[$i] ?? '-');
-        if ($people !== '' && (interhome_is_reference($people) || interhome_is_language($people) || interhome_is_date($people))) {
-            $people = '-';
-        } else {
-            $i++;
-        }
-
-        $phone = '';
-        if ($i < $count && interhome_is_phone($lines[$i])) {
-            $phone = $lines[$i];
-            $i++;
-        }
-
-        $email = '';
-        if ($i < $count && interhome_may_be_email_fragment($lines[$i])) {
-            $email = $lines[$i];
-            $i++;
-            while ($i < $count && interhome_may_continue_email($email, $lines[$i])) {
-                $email .= interhome_safe_trim($lines[$i]);
-                $i++;
-            }
-        }
-
-        $reference = interhome_safe_trim($lines[$i] ?? '');
-        if (!interhome_is_reference($reference)) {
-            while ($i < $count && !interhome_is_reference($lines[$i] ?? '')) {
-                if (interhome_is_date($lines[$i] ?? '') || interhome_is_footer_line($lines[$i] ?? '')) {
-                    break;
-                }
-                $i++;
-            }
-            $reference = interhome_safe_trim($lines[$i] ?? '');
-        }
-
-        if (!interhome_is_reference($reference)) {
-            continue;
-        }
-        $i++;
-
-        $language = interhome_safe_trim($lines[$i] ?? '');
-        if (interhome_is_language($language)) {
-            $i++;
-        } else {
-            $language = '';
-        }
-
-        $rawProperty = interhome_safe_spaces($propertyCode . ' ' . implode(' ', $propertyParts));
-        [$adults, $children] = interhome_parse_people($people);
-
-        $rows[] = [
-            'import_row_id' => '',
-            'stay_period' => $checkIn . ' - ' . $checkOut,
-            'check_in' => $checkIn,
-            'check_out' => $checkOut,
-            'room_type' => interhome_map_room_type($rawProperty),
-            'customer_name' => $name,
-            'customer_email' => $email,
-            'customer_phone' => $phone,
-            'adults' => $adults,
-            'children_count' => $children,
-            'notes' => null,
-            'status' => 'confermata',
-            'source' => 'interhome_pdf',
-            'external_reference' => $reference,
-            '_language' => $language,
-            '_raw_people' => $people,
-            '_raw_property' => $rawProperty,
-            '_page' => $pageNo,
-        ];
-        $lastRowIndex = count($rows) - 1;
     }
+
+    $carryNotes = [];
+    foreach ($rowStarts as $startPos => $startIndex) {
+        $endIndex = $rowStarts[$startPos + 1] ?? $footerStart;
+        $chunk = array_slice($lines, $startIndex, $endIndex - $startIndex);
+        $parsed = interhome_parse_row_chunk($chunk, $pageNo);
+        if (!$parsed) {
+            continue;
+        }
+
+        if (!empty($carryNotes)) {
+            $parsed['notes'] = implode(' · ', $carryNotes);
+            $carryNotes = [];
+        }
+
+        $rows[] = $parsed;
+    }
+
+    // scan notes globally
+    foreach ($lines as $line) {
+        if (str_starts_with(mb_strtolower($line), 'note:')) {
+            if (preg_match('/prenotazione n\.?\s*([0-9]{9,15})/iu', $line, $m)) {
+                $notes[(string) $m[1]] = $line;
+            }
+        }
+    }
+
+    // attach standalone notes between rows to previous row
+    foreach ($rows as $idx => &$row) {
+        if (!empty($notes[$row['external_reference']])) {
+            $existing = interhome_safe_trim($row['notes'] ?? '');
+            $row['notes'] = $existing !== '' ? ($existing . ' · ' . $notes[$row['external_reference']]) : $notes[$row['external_reference']];
+        }
+    }
+    unset($row);
 
     return ['rows' => $rows, 'notes' => $notes];
 }
@@ -265,23 +169,193 @@ function interhome_prepare_lines(string $pageText): array
         if ($line === '') {
             continue;
         }
-        // ignore obvious header fragments except the table header itself
-        if (preg_match('/^Nuova prenotazione \(/iu', $line) || preg_match('/^Prenotazione esistente \(/iu', $line) || preg_match('/^Modifica a prenotazione esistente \(/iu', $line)) {
+
+        if (preg_match('/^(Nuova prenotazione|Prenotazione esistente|Prenotazione cancellata|Modifica a prenotazione esistente) \(/iu', $line)) {
             continue;
         }
-        if (preg_match('/^Prenotazione cancellata \(/iu', $line) || preg_match('/^Pagina\s+\d+\/\d+/iu', $line)) {
+        if (preg_match('/^Pagina\s+\d+\/\d+/iu', $line)) {
             continue;
         }
         if (preg_match('/^IT04151\b.*13\s*\/\s*2026\s*\/\s*W/iu', $line)) {
             continue;
         }
-        if (in_array($line, ['Lista degli arrivi 13 / 2026 / W', 'Codice partner', 'Data di creazione Contatto'], true)) {
+        if (preg_match('/^Lista degli arrivi /iu', $line)) {
             continue;
         }
+        if (in_array($line, ['Codice', 'partner', 'Data di creazione Contatto', 'Data Casa vacanze Clienti Dettagli', 'Data Casa vacanze Clienti Dettagli'], true)) {
+            continue;
+        }
+        if (preg_match('/^(Codice partner|Data di creazione|Contatto)$/iu', $line)) {
+            continue;
+        }
+        if ($line === 'Testo') {
+            continue;
+        }
+
         $lines[] = $line;
     }
 
     return $lines;
+}
+
+function interhome_find_row_starts(array $lines): array
+{
+    $starts = [];
+    $count = count($lines);
+    for ($i = 0; $i < $count - 3; $i++) {
+        if (!interhome_is_date($lines[$i])) {
+            continue;
+        }
+        if (!interhome_is_date($lines[$i + 1] ?? '')) {
+            continue;
+        }
+        // within next 5 lines must exist property code
+        for ($j = $i + 2; $j <= min($i + 5, $count - 1); $j++) {
+            if (interhome_is_property_code($lines[$j] ?? '')) {
+                $starts[] = $i;
+                break;
+            }
+        }
+    }
+    return array_values(array_unique($starts));
+}
+
+function interhome_parse_row_chunk(array $chunk, int $pageNo): ?array
+{
+    if (count($chunk) < 6) {
+        return null;
+    }
+
+    $checkIn = interhome_safe_trim($chunk[0] ?? '');
+    $checkOut = interhome_safe_trim($chunk[1] ?? '');
+    if (!interhome_is_date($checkIn) || !interhome_is_date($checkOut)) {
+        return null;
+    }
+
+    $count = count($chunk);
+    $propertyCodeIndex = null;
+    for ($i = 2; $i < min($count, 8); $i++) {
+        if (interhome_is_property_code($chunk[$i] ?? '')) {
+            $propertyCodeIndex = $i;
+            break;
+        }
+    }
+    if ($propertyCodeIndex === null) {
+        return null;
+    }
+
+    $bolIndex = null;
+    for ($i = $propertyCodeIndex + 1; $i < min($count, $propertyCodeIndex + 6); $i++) {
+        if (preg_match('/^\(BOL\d+\)$/i', interhome_safe_trim($chunk[$i] ?? ''))) {
+            $bolIndex = $i;
+            break;
+        }
+    }
+    if ($bolIndex === null) {
+        return null;
+    }
+
+    $referenceIndex = null;
+    for ($i = $count - 1; $i >= $bolIndex + 1; $i--) {
+        if (interhome_is_reference($chunk[$i] ?? '')) {
+            $referenceIndex = $i;
+            break;
+        }
+    }
+    if ($referenceIndex === null) {
+        return null;
+    }
+
+    $language = '';
+    $languageIndex = $referenceIndex + 1;
+    if (isset($chunk[$languageIndex]) && interhome_is_language($chunk[$languageIndex])) {
+        $language = interhome_safe_trim($chunk[$languageIndex]);
+    }
+
+    $propertyCode = interhome_safe_trim($chunk[$propertyCodeIndex] ?? '');
+    $propertyParts = [];
+    for ($i = $propertyCodeIndex + 1; $i <= $bolIndex; $i++) {
+        $propertyParts[] = interhome_safe_trim($chunk[$i] ?? '');
+    }
+    $rawProperty = interhome_safe_spaces($propertyCode . ' ' . implode(' ', $propertyParts));
+
+    $customerLines = [];
+    for ($i = $bolIndex + 1; $i < $referenceIndex; $i++) {
+        $line = interhome_safe_trim($chunk[$i] ?? '');
+        if ($line !== '') {
+            $customerLines[] = $line;
+        }
+    }
+    if (!$customerLines) {
+        return null;
+    }
+
+    $name = array_shift($customerLines);
+    $people = '-';
+    if ($customerLines && interhome_is_people_line($customerLines[0])) {
+        $people = array_shift($customerLines);
+    }
+
+    $phone = '';
+    $emailParts = [];
+    $notesParts = [];
+
+    foreach ($customerLines as $line) {
+        if ($phone === '' && interhome_is_phone($line)) {
+            $phone = $line;
+            continue;
+        }
+        if (interhome_may_be_email_fragment($line)) {
+            $emailParts[] = $line;
+            continue;
+        }
+        if (!interhome_is_language($line) && !interhome_is_reference($line)) {
+            $notesParts[] = $line;
+        }
+    }
+
+    $email = interhome_normalize_email_parts($emailParts);
+    [$adults, $children] = interhome_parse_people($people);
+    $reference = interhome_safe_trim($chunk[$referenceIndex] ?? '');
+    if ($reference === '') {
+        return null;
+    }
+
+    $notes = $notesParts ? implode(' · ', $notesParts) : null;
+
+    return [
+        'import_row_id' => '',
+        'stay_period' => $checkIn . ' - ' . $checkOut,
+        'check_in' => $checkIn,
+        'check_out' => $checkOut,
+        'room_type' => interhome_map_room_type($rawProperty),
+        'customer_name' => $name,
+        'customer_email' => $email,
+        'customer_phone' => $phone,
+        'adults' => $adults,
+        'children_count' => $children,
+        'notes' => $notes,
+        'status' => 'confermata',
+        'source' => 'interhome_pdf',
+        'external_reference' => $reference,
+        '_language' => $language,
+        '_raw_people' => $people,
+        '_raw_property' => $rawProperty,
+        '_page' => $pageNo,
+    ];
+}
+
+function interhome_normalize_email_parts(array $parts): string
+{
+    if (!$parts) {
+        return '';
+    }
+    $email = implode('', array_map('interhome_safe_trim', $parts));
+    // if multiple emails accidentally concatenated, keep first valid token around @
+    if (preg_match('/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i', $email, $m)) {
+        return $m[0];
+    }
+    return $email;
 }
 
 function interhome_filter_existing_rows(PDO $pdo, array $rows): array
@@ -351,6 +425,13 @@ function interhome_is_phone(string $value): bool
     return $value !== '' && (str_starts_with($value, '+') || preg_match('/^[0-9][0-9 \-\/]{5,}$/', $value));
 }
 
+function interhome_is_people_line(string $value): bool
+{
+    $value = interhome_safe_trim($value);
+    if ($value === '-') return true;
+    return (bool) preg_match('/^\d+\s*adulti?(?:\/\d+\s*bambin[io])?$/iu', $value);
+}
+
 function interhome_may_be_email_fragment(string $value): bool
 {
     $value = interhome_safe_trim($value);
@@ -358,53 +439,6 @@ function interhome_may_be_email_fragment(string $value): bool
         return false;
     }
     return str_contains($value, '@') || (bool) preg_match('/^[A-Za-z0-9._%+\-]+$/', $value);
-}
-
-function interhome_may_continue_email(string $current, string $next): bool
-{
-    $next = interhome_safe_trim($next);
-    if ($next === '') {
-        return false;
-    }
-    if (interhome_is_reference($next) || interhome_is_language($next) || interhome_is_date($next) || interhome_is_phone($next) || interhome_is_property_code($next)) {
-        return false;
-    }
-    if (preg_match('/^\(BOL\d+\)$/i', $next)) {
-        return false;
-    }
-    if (!str_contains($current, '@')) {
-        return false;
-    }
-    return (bool) preg_match('/^[A-Za-z0-9._%+\-]+$/', $next);
-}
-
-function interhome_looks_like_customer_name(string $value): bool
-{
-    $value = interhome_safe_trim($value);
-    if ($value === '' || interhome_is_date($value) || interhome_is_property_code($value) || interhome_is_reference($value) || interhome_is_phone($value)) {
-        return false;
-    }
-    if (str_starts_with(mb_strtolower($value), 'porzione di casa')) {
-        return false;
-    }
-    if (preg_match('/^\(BOL\d+\)$/i', $value)) {
-        return false;
-    }
-    if (interhome_is_language($value)) {
-        return false;
-    }
-    return true;
-}
-
-function interhome_can_attach_inline_note(string $value): bool
-{
-    $value = interhome_safe_trim($value);
-    if ($value === '') return false;
-    if (interhome_is_date($value) || interhome_is_property_code($value) || interhome_is_reference($value) || interhome_is_language($value) || interhome_is_phone($value)) return false;
-    if (preg_match('/^\(BOL\d+\)$/i', $value)) return false;
-    if (str_starts_with(mb_strtolower($value), 'porzione di casa')) return false;
-    if (interhome_is_footer_line($value)) return false;
-    return true;
 }
 
 function interhome_is_footer_line(string $value): bool

@@ -13,7 +13,7 @@ require_once __DIR__ . '/includes/header.php';
     <div class="booking-hero">
         <div class="booking-hero-copy">
             <h1>Importa PDF Interhome</h1>
-            <p class="muted">Carica il PDF arrivi dell’agenzia, verifica il riepilogo e poi lavora su ogni prenotazione con un flusso rapido e pulito.</p>
+            <p class="muted">Carica il PDF arrivi dell’agenzia, verifica il riepilogo e poi lavora su ogni prenotazione con un flusso rapido, preciso e professionale.</p>
         </div>
         <a class="btn btn-light" href="<?= e(admin_url('index.php#registered-bookings')) ?>">Torna alle prenotazioni</a>
     </div>
@@ -22,7 +22,7 @@ require_once __DIR__ . '/includes/header.php';
         <div class="section-title">
             <div>
                 <h2>Carica PDF</h2>
-                <p class="muted">Il parser leggerà date, casa, cliente, recapiti, riferimento prenotazione e note collegate. Le prenotazioni già registrate non verranno mostrate.</p>
+                <p class="muted">Il parser legge date, casa, nominativo, recapiti, riferimento prenotazione e note. Le prenotazioni già registrate non verranno mostrate.</p>
             </div>
         </div>
         <form class="interhome-upload-form" method="post" action="<?= e(admin_url('actions/parse-interhome-pdf.php')) ?>" enctype="multipart/form-data">
@@ -58,8 +58,52 @@ require_once __DIR__ . '/includes/header.php';
             <article class="card interhome-summary-card is-purple">
                 <span class="summary-label">Duplicati esclusi</span>
                 <strong><?= (int) ($importState['summary']['duplicates_skipped'] ?? 0) ?></strong>
-                <span class="summary-meta">Già presenti nelle prenotazioni registrate</span>
+                <span class="summary-meta">Controllo su external_reference</span>
             </article>
+        </section>
+
+        <section class="card interhome-workbench">
+            <div class="section-title">
+                <div>
+                    <h2>Area di lavoro PDF</h2>
+                    <p class="muted">Visualizza il PDF direttamente dalla dashboard, rinomina il file di lavoro e confronta velocemente i dati con la tabella.</p>
+                </div>
+            </div>
+            <div class="interhome-workbench-grid">
+                <div class="interhome-pdf-panel">
+                    <form method="post" action="<?= e(admin_url('actions/rename-interhome-file.php')) ?>" class="interhome-rename-form">
+                        <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+                        <label>
+                            Nome sessione PDF
+                            <input type="text" name="display_name" value="<?= e((string) ($importState['display_name'] ?? pathinfo((string) ($importState['file_name'] ?? 'Import PDF'), PATHINFO_FILENAME))) ?>" maxlength="120">
+                        </label>
+                        <button class="btn btn-light btn-sm" type="submit">Rinomina</button>
+                    </form>
+                    <div class="interhome-file-meta muted">
+                        <span><strong>File:</strong> <?= e((string) ($importState['file_name'] ?? 'PDF caricato')) ?></span>
+                        <span><strong>Sessione:</strong> <?= e((string) ($importState['display_name'] ?? 'Import PDF')) ?></span>
+                        <span><strong>Caricato:</strong> <?= e((string) ($importState['uploaded_at'] ?? '')) ?></span>
+                    </div>
+                    <?php if (!empty($importState['pdf_url'])): ?>
+                        <div class="interhome-pdf-viewer-wrap">
+                            <iframe class="interhome-pdf-viewer" src="<?= e((string) $importState['pdf_url']) ?>#toolbar=1&navpanes=0"></iframe>
+                        </div>
+                    <?php else: ?>
+                        <div class="empty-note">PDF non disponibile per l’anteprima.</div>
+                    <?php endif; ?>
+                </div>
+                <div class="interhome-quick-help">
+                    <div class="card interhome-tip-card">
+                        <h3>Workflow consigliato</h3>
+                        <ol>
+                            <li>Controlla il totale prenotazioni trovate.</li>
+                            <li>Confronta rapidamente il PDF nel viewer.</li>
+                            <li>Apri una riga, verifica i dati e salva.</li>
+                            <li>Se una riga non ti serve, eliminala col cestino.</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
         </section>
 
         <?php if (!empty($importState['rows'])): ?>
@@ -67,53 +111,41 @@ require_once __DIR__ . '/includes/header.php';
                 <div class="section-title">
                     <div>
                         <h2>Nuove prenotazioni trovate</h2>
-                        <p class="muted">Clicca una riga per aprire la scheda di verifica. Puoi anche eliminare subito le righe che non vuoi lavorare.</p>
+                        <p class="muted">Clicca una riga per aprire il form modificabile e confermare l’inserimento in Prenotazioni registrate.</p>
                     </div>
                     <div class="toolbar">
-                        <input class="search-input" type="search" placeholder="Cerca prenotazioni nel PDF..." data-table-filter="#interhome-import-table">
-                        <form method="post" action="<?= e(admin_url('actions/remove-interhome-row.php')) ?>">
-                            <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
-                            <input type="hidden" name="clear_all" value="1">
-                            <button class="btn btn-light btn-sm" type="submit">Svuota elenco</button>
-                        </form>
+                        <input class="search-input" type="search" placeholder="Cerca tra le righe importate..." data-table-filter="#interhome-import-table">
                     </div>
                 </div>
                 <div class="table-wrap">
-                    <table id="interhome-import-table" class="interhome-import-table">
+                    <table id="interhome-import-table">
                         <thead>
-                            <tr>
-                                <th>Cliente</th>
-                                <th>Soggiorno</th>
-                                <th>Casa</th>
-                                <th>Persone</th>
-                                <th>Riferimento</th>
-                                <th>Contatti</th>
-                                <th>Note</th>
-                                <th>Azioni</th>
-                            </tr>
+                        <tr>
+                            <th>Cliente</th>
+                            <th>Soggiorno</th>
+                            <th>Casa</th>
+                            <th>Persone</th>
+                            <th>Riferimento</th>
+                            <th>Note</th>
+                            <th>Azioni</th>
+                        </tr>
                         </thead>
                         <tbody>
-                        <?php foreach (($importState['rows'] ?? []) as $row): ?>
+                        <?php foreach ($importState['rows'] as $row): ?>
                             <tr class="interhome-import-row" data-row-href="<?= e(admin_url('import-interhome-review.php?row=' . urlencode((string) $row['import_row_id']))) ?>">
                                 <td>
-                                    <strong><?= e($row['customer_name']) ?></strong><br>
-                                    <span class="small muted"><?= e($row['_language'] ?? '') ?></span>
-                                </td>
-                                <td><?= e($row['stay_period']) ?></td>
-                                <td><?= e($row['room_type']) ?></td>
-                                <td><?= (int) $row['adults'] ?> adulti / <?= (int) $row['children_count'] ?> bambini</td>
-                                <td><span class="code"><?= e($row['external_reference']) ?></span></td>
-                                <td>
+                                    <strong><?= e((string) ($row['customer_name'] ?? '')) ?></strong><br>
                                     <?php if (!empty($row['customer_email'])): ?>
-                                        <a class="contact-link" href="mailto:<?= e($row['customer_email']) ?>"><?= e($row['customer_email']) ?></a><br>
-                                    <?php endif; ?>
-                                    <?php if (!empty($row['customer_phone'])): ?>
-                                        <a class="contact-link" href="tel:<?= e(preg_replace('/[^0-9+]/', '', (string) $row['customer_phone'])) ?>"><?= e($row['customer_phone']) ?></a>
-                                    <?php else: ?>
-                                        <span class="small muted">Nessun recapito telefonico</span>
+                                        <a class="small contact-link" href="mailto:<?= e((string) $row['customer_email']) ?>"><?= e((string) $row['customer_email']) ?></a>
+                                    <?php elseif (!empty($row['_language'])): ?>
+                                        <span class="small muted"><?= e((string) $row['_language']) ?></span>
                                     <?php endif; ?>
                                 </td>
-                                <td><?= !empty($row['notes']) ? e($row['notes']) : '<span class="small muted">Nessuna</span>' ?></td>
+                                <td><?= e((string) ($row['stay_period'] ?? '')) ?></td>
+                                <td><?= e((string) ($row['room_type'] ?? '')) ?></td>
+                                <td><?= (int) ($row['adults'] ?? 0) ?> adulti / <?= (int) ($row['children_count'] ?? 0) ?> bambini</td>
+                                <td><span class="code"><?= e((string) ($row['external_reference'] ?? '')) ?></span></td>
+                                <td><?= !empty($row['notes']) ? e((string) $row['notes']) : '<span class="small muted">Nessuna</span>' ?></td>
                                 <td>
                                     <div class="actions interhome-inline-actions">
                                         <a class="btn btn-primary btn-sm" href="<?= e(admin_url('import-interhome-review.php?row=' . urlencode((string) $row['import_row_id']))) ?>">Apri</a>

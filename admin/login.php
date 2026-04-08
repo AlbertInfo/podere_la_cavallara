@@ -38,7 +38,10 @@ require_once __DIR__ . '/includes/header.php';
                 <input type="email" name="email" placeholder="nome@dominio.it" required>
             </label>
             <label>Password
-                <input type="password" name="password" placeholder="Inserisci la password" required>
+                <div class="password-field">
+                    <input type="password" name="password" placeholder="Inserisci la password" required data-password-input>
+                    <button class="password-toggle" type="button" data-password-toggle aria-label="Mostra password">Mostra</button>
+                </div>
             </label>
             <button class="btn btn-primary" type="submit">Accedi</button>
             <a class="small muted" href="<?= e(admin_url('forgot-password.php')) ?>">Hai dimenticato la password?</a>

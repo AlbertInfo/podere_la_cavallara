@@ -31,23 +31,38 @@ if ($ext !== 'pdf') {
     exit;
 }
 
-$tmpDir = sys_get_temp_dir() . '/interhome_pdf_uploads';
-if (!is_dir($tmpDir)) {
-    mkdir($tmpDir, 0775, true);
+$uploadDir = dirname(__DIR__) . '/uploads/interhome';
+if (!is_dir($uploadDir) && !mkdir($uploadDir, 0775, true) && !is_dir($uploadDir)) {
+    set_flash('error', 'Impossibile creare la cartella di lavoro per i PDF importati.');
+    header('Location: ' . admin_url('import-interhome-pdf.php'));
+    exit;
 }
-$tempPath = $tmpDir . '/interhome_' . bin2hex(random_bytes(8)) . '.pdf';
 
-if (!move_uploaded_file($file['tmp_name'], $tempPath)) {
+if (!empty($_SESSION['interhome_import']['pdf_disk_path'] ?? '')) {
+    $oldPdf = (string) $_SESSION['interhome_import']['pdf_disk_path'];
+    if (is_file($oldPdf)) {
+        @unlink($oldPdf);
+    }
+}
+
+$safeBase = preg_replace('/[^A-Za-z0-9._-]+/', '-', pathinfo($originalName, PATHINFO_FILENAME)) ?: 'interhome-import';
+$finalFilename = $safeBase . '-' . date('Ymd-His') . '-' . bin2hex(random_bytes(4)) . '.pdf';
+$finalDiskPath = $uploadDir . '/' . $finalFilename;
+
+if (!move_uploaded_file((string) $file['tmp_name'], $finalDiskPath)) {
     set_flash('error', 'Impossibile preparare il file PDF per l’analisi.');
     header('Location: ' . admin_url('import-interhome-pdf.php'));
     exit;
 }
 
 try {
-    $result = interhome_import_parse_pdf($tempPath, $pdo);
+    $result = interhome_import_parse_pdf($finalDiskPath, $pdo);
     $_SESSION['interhome_import'] = [
         'file_name' => $originalName,
+        'display_name' => pathinfo($originalName, PATHINFO_FILENAME),
         'uploaded_at' => date('Y-m-d H:i:s'),
+        'pdf_url' => admin_url('uploads/interhome/' . rawurlencode($finalFilename)),
+        'pdf_disk_path' => $finalDiskPath,
         'rows' => $result['rows'],
         'summary' => $result['summary'],
         'pending_confirmation' => !empty($result['rows']),
@@ -59,9 +74,9 @@ try {
         set_flash('success', 'Analisi completata. Non ci sono nuove prenotazioni nel file PDF.');
     }
 } catch (Throwable $e) {
+    @unlink($finalDiskPath);
     set_flash('error', 'Analisi PDF interrotta: ' . $e->getMessage());
 }
 
-@unlink($tempPath);
 header('Location: ' . admin_url('import-interhome-pdf.php'));
 exit;

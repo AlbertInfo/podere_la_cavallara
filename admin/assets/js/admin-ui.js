@@ -59,43 +59,57 @@ document.addEventListener('DOMContentLoaded', function () {
     const locale = flatpickr.l10ns.it || 'it';
 
     document.querySelectorAll('.js-date-range, [data-flatpickr-range]').forEach(function (input) {
+      const value = (input.value || '').trim();
+      const defaults = value && value.indexOf(' - ') !== -1 ? value.split(' - ').map(function (part) { return part.trim(); }) : null;
       flatpickr(input, {
         mode: 'range',
         dateFormat: 'd/m/Y',
         rangeSeparator: ' - ',
         allowInput: true,
+        clickOpens: true,
         locale: locale,
-        defaultDate: input.value && input.value.indexOf(' - ') !== -1 ? input.value.split(' - ') : null
+        defaultDate: defaults,
       });
     });
   }
-});
 
+  document.querySelectorAll('[data-mobile-expand-row]').forEach(function (row) {
+    row.addEventListener('click', function (e) {
+      if (window.innerWidth > 768) return;
+      if (e.target.closest('a, button, form, input, select, textarea, label')) {
+        return;
+      }
 
-document.querySelectorAll('[data-mobile-expand-row]').forEach(function (row) {
-  row.addEventListener('click', function (e) {
-    if (window.innerWidth > 768) return;
+      const detailRow = row.nextElementSibling;
+      if (!detailRow || !detailRow.classList.contains('mobile-detail-row')) return;
 
-    if (e.target.closest('a, button, form, input, select, textarea, label')) {
-      return;
-    }
+      const isOpen = row.classList.contains('is-open');
 
-    const detailRow = row.nextElementSibling;
-    if (!detailRow || !detailRow.classList.contains('mobile-detail-row')) return;
+      document.querySelectorAll('.mobile-summary-row.is-open').forEach(function (r) {
+        r.classList.remove('is-open');
+      });
 
-    const isOpen = row.classList.contains('is-open');
+      document.querySelectorAll('.mobile-detail-row.is-open').forEach(function (r) {
+        r.classList.remove('is-open');
+      });
 
-    document.querySelectorAll('.mobile-summary-row.is-open').forEach(function (r) {
-      r.classList.remove('is-open');
+      if (!isOpen) {
+        row.classList.add('is-open');
+        detailRow.classList.add('is-open');
+      }
     });
+  });
 
-    document.querySelectorAll('.mobile-detail-row.is-open').forEach(function (r) {
-      r.classList.remove('is-open');
+  document.querySelectorAll('[data-password-toggle]').forEach(function (toggle) {
+    toggle.addEventListener('click', function () {
+      const wrapper = toggle.closest('.password-field');
+      if (!wrapper) return;
+      const input = wrapper.querySelector('[data-password-input]');
+      if (!input) return;
+      const isHidden = input.type === 'password';
+      input.type = isHidden ? 'text' : 'password';
+      toggle.textContent = isHidden ? 'Nascondi' : 'Mostra';
+      toggle.setAttribute('aria-label', isHidden ? 'Nascondi password' : 'Mostra password');
     });
-
-    if (!isOpen) {
-      row.classList.add('is-open');
-      detailRow.classList.add('is-open');
-    }
   });
 });
