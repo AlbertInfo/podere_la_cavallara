@@ -51,19 +51,24 @@ def parse_people(s: str):
     s = clean(s).lower()
     if s in ("", "-"):
         return 0, 0
+
     adults = 0
     children = 0
+
     m = re.search(r"(\d+)\s*adulti?", s)
     if m:
         adults = int(m.group(1))
+
     m = re.search(r"(\d+)\s*bambin[io]", s)
     if m:
         children = int(m.group(1))
+
     return adults, children
 
 
 def map_room_type(raw_property: str) -> str:
     n = clean(raw_property).lower()
+
     if re.search(r"n[°ºo\.\s]*1\b", n) or "(bol561)" in n:
         return "Casa Domenico 1"
     if re.search(r"n[°ºo\.\s]*2\b", n) or "(bol560)" in n:
@@ -76,6 +81,7 @@ def map_room_type(raw_property: str) -> str:
         return "Casa Alessandro 5"
     if re.search(r"n[°ºo\.\s]*6\b", n) or "(bol564)" in n:
         return "Casa Alessandro 6"
+
     return ""
 
 
@@ -180,7 +186,7 @@ def parse_page(page_no: int, lines: List[str]) -> Dict[str, Any]:
             phone = lines[i]
             i += 1
 
-                email = ""
+        email = ""
         if i < count and "@" in lines[i]:
             email_parts = [lines[i]]
             i += 1
@@ -191,13 +197,11 @@ def parse_page(page_no: int, lines: List[str]) -> Dict[str, Any]:
                 if is_reference(nxt) or is_language(nxt) or is_date(nxt) or is_property_code(nxt):
                     break
 
-                # frammenti tipici di email spezzata, es. "m"
                 if re.fullmatch(r"[A-Za-z0-9._%+\-]+", nxt):
                     email_parts.append(nxt)
                     i += 1
                     continue
 
-                # evita di mangiare note o testo libero
                 if nxt.lower().startswith("note:"):
                     break
 
