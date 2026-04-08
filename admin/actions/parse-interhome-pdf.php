@@ -31,52 +31,55 @@ if ($ext !== 'pdf') {
     exit;
 }
 
-$uploadDir = dirname(__DIR__) . '/uploads/interhome';
-if (!is_dir($uploadDir) && !mkdir($uploadDir, 0775, true) && !is_dir($uploadDir)) {
-    set_flash('error', 'Impossibile creare la cartella di lavoro per i PDF importati.');
-    header('Location: ' . admin_url('import-interhome-pdf.php'));
-    exit;
+$privateDir = sys_get_temp_dir() . '/interhome_pdf_uploads';
+if (!is_dir($privateDir)) {
+    mkdir($privateDir, 0775, true);
 }
+$tempPath = $privateDir . '/interhome_' . bin2hex(random_bytes(8)) . '.pdf';
 
-if (!empty($_SESSION['interhome_import']['pdf_disk_path'] ?? '')) {
-    $oldPdf = (string) $_SESSION['interhome_import']['pdf_disk_path'];
-    if (is_file($oldPdf)) {
-        @unlink($oldPdf);
-    }
-}
-
-$safeBase = preg_replace('/[^A-Za-z0-9._-]+/', '-', pathinfo($originalName, PATHINFO_FILENAME)) ?: 'interhome-import';
-$finalFilename = $safeBase . '-' . date('Ymd-His') . '-' . bin2hex(random_bytes(4)) . '.pdf';
-$finalDiskPath = $uploadDir . '/' . $finalFilename;
-
-if (!move_uploaded_file((string) $file['tmp_name'], $finalDiskPath)) {
+if (!move_uploaded_file($file['tmp_name'], $tempPath)) {
     set_flash('error', 'Impossibile preparare il file PDF per l’analisi.');
     header('Location: ' . admin_url('import-interhome-pdf.php'));
     exit;
 }
 
+$publicDir = dirname(__DIR__) . '/uploads/interhome';
+if (!is_dir($publicDir)) {
+    mkdir($publicDir, 0775, true);
+}
+$publicName = 'interhome_' . date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . '.pdf';
+$publicPath = $publicDir . '/' . $publicName;
+$publicUrl = admin_url('uploads/interhome/' . $publicName);
+
 try {
-    $result = interhome_import_parse_pdf($finalDiskPath, $pdo);
+    if (!copy($tempPath, $publicPath)) {
+        $publicUrl = null;
+        $publicName = null;
+    }
+
+    $result = interhome_import_parse_pdf($tempPath, $pdo);
+
     $_SESSION['interhome_import'] = [
         'file_name' => $originalName,
         'display_name' => pathinfo($originalName, PATHINFO_FILENAME),
         'uploaded_at' => date('Y-m-d H:i:s'),
-        'pdf_url' => admin_url('uploads/interhome/' . rawurlencode($finalFilename)),
-        'pdf_disk_path' => $finalDiskPath,
+        'file_url' => $publicUrl,
+        'file_storage_name' => $publicName,
+        'viewer_open' => true,
         'rows' => $result['rows'],
         'summary' => $result['summary'],
         'pending_confirmation' => !empty($result['rows']),
     ];
 
     if (!empty($result['rows'])) {
-        set_flash('success', 'PDF analizzato correttamente. Controlla il riepilogo e conferma il numero di prenotazioni trovate.');
+        set_flash('success', 'PDF analizzato correttamente. Verifica il riepilogo e conferma il numero di prenotazioni trovate.');
     } else {
         set_flash('success', 'Analisi completata. Non ci sono nuove prenotazioni nel file PDF.');
     }
 } catch (Throwable $e) {
-    @unlink($finalDiskPath);
     set_flash('error', 'Analisi PDF interrotta: ' . $e->getMessage());
 }
 
+@unlink($tempPath);
 header('Location: ' . admin_url('import-interhome-pdf.php'));
 exit;

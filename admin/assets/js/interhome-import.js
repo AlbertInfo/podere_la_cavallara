@@ -15,3 +15,15 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 });
+
+document.addEventListener('DOMContentLoaded', function () {
+  const pdfToggle = document.querySelector('[data-pdf-toggle]');
+  const pdfViewer = document.querySelector('[data-pdf-viewer]');
+  if (pdfToggle && pdfViewer) {
+    pdfToggle.addEventListener('click', function () {
+      const open = pdfViewer.classList.toggle('is-open');
+      pdfToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      pdfToggle.textContent = open ? 'Chiudi PDF' : 'Apri PDF';
+    });
+  }
+});

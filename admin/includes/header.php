@@ -16,7 +16,7 @@ function admin_nav_active(array $targets, string $currentPath): string
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= e($pageTitle) ?></title>
     <link rel="stylesheet" href="/admin/assets/css/admin-modern.css?v=30">
-    <link rel="stylesheet" href="/admin/assets/css/interhome-import.css?v=10">
+    <link rel="stylesheet" href="/admin/assets/css/interhome-import.css?v=90">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -60,7 +60,7 @@ function admin_nav_active(array $targets, string $currentPath): string
                         <span></span>
                     </button>
                     <a class="topbar-brand" href="<?= e(admin_url('index.php')) ?>">
-                        <img src="<?= e(admin_url('assets/img/logo_mobile.png')) ?>" alt="Podere La Cavallara">
+                        <img src="<?= e(admin_url('assets/img/logo.svg')) ?>" alt="Podere La Cavallara">
                     </a>
                     <div class="topbar-actions">
                         <a class="btn btn-light btn-sm" href="<?= e(admin_url('import-interhome-pdf.php')) ?>">Importa PDF</a>
