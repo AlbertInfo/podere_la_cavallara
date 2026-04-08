@@ -180,13 +180,30 @@ def parse_page(page_no: int, lines: List[str]) -> Dict[str, Any]:
             phone = lines[i]
             i += 1
 
-        email = ""
+                email = ""
         if i < count and "@" in lines[i]:
-            email = lines[i]
+            email_parts = [lines[i]]
             i += 1
-            while i < count and "@" not in email and not is_reference(lines[i]):
-                email += lines[i]
-                i += 1
+
+            while i < count:
+                nxt = lines[i]
+
+                if is_reference(nxt) or is_language(nxt) or is_date(nxt) or is_property_code(nxt):
+                    break
+
+                # frammenti tipici di email spezzata, es. "m"
+                if re.fullmatch(r"[A-Za-z0-9._%+\-]+", nxt):
+                    email_parts.append(nxt)
+                    i += 1
+                    continue
+
+                # evita di mangiare note o testo libero
+                if nxt.lower().startswith("note:"):
+                    break
+
+                break
+
+            email = "".join(email_parts).strip()
 
         if i >= count or not is_reference(lines[i]):
             continue
