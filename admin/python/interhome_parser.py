@@ -37,9 +37,7 @@ def is_phone(s: str) -> bool:
     s = clean(s)
     if not s:
         return False
-    if s.startswith("+"):
-        return True
-    return bool(re.fullmatch(r"[0-9][0-9 \-\/]{5,}", s))
+    return s.startswith("+")
 
 
 def is_people(s: str) -> bool:
@@ -66,55 +64,32 @@ def parse_people(s: str):
 
 def map_room_type(raw_property: str) -> str:
     n = clean(raw_property).lower()
-    if re.search(r"porzione di casa\s*,?\s*n[°ºo\.]?\s*1\b", n) or "(bol561)" in n:
+    if re.search(r"n[°ºo\.\s]*1\b", n) or "(bol561)" in n:
         return "Casa Domenico 1"
-    if re.search(r"porzione di casa\s*,?\s*n[°ºo\.]?\s*2\b", n) or "(bol560)" in n:
+    if re.search(r"n[°ºo\.\s]*2\b", n) or "(bol560)" in n:
         return "Casa Domenico 2"
-    if re.search(r"porzione di casa\s*,?\s*n[°ºo\.]?\s*3\b", n) or "(bol563)" in n:
+    if re.search(r"n[°ºo\.\s]*3\b", n) or "(bol563)" in n:
         return "Casa Riccardo 3"
-    if re.search(r"porzione di casa\s*,?\s*n[°ºo\.]?\s*4\b", n) or "(bol562)" in n:
+    if re.search(r"n[°ºo\.\s]*4\b", n) or "(bol562)" in n:
         return "Casa Riccardo 4"
-    if re.search(r"porzione di casa\s*,?\s*n[°ºo\.]?\s*5\b", n) or "(bol565)" in n:
+    if re.search(r"n[°ºo\.\s]*5\b", n) or "(bol565)" in n:
         return "Casa Alessandro 5"
-    if re.search(r"porzione di casa\s*,?\s*n[°ºo\.]?\s*6\b", n) or "(bol564)" in n:
+    if re.search(r"n[°ºo\.\s]*6\b", n) or "(bol564)" in n:
         return "Casa Alessandro 6"
     return ""
 
 
-def normalize_email(parts: List[str]) -> str:
-    email = "".join(clean(p) for p in parts)
-    return clean(email)
-
-
-def detect_note(line: str):
-    m = re.search(r"prenotazione n\.\s*([0-9]{9,15})", line, re.I)
-    return m.group(1) if m else None
-
-
 def extract_page_lines(page) -> List[str]:
-    # Estrae linee ordinate top->bottom, left->right
-    data = page.get_text("dict")
-    items = []
+    text = page.get_text("text")
+    raw_lines = [clean(x) for x in text.splitlines()]
+    lines = []
 
-    for block in data.get("blocks", []):
-        if block.get("type") != 0:
+    for line in raw_lines:
+        if not line:
             continue
-        for line in block.get("lines", []):
-            spans = line.get("spans", [])
-            if not spans:
-                continue
-            text = clean(" ".join(span.get("text", "") for span in spans))
-            if not text:
-                continue
-            bbox = line.get("bbox", [0, 0, 0, 0])
-            items.append((round(bbox[1], 1), round(bbox[0], 1), text))
 
-    items.sort(key=lambda x: (x[0], x[1]))
-    lines = [text for _, _, text in items]
-
-    cleaned = []
-    for line in lines:
         low = line.lower()
+
         if line.startswith("Nuova prenotazione ("):
             continue
         if line.startswith("Prenotazione esistente ("):
@@ -127,7 +102,7 @@ def extract_page_lines(page) -> List[str]:
             continue
         if "Lista degli arrivi" in line:
             continue
-        if low in {"data casa vacanze clienti dettagli", "partner"}:
+        if low in {"data casa vacanze clienti dettagli", "data", "casa vacanze", "clienti", "dettagli"}:
             continue
         if line in {
             "Interhome | Service Office",
@@ -140,19 +115,23 @@ def extract_page_lines(page) -> List[str]:
             "HHD AG",
             "Sägereistrasse 20",
             "CH-8152 Glattbrugg",
+            "Codice partner",
+            "Data di creazione Contatto",
+            "Data di creazione",
+            "Contatto",
         }:
             continue
         if re.match(r"^IT04151\b", line):
             continue
-        cleaned.append(line)
 
-    return cleaned
+        lines.append(line)
+
+    return lines
 
 
 def parse_page(page_no: int, lines: List[str]) -> Dict[str, Any]:
     rows = []
-    notes = {}
-
+    pending_note = None
     i = 0
     count = len(lines)
 
@@ -160,102 +139,90 @@ def parse_page(page_no: int, lines: List[str]) -> Dict[str, Any]:
         line = lines[i]
 
         if line.lower().startswith("note:"):
-            ref = detect_note(line)
-            if ref:
-                notes[ref] = line
+            pending_note = line
             i += 1
             continue
 
-        if not is_date(line):
+        if i + 2 >= count:
+            break
+
+        if not is_date(lines[i]) or not is_date(lines[i + 1]) or not is_property_code(lines[i + 2]):
             i += 1
             continue
 
-        check_in = line
-        check_out = lines[i + 1] if i + 1 < count else ""
-        prop_code = lines[i + 2] if i + 2 < count else ""
+        check_in = lines[i]
+        check_out = lines[i + 1]
+        prop_code = lines[i + 2]
+        i += 3
 
-        if not is_date(check_out) or not is_property_code(prop_code):
-            i += 1
-            continue
-
-        cursor = i + 3
         property_parts = []
-
-        while cursor < count:
-            candidate = clean(lines[cursor])
-            if not candidate:
-                cursor += 1
+        while i < count:
+            cur = lines[i]
+            if cur.lower().startswith("porzione di casa") or re.fullmatch(r"\(BOL\d+\)", cur, re.I):
+                property_parts.append(cur)
+                i += 1
                 continue
-            if is_date(candidate) or is_reference(candidate) or is_language(candidate):
-                break
-            if candidate.lower().startswith("note:"):
-                break
-            # lo start del nome persona tende a comparire dopo il blocco casa
-            if candidate.lower().startswith("porzione di casa") or re.fullmatch(r"\(BOL\d+\)", candidate, re.I):
-                property_parts.append(candidate)
-                cursor += 1
-                continue
-            # se abbiamo già il blocco casa, il prossimo è verosimilmente il nome
-            if property_parts:
-                break
-            property_parts.append(candidate)
-            cursor += 1
+            break
 
-        if not property_parts or cursor >= count:
-            i += 1
-            continue
+        if i >= count:
+            break
 
-        customer_name = clean(lines[cursor])
-        cursor += 1
+        customer_name = lines[i]
+        i += 1
 
         people = "-"
-        if cursor < count and is_people(lines[cursor]):
-            people = clean(lines[cursor])
-            cursor += 1
+        if i < count and is_people(lines[i]):
+            people = lines[i]
+            i += 1
 
         phone = ""
-        if cursor < count and is_phone(lines[cursor]) and not is_reference(lines[cursor]):
-            phone = clean(lines[cursor])
-            cursor += 1
-
-        email_parts = []
-        if cursor < count and "@" in lines[cursor]:
-            email_parts.append(lines[cursor])
-            cursor += 1
-            while cursor < count:
-                nxt = clean(lines[cursor])
-                if not nxt or is_reference(nxt) or is_language(nxt) or is_date(nxt) or is_phone(nxt):
-                    break
-                if re.fullmatch(r"[A-Za-z0-9._%+\-]+", nxt):
-                    email_parts.append(nxt)
-                    cursor += 1
-                    continue
-                break
-
-        customer_email = normalize_email(email_parts)
-
-        external_reference = ""
-        ref_pos = cursor
-        while ref_pos < min(count, cursor + 6):
-            cand = clean(lines[ref_pos])
-            if is_reference(cand):
-                external_reference = cand
-                break
-            if is_date(cand) or is_property_code(cand):
-                break
-            ref_pos += 1
-
-        if not external_reference:
+        if i < count and is_phone(lines[i]):
+            phone = lines[i]
             i += 1
+
+        email = ""
+        if i < count and "@" in lines[i]:
+            email = lines[i]
+            i += 1
+            while i < count and "@" not in email and not is_reference(lines[i]):
+                email += lines[i]
+                i += 1
+
+        if i >= count or not is_reference(lines[i]):
             continue
 
-        cursor = ref_pos + 1
+        external_reference = lines[i]
+        i += 1
+
         language = ""
-        if cursor < count and is_language(lines[cursor]):
-            language = clean(lines[cursor])
+        if i < count and is_language(lines[i]):
+            language = lines[i]
+            i += 1
+
+        extra_notes = []
+        while i < count:
+            nxt = lines[i]
+            if is_date(nxt):
+                break
+            if is_property_code(nxt):
+                break
+            if is_reference(nxt):
+                break
+            if is_language(nxt):
+                break
+            if nxt.lower().startswith("note:"):
+                break
+            extra_notes.append(nxt)
+            i += 1
 
         raw_property = clean(prop_code + " " + " ".join(property_parts))
         adults, children = parse_people(people)
+
+        notes = []
+        if pending_note:
+            notes.append(pending_note)
+            pending_note = None
+        notes.extend(extra_notes)
 
         rows.append({
             "import_row_id": "",
@@ -264,11 +231,11 @@ def parse_page(page_no: int, lines: List[str]) -> Dict[str, Any]:
             "check_out": check_out,
             "room_type": map_room_type(raw_property),
             "customer_name": customer_name,
-            "customer_email": customer_email,
+            "customer_email": email,
             "customer_phone": phone,
             "adults": adults,
             "children_count": children,
-            "notes": None,
+            "notes": "\n".join(notes).strip() if notes else None,
             "status": "confermata",
             "source": "interhome_pdf",
             "external_reference": external_reference,
@@ -279,9 +246,7 @@ def parse_page(page_no: int, lines: List[str]) -> Dict[str, Any]:
             "_pdf_state": None,
         })
 
-        i = ref_pos + 1
-
-    return {"rows": rows, "notes": notes}
+    return {"rows": rows}
 
 
 def main():
@@ -290,10 +255,9 @@ def main():
         sys.exit(1)
 
     pdf_path = sys.argv[1]
-
     doc = fitz.open(pdf_path)
+
     all_rows = []
-    notes_by_ref = {}
     pages_read = 0
 
     for idx, page in enumerate(doc):
@@ -303,12 +267,6 @@ def main():
         pages_read += 1
         parsed = parse_page(idx + 1, lines)
         all_rows.extend(parsed["rows"])
-        notes_by_ref.update(parsed["notes"])
-
-    for row in all_rows:
-        ref = row.get("external_reference")
-        if ref and ref in notes_by_ref:
-            row["notes"] = notes_by_ref[ref]
 
     result = {
         "ok": True,
