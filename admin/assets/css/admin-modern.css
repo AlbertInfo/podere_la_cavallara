@@ -647,3 +647,8 @@ label{display:grid;gap:8px;font-weight:600;color:#334155}
     display: none !important;
   }
 }
+.password-field{position:relative;display:block}
+.password-field input{padding-right:52px}
+.password-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);width:32px;height:32px;border-radius:10px;background:transparent;color:var(--muted);display:inline-flex;align-items:center;justify-content:center}
+.password-toggle:hover{background:#f1f5f9;color:var(--text)}
+.password-toggle svg{width:18px;height:18px}

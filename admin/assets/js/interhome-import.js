@@ -16,14 +16,16 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 });
 
+
 document.addEventListener('DOMContentLoaded', function () {
-  const pdfToggle = document.querySelector('[data-pdf-toggle]');
-  const pdfViewer = document.querySelector('[data-pdf-viewer]');
-  if (pdfToggle && pdfViewer) {
-    pdfToggle.addEventListener('click', function () {
-      const open = pdfViewer.classList.toggle('is-open');
-      pdfToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-      pdfToggle.textContent = open ? 'Chiudi PDF' : 'Apri PDF';
+  const toggle = document.querySelector('[data-pdf-toggle]');
+  const workspace = document.querySelector('[data-pdf-workspace]');
+  if (toggle && workspace) {
+    toggle.addEventListener('click', function () {
+      workspace.classList.toggle('is-collapsed');
+      const collapsed = workspace.classList.contains('is-collapsed');
+      toggle.setAttribute('aria-expanded', String(!collapsed));
+      toggle.textContent = collapsed ? 'Apri PDF' : 'Chiudi PDF';
     });
   }
 });

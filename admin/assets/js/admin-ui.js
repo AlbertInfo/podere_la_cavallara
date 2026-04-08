@@ -59,57 +59,73 @@ document.addEventListener('DOMContentLoaded', function () {
     const locale = flatpickr.l10ns.it || 'it';
 
     document.querySelectorAll('.js-date-range, [data-flatpickr-range]').forEach(function (input) {
-      const value = (input.value || '').trim();
-      const defaults = value && value.indexOf(' - ') !== -1 ? value.split(' - ').map(function (part) { return part.trim(); }) : null;
       flatpickr(input, {
         mode: 'range',
         dateFormat: 'd/m/Y',
         rangeSeparator: ' - ',
         allowInput: true,
-        clickOpens: true,
         locale: locale,
-        defaultDate: defaults,
+        defaultDate: input.value && input.value.indexOf(' - ') !== -1 ? input.value.split(' - ') : null
       });
     });
   }
+});
 
-  document.querySelectorAll('[data-mobile-expand-row]').forEach(function (row) {
-    row.addEventListener('click', function (e) {
-      if (window.innerWidth > 768) return;
-      if (e.target.closest('a, button, form, input, select, textarea, label')) {
-        return;
-      }
 
-      const detailRow = row.nextElementSibling;
-      if (!detailRow || !detailRow.classList.contains('mobile-detail-row')) return;
+document.querySelectorAll('[data-mobile-expand-row]').forEach(function (row) {
+  row.addEventListener('click', function (e) {
+    if (window.innerWidth > 768) return;
 
-      const isOpen = row.classList.contains('is-open');
+    if (e.target.closest('a, button, form, input, select, textarea, label')) {
+      return;
+    }
 
-      document.querySelectorAll('.mobile-summary-row.is-open').forEach(function (r) {
-        r.classList.remove('is-open');
-      });
+    const detailRow = row.nextElementSibling;
+    if (!detailRow || !detailRow.classList.contains('mobile-detail-row')) return;
 
-      document.querySelectorAll('.mobile-detail-row.is-open').forEach(function (r) {
-        r.classList.remove('is-open');
-      });
+    const isOpen = row.classList.contains('is-open');
 
-      if (!isOpen) {
-        row.classList.add('is-open');
-        detailRow.classList.add('is-open');
-      }
+    document.querySelectorAll('.mobile-summary-row.is-open').forEach(function (r) {
+      r.classList.remove('is-open');
+    });
+
+    document.querySelectorAll('.mobile-detail-row.is-open').forEach(function (r) {
+      r.classList.remove('is-open');
+    });
+
+    if (!isOpen) {
+      row.classList.add('is-open');
+      detailRow.classList.add('is-open');
+    }
+  });
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('[data-password-toggle]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const wrapper = btn.closest('.password-field');
+      const input = wrapper ? wrapper.querySelector('input[type="password"], input[type="text"]') : null;
+      if (!input) return;
+      const showing = input.type === 'text';
+      input.type = showing ? 'password' : 'text';
+      btn.classList.toggle('is-active', !showing);
+      btn.setAttribute('aria-label', showing ? 'Mostra password' : 'Nascondi password');
     });
   });
 
-  document.querySelectorAll('[data-password-toggle]').forEach(function (toggle) {
-    toggle.addEventListener('click', function () {
-      const wrapper = toggle.closest('.password-field');
-      if (!wrapper) return;
-      const input = wrapper.querySelector('[data-password-input]');
-      if (!input) return;
-      const isHidden = input.type === 'password';
-      input.type = isHidden ? 'text' : 'password';
-      toggle.textContent = isHidden ? 'Nascondi' : 'Mostra';
-      toggle.setAttribute('aria-label', isHidden ? 'Nascondi password' : 'Mostra password');
+  document.querySelectorAll('.js-date-range').forEach(function (input) {
+    if (typeof flatpickr === 'undefined') return;
+    const existing = (input.value || '').trim();
+    let defaultDate = undefined;
+    if (existing.includes(' - ')) {
+      const parts = existing.split(' - ').map(function (s) { return s.trim(); }).filter(Boolean);
+      if (parts.length === 2) defaultDate = parts;
+    }
+    flatpickr(input, {
+      mode: 'range',
+      dateFormat: 'd/m/Y',
+      locale: 'it',
+      defaultDate: defaultDate
     });
   });
 });

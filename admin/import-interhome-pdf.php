@@ -5,8 +5,7 @@ require_admin();
 
 $pageTitle = 'Importa PDF Interhome';
 $importState = $_SESSION['interhome_import'] ?? null;
-$showConfirmModal = !empty($importState['pending_confirmation']) && isset($importState['summary']['parsed_total']);
-$viewerOpen = !empty($importState['viewer_open']);
+$showConfirmModal = !empty($importState['pending_confirmation']) && !empty($importState['rows']);
 
 require_once __DIR__ . '/includes/header.php';
 ?>
@@ -23,7 +22,7 @@ require_once __DIR__ . '/includes/header.php';
         <div class="section-title">
             <div>
                 <h2>Carica PDF</h2>
-                <p class="muted">Il parser legge date, casa, cliente, recapiti, riferimento prenotazione e note collegate. Le prenotazioni già registrate non verranno mostrate.</p>
+                <p class="muted">Il parser leggerà date, casa, cliente, recapiti, riferimento prenotazione e note collegate. Le prenotazioni già registrate non verranno mostrate.</p>
             </div>
         </div>
         <form class="interhome-upload-form" method="post" action="<?= e(admin_url('actions/parse-interhome-pdf.php')) ?>" enctype="multipart/form-data">
@@ -40,6 +39,11 @@ require_once __DIR__ . '/includes/header.php';
     </section>
 
     <?php if ($importState): ?>
+        <div class="interhome-toolbar">
+            <?php if (!empty($importState['pdf_url'])): ?>
+                <button type="button" class="btn btn-light" data-pdf-toggle aria-expanded="true">Chiudi PDF</button>
+            <?php endif; ?>
+        </div>
         <section class="interhome-summary-grid">
             <article class="card interhome-summary-card is-blue">
                 <span class="summary-label">Pagine lette</span>
@@ -63,33 +67,9 @@ require_once __DIR__ . '/includes/header.php';
             </article>
         </section>
 
-        <?php if (!empty($importState['file_url'])): ?>
-            <section class="card interhome-workbench" data-pdf-workbench>
-                <div class="section-title">
-                    <div>
-                        <h2>Area di lavoro PDF</h2>
-                        <p class="muted">Apri o chiudi il viewer per confrontare rapidamente il documento con le righe estratte dal parser.</p>
-                    </div>
-                    <div class="toolbar">
-                        <button class="btn btn-light btn-sm" type="button" data-pdf-toggle aria-expanded="<?= $viewerOpen ? 'true' : 'false' ?>">
-                            <?= $viewerOpen ? 'Chiudi PDF' : 'Apri PDF' ?>
-                        </button>
-                    </div>
-                </div>
-                <div class="interhome-workbench-head">
-                    <div class="interhome-file-meta">
-                        <span class="summary-label">Nome file</span>
-                        <strong><?= e($importState['display_name'] ?? pathinfo((string)($importState['file_name'] ?? 'PDF'), PATHINFO_FILENAME)) ?></strong>
-                    </div>
-                </div>
-                <div class="interhome-pdf-viewer<?= $viewerOpen ? ' is-open' : '' ?>" data-pdf-viewer>
-                    <iframe src="<?= e($importState['file_url']) ?>" title="Viewer PDF Interhome" loading="lazy"></iframe>
-                </div>
-            </section>
-        <?php endif; ?>
-
         <?php if (!empty($importState['rows'])): ?>
-            <section class="card interhome-table-card">
+            <div class="interhome-workspace" data-pdf-workspace>
+                <section class="card interhome-table-card">
                 <div class="section-title">
                     <div>
                         <h2>Nuove prenotazioni trovate</h2>
@@ -143,10 +123,15 @@ require_once __DIR__ . '/includes/header.php';
                                 <td>
                                     <div class="actions interhome-inline-actions">
                                         <a class="btn btn-primary btn-sm" href="<?= e(admin_url('import-interhome-review.php?row=' . urlencode((string) $row['import_row_id']))) ?>">Apri</a>
-                                        <form method="post" action="<?= e(admin_url('actions/remove-interhome-row.php')) ?>" data-confirm="Vuoi rimuovere questa riga dall’elenco?">
+                                        <form method="post" action="<?= e(admin_url('actions/remove-interhome-row.php')) ?>" class="js-row-action" data-confirm="Vuoi togliere questa riga dall’elenco importato?">
                                             <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
                                             <input type="hidden" name="row_id" value="<?= e((string) $row['import_row_id']) ?>">
-                                            <button class="btn btn-danger btn-sm" type="submit" aria-label="Elimina riga">Elimina</button>
+                                            <button class="btn btn-danger btn-sm" type="submit" aria-label="Togli riga">
+                                                <span class="trash-icon" aria-hidden="true">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg>
+                                                </span>
+                                                <span>Elimina</span>
+                                            </button>
                                         </form>
                                     </div>
                                 </td>
@@ -156,30 +141,42 @@ require_once __DIR__ . '/includes/header.php';
                     </table>
                 </div>
             </section>
+                <?php if (!empty($importState['pdf_url'])): ?>
+                    <aside class="card interhome-pdf-panel">
+                        <div class="section-title">
+                            <div>
+                                <h2>PDF di lavoro</h2>
+                                <p class="muted">Confronta rapidamente le prenotazioni con il documento senza uscire dalla dashboard.</p>
+                            </div>
+                        </div>
+                        <iframe src="<?= e($importState['pdf_url']) ?>" title="Viewer PDF Interhome"></iframe>
+                    </aside>
+                <?php endif; ?>
+            </div>
         <?php else: ?>
-            <section class="card interhome-empty-state">
-                <div class="section-title">
-                    <div>
-                        <h2>Nessuna nuova prenotazione</h2>
-                        <p class="muted">Il PDF è stato letto correttamente ma tutte le prenotazioni risultano già registrate, oppure non ci sono nuove righe importabili.</p>
-                    </div>
-                </div>
+            <section class="card empty-note interhome-empty-state">
+                <h2>Nessuna nuova prenotazione</h2>
+                <p class="muted">Non ci sono nuove prenotazioni nel file PDF. Tutti i riferimenti trovati risultano già presenti oppure il file non contiene nuove righe importabili.</p>
             </section>
         <?php endif; ?>
     <?php endif; ?>
 </div>
 
 <?php if ($showConfirmModal): ?>
-    <div class="interhome-modal-backdrop" data-interhome-modal>
-        <div class="card interhome-modal">
-            <h2>Conferma riepilogo parser</h2>
-            <p>Il parser ha rilevato <strong><?= (int) ($importState['summary']['parsed_total'] ?? 0) ?></strong> prenotazioni nel documento e ne propone <strong><?= (int) ($importState['summary']['new_total'] ?? 0) ?></strong> per la revisione.</p>
-            <p class="muted">Il numero ti sembra corretto? Se confermi, potrai iniziare subito a verificare le righe.</p>
-            <div class="form-actions">
-                <button class="btn btn-primary" type="button" data-interhome-modal-confirm>Conferma e continua</button>
-            </div>
+<div class="interhome-modal-backdrop" data-interhome-modal>
+    <div class="interhome-modal card" role="dialog" aria-modal="true" aria-labelledby="interhomeModalTitle">
+        <h2 id="interhomeModalTitle">Analisi completata</h2>
+        <p>Il parser ha trovato <strong><?= (int) ($importState['summary']['parsed_total'] ?? 0) ?></strong> prenotazioni nel PDF.</p>
+        <p class="muted">Il numero ti sembra corretto? Se confermi, mostriamo la tabella completa per la revisione.</p>
+        <div class="form-actions">
+            <form method="post" action="<?= e(admin_url('actions/remove-interhome-row.php')) ?>">
+                <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+                <input type="hidden" name="dismiss_modal" value="1">
+                <button class="btn btn-light" type="submit">Chiudi e rivedi dopo</button>
+            </form>
+            <button class="btn btn-primary" type="button" data-interhome-modal-confirm>Il numero è corretto</button>
         </div>
     </div>
+</div>
 <?php endif; ?>
-
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
