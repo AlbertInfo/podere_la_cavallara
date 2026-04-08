@@ -15,8 +15,8 @@ function admin_nav_active(array $targets, string $currentPath): string
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= e($pageTitle) ?></title>
-    <link rel="stylesheet" href="/admin/assets/css/admin-modern.css?v=12">
-    <link rel="stylesheet" href="/admin/assets/css/interhome-import.css?v=1">
+    <link rel="stylesheet" href="/admin/assets/css/admin-modern.css?v=30">
+    <link rel="stylesheet" href="/admin/assets/css/interhome-import.css?v=10">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -28,8 +28,8 @@ function admin_nav_active(array $targets, string $currentPath): string
         <?php if ($currentAdmin): ?>
             <aside class="admin-sidebar" id="adminSidebar">
                 <a class="sidebar-brand" href="<?= e(admin_url('index.php')) ?>">
-                    <img class="sidebar-logo sidebar-logo-desktop" src="<?= e(admin_url('assets/img/logo.png')) ?>" alt="Podere La Cavallara">
-                    <img class="sidebar-logo sidebar-logo-mobile" src="<?= e(admin_url('assets/img/logo.png')) ?>" alt="Podere La Cavallara">
+                    <img class="sidebar-logo sidebar-logo-desktop" src="<?= e(admin_url('assets/img/logo.svg')) ?>" alt="Podere La Cavallara">
+                    <img class="sidebar-logo sidebar-logo-mobile" src="<?= e(admin_url('assets/img/logo.svg')) ?>" alt="Podere La Cavallara">
                 </a>
 
                 <nav class="sidebar-nav" aria-label="Menu area admin">
