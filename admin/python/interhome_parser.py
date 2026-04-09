@@ -113,43 +113,81 @@ def language_to_flag(language: str) -> str:
     return LANGUAGE_TO_FLAG.get(clean(language), "")
 
 
-def extract_page_lines(page) -> List[Dict[str, Any]]:
-    """
-    Estrae le linee testo della pagina in ordine verticale/orizzontale,
-    mantenendo anche le coordinate y per poter agganciare lo stato icona.
-    """
-    raw = page.get_text("dict")
-    items: List[Dict[str, Any]] = []
+def classify_rgb(r: int, g: int, b: int) -> Optional[str]:
+    if g > 130 and r < 150 and b < 150:
+        return "new"
+    if r > 160 and g < 130 and b < 130:
+        return "cancelled"
+    if b > 150 and r < 150 and g < 190:
+        return "modified"
+    if abs(r - g) < 25 and abs(g - b) < 25 and r < 120 and g < 120 and b < 120:
+        return "existing"
+    return None
 
-    for block in raw.get("blocks", []):
-        if block.get("type") != 0:
+
+def clamp(v: int, a: int, b: int) -> int:
+    return max(a, min(v, b))
+
+
+def detect_pdf_state(page, row_y_top: float, row_y_bottom: float) -> str:
+    scale = 2.0
+    matrix = fitz.Matrix(scale, scale)
+    pix = page.get_pixmap(matrix=matrix, alpha=False)
+
+    width = pix.width
+    height = pix.height
+    channels = pix.n
+    samples = pix.samples
+
+    x0 = int(10 * scale)
+    x1 = int(55 * scale)
+
+    y0 = int(max(0, (row_y_top - 3) * scale))
+    y1 = int(min(height - 1, (row_y_bottom + 3) * scale))
+
+    counts = {
+        "new": 0,
+        "existing": 0,
+        "modified": 0,
+        "cancelled": 0,
+    }
+
+    x0 = clamp(x0, 0, width - 1)
+    x1 = clamp(x1, 0, width - 1)
+    y0 = clamp(y0, 0, height - 1)
+    y1 = clamp(y1, 0, height - 1)
+
+    if y1 <= y0:
+        return "existing"
+
+    for y in range(y0, y1 + 1):
+        row_offset = y * width * channels
+        for x in range(x0, x1 + 1):
+            idx = row_offset + x * channels
+            r = samples[idx]
+            g = samples[idx + 1]
+            b = samples[idx + 2]
+
+            state = classify_rgb(r, g, b)
+            if state:
+                counts[state] += 1
+
+    best_state = max(counts, key=counts.get)
+    if counts[best_state] <= 0:
+        return "existing"
+
+    return best_state
+
+
+def extract_page_text_lines(page) -> List[str]:
+    text = page.get_text("text")
+    raw_lines = [clean(x) for x in text.splitlines()]
+    lines = []
+
+    for line in raw_lines:
+        if not line:
             continue
 
-        for line in block.get("lines", []):
-            spans = line.get("spans", [])
-            if not spans:
-                continue
-
-            text = clean(" ".join(span.get("text", "") for span in spans))
-            if not text:
-                continue
-
-            bbox = line.get("bbox", [0, 0, 0, 0])
-            x0, y0, x1, y1 = bbox
-            items.append({
-                "text": text,
-                "x0": float(x0),
-                "y0": float(y0),
-                "x1": float(x1),
-                "y1": float(y1),
-            })
-
-    items.sort(key=lambda item: (round(item["y0"], 1), round(item["x0"], 1)))
-
-    filtered: List[Dict[str, Any]] = []
-
-    for item in items:
-        line = item["text"]
         low = line.lower()
 
         if line.startswith("Nuova prenotazione ("):
@@ -186,108 +224,82 @@ def extract_page_lines(page) -> List[Dict[str, Any]]:
         if re.match(r"^IT04151\b", line):
             continue
 
-        filtered.append(item)
+        lines.append(line)
 
-    return filtered
-
-
-def clamp(v: int, a: int, b: int) -> int:
-    return max(a, min(v, b))
+    return lines
 
 
-def classify_rgb(r: int, g: int, b: int) -> Optional[str]:
+def extract_row_date_positions(page) -> List[Dict[str, float]]:
     """
-    Classifica il colore dell'icona:
-    - verde -> new
-    - rosso -> cancelled
-    - blu -> modified
-    - grigio/scuro -> existing
+    Cerca le date nella tabella vera e propria, ignorando l'header.
+    Usiamo le parole con coordinate per agganciare lo stato icona.
     """
-    # verde acceso
-    if g > 130 and r < 150 and b < 150:
-        return "new"
+    words = page.get_text("words")
+    items = []
 
-    # rosso acceso
-    if r > 160 and g < 130 and b < 130:
-        return "cancelled"
+    for w in words:
+        x0, y0, x1, y1, text, *_ = w
+        t = clean(text)
 
-    # blu
-    if b > 150 and r < 150 and g < 190:
-        return "modified"
+        if not is_date(t):
+            continue
 
-    # grigio scuro / nero
-    if abs(r - g) < 25 and abs(g - b) < 25 and r < 120 and g < 120 and b < 120:
-        return "existing"
+        # Ignora la data creazione in alto e altre date fuori tabella
+        # La tabella parte visivamente molto più in basso.
+        if y0 < 180:
+            continue
 
-    return None
+        # Le date di riga stanno nella colonna "Data", quindi verso sinistra
+        if x0 > 180:
+            continue
 
+        items.append({
+            "text": t,
+            "x0": float(x0),
+            "y0": float(y0),
+            "x1": float(x1),
+            "y1": float(y1),
+        })
 
-def detect_pdf_state(page, row_top: float, row_bottom: float) -> str:
-    """
-    Legge la colonna icona a sinistra campionando i pixel nella zona
-    dove si trova lo stato della prenotazione.
-    """
-    scale = 2.0
-    matrix = fitz.Matrix(scale, scale)
-    pix = page.get_pixmap(matrix=matrix, alpha=False)
+    items.sort(key=lambda item: (round(item["y0"], 1), round(item["x0"], 1)))
 
-    width = pix.width
-    height = pix.height
-    channels = pix.n
-    samples = pix.samples
+    # Raggruppa date ravvicinate sulla stessa riga grafica
+    grouped: List[List[Dict[str, float]]] = []
+    for item in items:
+        if not grouped:
+            grouped.append([item])
+            continue
 
-    # Regione sinistra dove ricadono le icone nella tabella
-    x0 = int(10 * scale)
-    x1 = int(55 * scale)
+        prev_group = grouped[-1]
+        if abs(prev_group[-1]["y0"] - item["y0"]) <= 8:
+            prev_group.append(item)
+        else:
+            grouped.append([item])
 
-    # Usiamo l'area iniziale della riga, dove compare l'icona
-    y0 = int(max(0, (row_top - 2) * scale))
-    y1 = int(min(height - 1, (min(row_top + 26, row_bottom + 8)) * scale))
+    # Ci servono gruppi con almeno 2 date (check-in / check-out)
+    row_positions = []
+    for group in grouped:
+        if len(group) >= 2:
+            group = sorted(group, key=lambda g: g["y0"])
+            row_positions.append({
+                "check_in": group[0]["text"],
+                "check_out": group[1]["text"],
+                "y_top": min(g["y0"] for g in group),
+                "y_bottom": max(g["y1"] for g in group),
+            })
 
-    counts = {
-        "new": 0,
-        "existing": 0,
-        "modified": 0,
-        "cancelled": 0,
-    }
-
-    if x0 >= width or y0 >= height or x1 <= 0 or y1 <= 0 or y1 <= y0:
-        return "existing"
-
-    x0 = clamp(x0, 0, width - 1)
-    x1 = clamp(x1, 0, width - 1)
-    y0 = clamp(y0, 0, height - 1)
-    y1 = clamp(y1, 0, height - 1)
-
-    for y in range(y0, y1 + 1):
-        row_offset = y * width * channels
-        for x in range(x0, x1 + 1):
-            idx = row_offset + x * channels
-            r = samples[idx]
-            g = samples[idx + 1]
-            b = samples[idx + 2]
-
-            state = classify_rgb(r, g, b)
-            if state:
-                counts[state] += 1
-
-    best_state = max(counts, key=counts.get)
-    best_score = counts[best_state]
-
-    if best_score <= 0:
-        return "existing"
-
-    return best_state
+    return row_positions
 
 
-def parse_page(page, page_no: int, lines: List[Dict[str, Any]]) -> Dict[str, Any]:
+def parse_page(page, page_no: int, lines: List[str], date_positions: List[Dict[str, float]]) -> Dict[str, Any]:
     rows: List[Dict[str, Any]] = []
     pending_note = None
     i = 0
     count = len(lines)
+    state_idx = 0
 
     while i < count:
-        line = lines[i]["text"]
+        line = lines[i]
 
         if line.lower().startswith("note:"):
             pending_note = line
@@ -297,23 +309,18 @@ def parse_page(page, page_no: int, lines: List[Dict[str, Any]]) -> Dict[str, Any
         if i + 2 >= count:
             break
 
-        if not is_date(lines[i]["text"]) or not is_date(lines[i + 1]["text"]) or not is_property_code(lines[i + 2]["text"]):
+        if not is_date(lines[i]) or not is_date(lines[i + 1]) or not is_property_code(lines[i + 2]):
             i += 1
             continue
 
-        row_top = lines[i]["y0"]
-        row_bottom = lines[i]["y1"]
-
-        check_in = lines[i]["text"]
-        check_out = lines[i + 1]["text"]
-        prop_code = lines[i + 2]["text"]
+        check_in = lines[i]
+        check_out = lines[i + 1]
+        prop_code = lines[i + 2]
         i += 3
 
         property_parts: List[str] = []
         while i < count:
-            cur = lines[i]["text"]
-            row_bottom = max(row_bottom, lines[i]["y1"])
-
+            cur = lines[i]
             if cur.lower().startswith("porzione di casa") or re.fullmatch(r"\(BOL\d+\)", cur, re.I):
                 property_parts.append(cur)
                 i += 1
@@ -323,37 +330,32 @@ def parse_page(page, page_no: int, lines: List[Dict[str, Any]]) -> Dict[str, Any
         if i >= count:
             break
 
-        customer_name = lines[i]["text"]
-        row_bottom = max(row_bottom, lines[i]["y1"])
+        customer_name = lines[i]
         i += 1
 
         people = "-"
-        if i < count and is_people(lines[i]["text"]):
-            people = lines[i]["text"]
-            row_bottom = max(row_bottom, lines[i]["y1"])
+        if i < count and is_people(lines[i]):
+            people = lines[i]
             i += 1
 
         phone = ""
-        if i < count and is_phone(lines[i]["text"]):
-            phone = lines[i]["text"]
-            row_bottom = max(row_bottom, lines[i]["y1"])
+        if i < count and is_phone(lines[i]):
+            phone = lines[i]
             i += 1
 
         email = ""
-        if i < count and "@" in lines[i]["text"]:
-            email_parts = [lines[i]["text"]]
-            row_bottom = max(row_bottom, lines[i]["y1"])
+        if i < count and "@" in lines[i]:
+            email_parts = [lines[i]]
             i += 1
 
             while i < count:
-                nxt = lines[i]["text"]
+                nxt = lines[i]
 
                 if is_reference(nxt) or is_language(nxt) or is_date(nxt) or is_property_code(nxt):
                     break
 
                 if re.fullmatch(r"[A-Za-z0-9._%+\-]+", nxt):
                     email_parts.append(nxt)
-                    row_bottom = max(row_bottom, lines[i]["y1"])
                     i += 1
                     continue
 
@@ -364,22 +366,20 @@ def parse_page(page, page_no: int, lines: List[Dict[str, Any]]) -> Dict[str, Any
 
             email = "".join(email_parts).strip()
 
-        if i >= count or not is_reference(lines[i]["text"]):
+        if i >= count or not is_reference(lines[i]):
             continue
 
-        external_reference = lines[i]["text"]
-        row_bottom = max(row_bottom, lines[i]["y1"])
+        external_reference = lines[i]
         i += 1
 
         language = ""
-        if i < count and is_language(lines[i]["text"]):
-            language = lines[i]["text"]
-            row_bottom = max(row_bottom, lines[i]["y1"])
+        if i < count and is_language(lines[i]):
+            language = lines[i]
             i += 1
 
         extra_notes: List[str] = []
         while i < count:
-            nxt = lines[i]["text"]
+            nxt = lines[i]
             if is_date(nxt):
                 break
             if is_property_code(nxt):
@@ -391,7 +391,6 @@ def parse_page(page, page_no: int, lines: List[Dict[str, Any]]) -> Dict[str, Any
             if nxt.lower().startswith("note:"):
                 break
             extra_notes.append(nxt)
-            row_bottom = max(row_bottom, lines[i]["y1"])
             i += 1
 
         raw_property = clean(prop_code + " " + " ".join(property_parts))
@@ -403,7 +402,12 @@ def parse_page(page, page_no: int, lines: List[Dict[str, Any]]) -> Dict[str, Any
             pending_note = None
         notes.extend(extra_notes)
 
-        pdf_state = detect_pdf_state(page, row_top, row_bottom)
+        pdf_state = "existing"
+        if state_idx < len(date_positions):
+            pos = date_positions[state_idx]
+            if pos["check_in"] == check_in and pos["check_out"] == check_out:
+                pdf_state = detect_pdf_state(page, pos["y_top"], pos["y_bottom"])
+                state_idx += 1
 
         rows.append({
             "import_row_id": "",
@@ -444,12 +448,13 @@ def main():
     pages_read = 0
 
     for idx, page in enumerate(doc):
-        lines = extract_page_lines(page)
+        lines = extract_page_text_lines(page)
         if not lines:
             continue
 
+        date_positions = extract_row_date_positions(page)
         pages_read += 1
-        parsed = parse_page(page, idx + 1, lines)
+        parsed = parse_page(page, idx + 1, lines, date_positions)
         all_rows.extend(parsed["rows"])
 
     result = {
