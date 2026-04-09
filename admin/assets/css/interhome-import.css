@@ -249,14 +249,14 @@
   margin-top:14px;
 }
 
-.interhome-pdf-panel iframe,
+/* .interhome-pdf-panel iframe,
 .interhome-pdf-frame{
   width:100%;
-  height:1100px;
+  height:1400px;
   border:1px solid var(--line);
   border-radius:18px;
   background:#fff;
-}
+} */
 
 .interhome-review-shell .interhome-review-meta{
   display:grid;
@@ -334,6 +334,6 @@
 
   .interhome-pdf-panel iframe,
   .interhome-pdf-frame{
-    height:780px;
-  }
+    height:900px;
+}
 }

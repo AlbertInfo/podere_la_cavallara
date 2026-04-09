@@ -22,22 +22,9 @@ function interhome_state_badge_class(?string $state): string
 
 function normalize_country_flag(?string $value, ?string $language = null): string
 {
-    $value = trim((string) $value);
-
-    if ($value !== '' && preg_match('/^[\x{1F1E6}-\x{1F1FF}]{2}$/u', $value)) {
-        return $value;
-    }
+    $language = trim((string) $language);
 
     $map = [
-        'IT' => '🇮🇹',
-        'GB' => '🇬🇧',
-        'EN' => '🇬🇧',
-        'DE' => '🇩🇪',
-        'CZ' => '🇨🇿',
-        'PL' => '🇵🇱',
-        'NL' => '🇳🇱',
-        'FR' => '🇫🇷',
-        'ES' => '🇪🇸',
         'Italiano' => '🇮🇹',
         'Inglese' => '🇬🇧',
         'Tedesco' => '🇩🇪',
@@ -48,11 +35,6 @@ function normalize_country_flag(?string $value, ?string $language = null): strin
         'Spagnolo' => '🇪🇸',
     ];
 
-    if ($value !== '' && isset($map[$value])) {
-        return $map[$value];
-    }
-
-    $language = trim((string) $language);
     return $map[$language] ?? '';
 }
 ?>
@@ -413,8 +395,11 @@ function normalize_country_flag(?string $value, ?string $language = null): strin
                         <h2>Nuove prenotazioni trovate</h2>
                         <p class="muted">Le prenotazioni cancellate o modificate sono subito riconoscibili. Puoi rimuoverle senza aprire la scheda.</p>
                     </div>
-                    <div class="toolbar">
+                    <div class="toolbar" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                         <input class="search-input" type="search" placeholder="Cerca prenotazioni nel PDF..." data-table-filter="#interhome-import-table">
+                        <?php if (!empty($importState['pdf_url'])): ?>
+                            <button type="button" class="btn btn-light" data-pdf-toggle aria-expanded="false">Apri PDF</button>
+                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -512,18 +497,16 @@ function normalize_country_flag(?string $value, ?string $language = null): strin
         <?php if (!empty($importState['pdf_url'])): ?>
             <section class="card interhome-pdf-card">
                 <div class="section-title">
-                    <div>
-                        <h2>PDF di lavoro</h2>
-                        <p class="muted">Apri e chiudi il viewer quando ti serve. La visualizzazione resta ampia e leggibile.</p>
-                    </div>
-
-                    <button type="button" class="btn btn-light" data-pdf-toggle aria-expanded="false">Apri PDF</button>
-                </div>
+    <div>
+        <h2>PDF di lavoro</h2>
+        <p class="muted">Apri e chiudi il viewer quando ti serve. La visualizzazione resta ampia e leggibile.</p>
+    </div>
+</div>
 
                 <div class="interhome-pdf-panel" data-pdf-panel style="display:none;">
                     <iframe
                         class="interhome-pdf-frame"
-                        src="<?= e($importState['pdf_url']) ?>"
+                        src="<?= e($importState['pdf_url'] . '#zoom=page-width') ?>"
                         title="PDF Interhome">
                     </iframe>
                 </div>
