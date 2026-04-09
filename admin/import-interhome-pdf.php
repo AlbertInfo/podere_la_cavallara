@@ -20,22 +20,19 @@ function interhome_state_badge_class(?string $state): string
     };
 }
 
-function normalize_country_flag(?string $value, ?string $language = null): string
+function language_to_country_code(?string $language): string
 {
-    $language = trim((string) $language);
-
-    $map = [
-        'Italiano' => '🇮🇹',
-        'Inglese' => '🇬🇧',
-        'Tedesco' => '🇩🇪',
-        'Ceco' => '🇨🇿',
-        'Polacco' => '🇵🇱',
-        'Olandese' => '🇳🇱',
-        'Francese' => '🇫🇷',
-        'Spagnolo' => '🇪🇸',
-    ];
-
-    return $map[$language] ?? '';
+    return match (trim((string) $language)) {
+        'Italiano' => 'it',
+        'Inglese' => 'gb',
+        'Tedesco' => 'de',
+        'Ceco' => 'cz',
+        'Polacco' => 'pl',
+        'Olandese' => 'nl',
+        'Francese' => 'fr',
+        'Spagnolo' => 'es',
+        default => '',
+    };
 }
 ?>
 <style>

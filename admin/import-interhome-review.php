@@ -144,17 +144,13 @@ $pdfStateLabel = (string) ($row['_pdf_state_label'] ?? 'Prenotazione esistente')
 }
 
 .interhome-review-flag{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    min-width:28px;
-    height:28px;
-    padding:0 6px;
-    border-radius:999px;
-    background:#f3f6fb;
-    border:1px solid #d9e3ef;
-    font-size:16px;
-    line-height:1;
+   
+  display:inline-block;
+  width:22px;
+  height:16px;
+  border-radius:3px;
+  box-shadow:0 0 0 1px rgba(0,0,0,.08);
+
 }
 
 .interhome-review-badge{
@@ -265,12 +261,13 @@ $pdfStateLabel = (string) ($row['_pdf_state_label'] ?? 'Prenotazione esistente')
 
             <div class="interhome-review-meta-item">
                 <span class="summary-label">Lingua letta</span>
-                <div class="interhome-review-inline">
-                    <?php if ($flag !== ''): ?>
-                        <span class="interhome-review-flag" title="<?= e((string) ($row['_language'] ?? '')) ?>"><?= $flag ?></span>
-                    <?php endif; ?>
-                    <strong><?= e((string) ($row['_language'] ?? '-')) ?></strong>
-                </div>
+                <?php $countryCode = language_to_country_code($row['_language'] ?? ''); ?>
+<div class="interhome-review-inline">
+    <?php if ($countryCode !== ''): ?>
+        <span class="fi fi-<?= e($countryCode) ?> interhome-review-flag" title="<?= e((string) ($row['_language'] ?? '')) ?>"></span>
+    <?php endif; ?>
+    <strong><?= e((string) ($row['_language'] ?? '-')) ?></strong>
+</div>
             </div>
 
             <div class="interhome-review-meta-item">
