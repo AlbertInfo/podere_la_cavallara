@@ -89,7 +89,7 @@ function normalize_review_flag(?string $value, ?string $language = null): string
     return $map[$language] ?? '';
 }
 
-$flag = normalize_review_flag($row['_country_flag'] ?? '', $row['_language'] ?? '');
+$countryCode = normalize_review_flag($row['_country_flag'] ?? '', $row['_language'] ?? '');
 $pdfState = (string) ($row['_pdf_state'] ?? 'existing');
 $pdfStateLabel = (string) ($row['_pdf_state_label'] ?? 'Prenotazione esistente');
 ?>
