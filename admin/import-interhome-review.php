@@ -10,6 +10,7 @@ $rowId = trim((string) ($_GET['row'] ?? ''));
 $row = null;
 
 if ($importState && !empty($importState['rows'])) {
+    var_dump($importState['rows']); // Per vedere tutte le righe memorizzate nella sessione
     foreach ($importState['rows'] as $candidate) {
         if (($candidate['import_row_id'] ?? '') === $rowId) {
             $row = $candidate;
