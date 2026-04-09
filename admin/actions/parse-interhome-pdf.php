@@ -3,12 +3,12 @@ require_once dirname(__DIR__) . '/includes/auth.php';
 require_once dirname(__DIR__) . '/includes/db.php';
 require_once dirname(__DIR__) . '/includes/interhome_pdf_import.php';
 require_admin();
+verify_csrf();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: ' . admin_url('import-interhome-pdf.php'));
     exit;
 }
-verify_csrf();
 
 if (!isset($_FILES['interhome_pdf']) || !is_array($_FILES['interhome_pdf'])) {
     set_flash('error', 'Seleziona un file PDF da analizzare.');
