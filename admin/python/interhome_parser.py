@@ -488,6 +488,12 @@ def run_debug_icon_export(doc, pdf_path: str):
     base_dir = os.path.dirname(os.path.abspath(pdf_path))
     debug_dir = os.path.join(base_dir, "icon_debug")
 
+    os.makedirs(debug_dir, exist_ok=True)
+
+    print("PDF PATH =", pdf_path)
+    print("ABS PDF PATH =", os.path.abspath(pdf_path))
+    print("DEBUG DIR =", debug_dir)
+
     for idx, page in enumerate(doc):
         date_positions = extract_row_date_positions(page)
         if not date_positions:
