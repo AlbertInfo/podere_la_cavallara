@@ -267,6 +267,14 @@ def extract_row_date_positions(page) -> List[Dict[str, float]]:
         if not is_date(t):
             continue
 
+        # ignora la data creazione in alto
+        if y0 < 380 and x0 > 120:
+            continue
+
+        # colonna date della tabella
+        if x0 > 180:
+            continue
+
         items.append({
             "text": t,
             "x0": float(x0),
@@ -277,36 +285,29 @@ def extract_row_date_positions(page) -> List[Dict[str, float]]:
 
     items.sort(key=lambda item: (round(item["y0"], 1), round(item["x0"], 1)))
 
-    print("DATE WORDS FOUND:")
-    for item in items[:40]:
-        print(item)
-
-    grouped: List[List[Dict[str, float]]] = []
-    for item in items:
-        if not grouped:
-            grouped.append([item])
-            continue
-
-        prev_group = grouped[-1]
-        if abs(prev_group[-1]["y0"] - item["y0"]) <= 8:
-            prev_group.append(item)
-        else:
-            grouped.append([item])
-
     row_positions = []
-    for group in grouped:
-        if len(group) >= 2:
-            group = sorted(group, key=lambda g: g["y0"])
-            row_positions.append({
-                "check_in": group[0]["text"],
-                "check_out": group[1]["text"],
-                "y_top": min(g["y0"] for g in group),
-                "y_bottom": max(g["y1"] for g in group),
-            })
+    i = 0
+    count = len(items)
 
-    print("ROW POSITIONS:")
-    for row in row_positions[:20]:
-        print(row)
+    while i + 1 < count:
+        first = items[i]
+        second = items[i + 1]
+
+        # due date consecutive della stessa prenotazione:
+        # stessa colonna circa, distanza verticale piccola
+        same_col = abs(first["x0"] - second["x0"]) < 8
+        near_y = 6 <= (second["y0"] - first["y0"]) <= 22
+
+        if same_col and near_y:
+            row_positions.append({
+                "check_in": first["text"],
+                "check_out": second["text"],
+                "y_top": first["y0"],
+                "y_bottom": second["y1"],
+            })
+            i += 2
+        else:
+            i += 1
 
     return row_positions
 
@@ -506,7 +507,30 @@ def main():
 
     pdf_path = sys.argv[1]
     doc = fitz.open(pdf_path)
-    run_debug_icon_export(doc, pdf_path)
+
+    all_rows: List[Dict[str, Any]] = []
+    pages_read = 0
+
+    for idx, page in enumerate(doc):
+        lines = extract_page_text_lines(page)
+        if not lines:
+            continue
+
+        date_positions = extract_row_date_positions(page)
+        pages_read += 1
+        parsed = parse_page(page, idx + 1, lines, date_positions)
+        all_rows.extend(parsed["rows"])
+
+    result = {
+        "ok": True,
+        "summary": {
+            "pages_read": pages_read,
+            "parsed_total": len(all_rows),
+        },
+        "rows": all_rows,
+    }
+
+    print(json.dumps(result, ensure_ascii=False))
 
 
 if __name__ == "__main__":
