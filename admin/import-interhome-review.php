@@ -343,12 +343,12 @@ $pdfStateLabel = (string) ($row['_pdf_state_label'] ?? 'Prenotazione esistente')
 
                 <label>
                     Email
-                    <input type="email" name="customer_email" value="<?= e((string) ($row['customer_email'] ?? '')) ?>" placeholder="Non presente nel PDF">
+                    <input type="email" name="customer_email" value="<?= e((string) ($row['customer_email'] ?? 'Non presente nel PDF')) ?>" placeholder="Non presente nel PDF">
                 </label>
 
                 <label>
                     Telefono
-                    <input type="text" name="customer_phone" value="<?= e((string) ($row['customer_phone'] ?? '')) ?>" placeholder="Non presente nel PDF">
+                    <input type="text" name="customer_phone" value="<?= e((string) ($row['customer_phone'] ?? 'Non presente nel PDF')) ?>" placeholder="Non presente nel PDF">
                 </label>
 
                 <label>
