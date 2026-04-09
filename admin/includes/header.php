@@ -47,7 +47,7 @@ function admin_nav_active(array $targets, string $currentPath): string
                         <span class="sidebar-user-label">Connesso come</span>
                         <strong><?= e($currentAdmin['name'] ?? $currentAdmin['email'] ?? 'Admin') ?></strong>
                     </div>
-                    <a class="btn btn-light btn-full" href="<?= e(admin_url('logout.php')) ?>">Esci</a>
+                    <a class="btn btn-light btn-full" href="<?= e(admin_url('logout.php')) ?>">Logout</a>
                 </div>
             </aside>
         <?php endif; ?>
