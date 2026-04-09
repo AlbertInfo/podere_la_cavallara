@@ -55,43 +55,58 @@ function review_state_badge_class(?string $state): string
     };
 }
 
-function normalize_review_flag(?string $value, ?string $language = null): string
+// function normalize_review_flag(?string $value, ?string $language = null): string
+// {
+//     $value = trim((string) $value);
+
+//     if ($value !== '' && preg_match('/^[\x{1F1E6}-\x{1F1FF}]{2}$/u', $value)) {
+//         return $value;
+//     }
+
+//     $map = [
+//         'IT' => '🇮🇹',
+//         'GB' => '🇬🇧',
+//         'EN' => '🇬🇧',
+//         'DE' => '🇩🇪',
+//         'CZ' => '🇨🇿',
+//         'PL' => '🇵🇱',
+//         'NL' => '🇳🇱',
+//         'FR' => '🇫🇷',
+//         'ES' => '🇪🇸',
+//         'Italiano' => '🇮🇹',
+//         'Inglese' => '🇬🇧',
+//         'Tedesco' => '🇩🇪',
+//         'Ceco' => '🇨🇿',
+//         'Polacco' => '🇵🇱',
+//         'Olandese' => '🇳🇱',
+//         'Francese' => '🇫🇷',
+//         'Spagnolo' => '🇪🇸',
+//     ];
+
+//     if ($value !== '' && isset($map[$value])) {
+//         return $map[$value];
+//     }
+
+//     $language = trim((string) $language);
+//     return $map[$language] ?? '';
+// }
+
+function language_to_country_code(?string $language): string
 {
-    $value = trim((string) $value);
-
-    if ($value !== '' && preg_match('/^[\x{1F1E6}-\x{1F1FF}]{2}$/u', $value)) {
-        return $value;
-    }
-
-    $map = [
-        'IT' => '🇮🇹',
-        'GB' => '🇬🇧',
-        'EN' => '🇬🇧',
-        'DE' => '🇩🇪',
-        'CZ' => '🇨🇿',
-        'PL' => '🇵🇱',
-        'NL' => '🇳🇱',
-        'FR' => '🇫🇷',
-        'ES' => '🇪🇸',
-        'Italiano' => '🇮🇹',
-        'Inglese' => '🇬🇧',
-        'Tedesco' => '🇩🇪',
-        'Ceco' => '🇨🇿',
-        'Polacco' => '🇵🇱',
-        'Olandese' => '🇳🇱',
-        'Francese' => '🇫🇷',
-        'Spagnolo' => '🇪🇸',
-    ];
-
-    if ($value !== '' && isset($map[$value])) {
-        return $map[$value];
-    }
-
-    $language = trim((string) $language);
-    return $map[$language] ?? '';
+    return match (trim((string) $language)) {
+        'Italiano' => 'it',
+        'Inglese' => 'gb',
+        'Tedesco' => 'de',
+        'Ceco' => 'cz',
+        'Polacco' => 'pl',
+        'Olandese' => 'nl',
+        'Francese' => 'fr',
+        'Spagnolo' => 'es',
+        default => '',
+    };
 }
 
-$countryCode = normalize_review_flag($row['_country_flag'] ?? '', $row['_language'] ?? '');
+$countryCode = language_to_country_code($row['_country_flag'] ?? '', $row['_language'] ?? '');
 $pdfState = (string) ($row['_pdf_state'] ?? 'existing');
 $pdfStateLabel = (string) ($row['_pdf_state_label'] ?? 'Prenotazione esistente');
 ?>
