@@ -27,110 +27,194 @@ if (!$row) {
 $pageTitle = 'Verifica prenotazione PDF';
 require_once __DIR__ . '/includes/header.php';
 
-$rooms = ['Casa Domenico 1','Casa Domenico 2','Casa Domenico 1-2','Casa Riccardo 3','Casa Riccardo 4','Casa Alessandro 5','Casa Alessandro 6'];
-$statuses = ['confermata' => 'Confermata', 'in_attesa' => 'In attesa', 'annullata' => 'Annullata'];
+$rooms = [
+    'Casa Domenico 1',
+    'Casa Domenico 2',
+    'Casa Domenico 1-2',
+    'Casa Riccardo 3',
+    'Casa Riccardo 4',
+    'Casa Alessandro 5',
+    'Casa Alessandro 6'
+];
+
+$statuses = [
+    'confermata' => 'Confermata',
+    'in_attesa' => 'In attesa',
+    'annullata' => 'Annullata'
+];
 
 function review_state_badge_class(?string $state): string
 {
-    return match ($state) {
+    return match ((string) $state) {
         'new' => 'is-new',
         'cancelled' => 'is-cancelled',
         'modified' => 'is-modified',
         default => 'is-existing',
     };
 }
+
+function normalize_review_flag(?string $value, ?string $language = null): string
+{
+    $value = trim((string) $value);
+
+    if ($value !== '' && preg_match('/^[\x{1F1E6}-\x{1F1FF}]{2}$/u', $value)) {
+        return $value;
+    }
+
+    $map = [
+        'IT' => '🇮🇹',
+        'GB' => '🇬🇧',
+        'EN' => '🇬🇧',
+        'DE' => '🇩🇪',
+        'CZ' => '🇨🇿',
+        'PL' => '🇵🇱',
+        'NL' => '🇳🇱',
+        'FR' => '🇫🇷',
+        'ES' => '🇪🇸',
+        'Italiano' => '🇮🇹',
+        'Inglese' => '🇬🇧',
+        'Tedesco' => '🇩🇪',
+        'Ceco' => '🇨🇿',
+        'Polacco' => '🇵🇱',
+        'Olandese' => '🇳🇱',
+        'Francese' => '🇫🇷',
+        'Spagnolo' => '🇪🇸',
+    ];
+
+    if ($value !== '' && isset($map[$value])) {
+        return $map[$value];
+    }
+
+    $language = trim((string) $language);
+    return $map[$language] ?? '';
+}
+
+$flag = normalize_review_flag($row['_country_flag'] ?? '', $row['_language'] ?? '');
+$pdfState = (string) ($row['_pdf_state'] ?? 'existing');
+$pdfStateLabel = (string) ($row['_pdf_state_label'] ?? 'Prenotazione esistente');
 ?>
 <style>
-.interhome-review-meta {
-    padding: 24px;
+.interhome-review-shell{
+    display:grid;
+    gap:20px;
 }
 
-.interhome-review-meta-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 16px;
+.interhome-review-meta{
+    padding:24px;
 }
 
-.interhome-review-meta-item {
-    background: #f8fbff;
-    border: 1px solid #dce7f5;
-    border-radius: 18px;
-    padding: 16px 18px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    min-height: 92px;
+.interhome-review-meta-grid{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:16px;
 }
 
-.interhome-review-meta-item strong {
-    font-size: 1.08rem;
-    line-height: 1.25;
-    color: #102341;
+.interhome-review-meta-item{
+    background:#f8fbff;
+    border:1px solid #dce7f5;
+    border-radius:18px;
+    padding:16px 18px;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    min-height:96px;
 }
 
-.interhome-review-meta-item .summary-label {
-    font-size: .78rem;
-    text-transform: uppercase;
-    letter-spacing: .06em;
-    color: #687994;
+.interhome-review-meta-item strong{
+    font-size:1.06rem;
+    line-height:1.35;
+    color:#102341;
+    word-break:break-word;
 }
 
-.interhome-review-inline {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
+.interhome-review-meta .summary-label{
+    display:block;
+    font-size:12px;
+    color:var(--muted);
+    text-transform:uppercase;
+    letter-spacing:.05em;
+    margin-bottom:4px;
 }
 
-.interhome-review-flag {
-    font-size: 1.2rem;
-    line-height: 1;
+.interhome-review-inline{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex-wrap:wrap;
 }
 
-.interhome-review-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 10px;
-    border-radius: 999px;
-    font-size: .78rem;
-    font-weight: 700;
-    border: 1px solid transparent;
+.interhome-review-flag{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-width:28px;
+    height:28px;
+    padding:0 6px;
+    border-radius:999px;
+    background:#f3f6fb;
+    border:1px solid #d9e3ef;
+    font-size:16px;
+    line-height:1;
 }
 
-.interhome-review-badge.is-new {
-    background: #e8f8ee;
-    color: #167c45;
-    border-color: #b7e6c9;
+.interhome-review-badge{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:6px 10px;
+    border-radius:999px;
+    font-size:12px;
+    font-weight:700;
+    border:1px solid transparent;
+    width:max-content;
+    max-width:100%;
 }
 
-.interhome-review-badge.is-existing {
-    background: #f0f2f5;
-    color: #48566a;
-    border-color: #d8dde5;
+.interhome-review-badge.is-new{
+    background:#e8f8ee;
+    color:#167c45;
+    border-color:#b7e6c9;
 }
 
-.interhome-review-badge.is-modified {
-    background: #ebf3ff;
-    color: #1d5fd0;
-    border-color: #bfd4ff;
+.interhome-review-badge.is-existing{
+    background:#f0f2f5;
+    color:#48566a;
+    border-color:#d8dde5;
 }
 
-.interhome-review-badge.is-cancelled {
-    background: #ffefef;
-    color: #c62828;
-    border-color: #f3c2c2;
+.interhome-review-badge.is-modified{
+    background:#ebf3ff;
+    color:#1d5fd0;
+    border-color:#bfd4ff;
 }
 
-@media (max-width: 960px) {
-    .interhome-review-meta-grid {
-        grid-template-columns: 1fr 1fr;
+.interhome-review-badge.is-cancelled{
+    background:#ffefef;
+    color:#c62828;
+    border-color:#f3c2c2;
+}
+
+.interhome-review-hero-actions{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    align-items:center;
+}
+
+.interhome-review-parser-note{
+    color:var(--muted);
+    font-size:14px;
+}
+
+@media(max-width:1080px){
+    .interhome-review-meta-grid{
+        grid-template-columns:1fr 1fr;
     }
 }
 
-@media (max-width: 640px) {
-    .interhome-review-meta-grid {
-        grid-template-columns: 1fr;
+@media(max-width:680px){
+    .interhome-review-meta-grid{
+        grid-template-columns:1fr;
     }
 }
 </style>
@@ -141,12 +225,14 @@ function review_state_badge_class(?string $state): string
             <h1>Verifica prenotazione importata</h1>
             <p class="muted">Controlla i dati letti dal PDF, correggili se serve e inserisci la prenotazione tra quelle registrate.</p>
         </div>
-        <div class="actions">
+
+        <div class="interhome-review-hero-actions">
             <form method="post" action="<?= e(admin_url('actions/remove-interhome-row.php')) ?>" data-confirm="Vuoi togliere questa prenotazione dall’elenco importato?" class="js-row-action">
                 <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
                 <input type="hidden" name="row_id" value="<?= e((string) $row['import_row_id']) ?>">
                 <button class="btn btn-danger" type="submit">Cancella riga</button>
             </form>
+
             <a class="btn btn-light" href="<?= e(admin_url('import-interhome-pdf.php')) ?>">Torna all’elenco</a>
         </div>
     </div>
@@ -155,7 +241,7 @@ function review_state_badge_class(?string $state): string
         <div class="interhome-review-meta-grid">
             <div class="interhome-review-meta-item">
                 <span class="summary-label">Riferimento prenotazione</span>
-                <strong><?= e($row['external_reference']) ?></strong>
+                <strong><?= e((string) $row['external_reference']) ?></strong>
             </div>
 
             <div class="interhome-review-meta-item">
@@ -165,14 +251,14 @@ function review_state_badge_class(?string $state): string
 
             <div class="interhome-review-meta-item">
                 <span class="summary-label">Origine</span>
-                <strong><?= e($row['source']) ?></strong>
+                <strong><?= e((string) $row['source']) ?></strong>
             </div>
 
             <div class="interhome-review-meta-item">
                 <span class="summary-label">Stato letto dal PDF</span>
                 <div class="interhome-review-inline">
-                    <span class="interhome-review-badge <?= e(review_state_badge_class((string) ($row['_pdf_state'] ?? 'existing'))) ?>">
-                        <?= e((string) ($row['_pdf_state_label'] ?? 'Prenotazione esistente')) ?>
+                    <span class="interhome-review-badge <?= e(review_state_badge_class($pdfState)) ?>">
+                        <?= e($pdfStateLabel) ?>
                     </span>
                 </div>
             </div>
@@ -180,8 +266,8 @@ function review_state_badge_class(?string $state): string
             <div class="interhome-review-meta-item">
                 <span class="summary-label">Lingua letta</span>
                 <div class="interhome-review-inline">
-                    <?php if (!empty($row['_country_flag'])): ?>
-                        <span class="interhome-review-flag"><?= e((string) $row['_country_flag']) ?></span>
+                    <?php if ($flag !== ''): ?>
+                        <span class="interhome-review-flag" title="<?= e((string) ($row['_language'] ?? '')) ?>"><?= $flag ?></span>
                     <?php endif; ?>
                     <strong><?= e((string) ($row['_language'] ?? '-')) ?></strong>
                 </div>
@@ -192,7 +278,7 @@ function review_state_badge_class(?string $state): string
                 <strong><?= e((string) ($row['_raw_people'] ?? '-')) ?></strong>
             </div>
 
-            <div class="interhome-review-meta-item" style="grid-column: 1 / -1;">
+            <div class="interhome-review-meta-item" style="grid-column:1 / -1;">
                 <span class="summary-label">Casa letta dal parser</span>
                 <strong><?= e((string) ($row['_raw_property'] ?? '-')) ?></strong>
             </div>
@@ -208,7 +294,7 @@ function review_state_badge_class(?string $state): string
             <div class="booking-form-grid">
                 <label>
                     Periodo soggiorno *
-                    <input class="js-date-range" type="text" name="stay_period" value="<?= e($row['stay_period']) ?>" required>
+                    <input class="js-date-range" type="text" name="stay_period" value="<?= e((string) $row['stay_period']) ?>" required>
                 </label>
 
                 <label>
@@ -216,19 +302,19 @@ function review_state_badge_class(?string $state): string
                     <select name="room_type" required>
                         <option value="">Scegli soluzione</option>
                         <?php foreach ($rooms as $room): ?>
-                            <option value="<?= e($room) ?>" <?= ($row['room_type'] === $room) ? 'selected' : '' ?>><?= e($room) ?></option>
+                            <option value="<?= e($room) ?>" <?= ((string) $row['room_type'] === $room) ? 'selected' : '' ?>><?= e($room) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </label>
 
                 <label>
                     Adulti *
-                    <input type="number" name="adults" min="0" step="1" value="<?= (int) $row['adults'] ?>" required>
+                    <input type="number" name="adults" min="0" step="1" value="<?= (int) ($row['adults'] ?? 0) ?>" required>
                 </label>
 
                 <label>
                     Bambini
-                    <input type="number" name="children_count" min="0" step="1" value="<?= (int) $row['children_count'] ?>">
+                    <input type="number" name="children_count" min="0" step="1" value="<?= (int) ($row['children_count'] ?? 0) ?>">
                 </label>
             </div>
         </section>
@@ -238,22 +324,22 @@ function review_state_badge_class(?string $state): string
             <div class="booking-form-grid">
                 <label>
                     Nome e cognome *
-                    <input type="text" name="customer_name" value="<?= e($row['customer_name']) ?>" required>
+                    <input type="text" name="customer_name" value="<?= e((string) $row['customer_name']) ?>" required>
                 </label>
 
                 <label>
                     Email
-                    <input type="email" name="customer_email" value="<?= e($row['customer_email']) ?>" placeholder="Non presente nel PDF">
+                    <input type="email" name="customer_email" value="<?= e((string) ($row['customer_email'] ?? '')) ?>" placeholder="Non presente nel PDF">
                 </label>
 
                 <label>
                     Telefono
-                    <input type="text" name="customer_phone" value="<?= e($row['customer_phone']) ?>" placeholder="Non presente nel PDF">
+                    <input type="text" name="customer_phone" value="<?= e((string) ($row['customer_phone'] ?? '')) ?>" placeholder="Non presente nel PDF">
                 </label>
 
                 <label>
                     Riferimento esterno *
-                    <input type="text" name="external_reference" value="<?= e($row['external_reference']) ?>" required>
+                    <input type="text" name="external_reference" value="<?= e((string) $row['external_reference']) ?>" required>
                 </label>
             </div>
         </section>
@@ -265,7 +351,7 @@ function review_state_badge_class(?string $state): string
                     Stato *
                     <select name="status" required>
                         <?php foreach ($statuses as $key => $label): ?>
-                            <option value="<?= e($key) ?>" <?= ($row['status'] === $key) ? 'selected' : '' ?>><?= e($label) ?></option>
+                            <option value="<?= e($key) ?>" <?= ((string) $row['status'] === $key) ? 'selected' : '' ?>><?= e($label) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </label>

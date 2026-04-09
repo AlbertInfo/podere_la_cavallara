@@ -44,7 +44,7 @@ require_once __DIR__ . '/includes/header.php';
 <section id="registered-bookings" class="card section-registered" style="margin-top:20px;">
     <div class="section-title">
         <div>
-            <h2>Prenotazioni registrate</h2>
+            <h2>Prenotazioni confermate</h2>
             <p class="muted">Elenco delle prenotazioni trasferite dall’admin o inserite manualmente dal gestionale.</p>
         </div>
         <div class="toolbar">

@@ -12,252 +12,330 @@ require_once __DIR__ . '/includes/header.php';
 
 function interhome_state_badge_class(?string $state): string
 {
-    return match ($state) {
+    return match ((string) $state) {
         'new' => 'is-new',
         'cancelled' => 'is-cancelled',
         'modified' => 'is-modified',
         default => 'is-existing',
     };
 }
+
+function normalize_country_flag(?string $value, ?string $language = null): string
+{
+    $value = trim((string) $value);
+
+    if ($value !== '' && preg_match('/^[\x{1F1E6}-\x{1F1FF}]{2}$/u', $value)) {
+        return $value;
+    }
+
+    $map = [
+        'IT' => '🇮🇹',
+        'GB' => '🇬🇧',
+        'EN' => '🇬🇧',
+        'DE' => '🇩🇪',
+        'CZ' => '🇨🇿',
+        'PL' => '🇵🇱',
+        'NL' => '🇳🇱',
+        'FR' => '🇫🇷',
+        'ES' => '🇪🇸',
+        'Italiano' => '🇮🇹',
+        'Inglese' => '🇬🇧',
+        'Tedesco' => '🇩🇪',
+        'Ceco' => '🇨🇿',
+        'Polacco' => '🇵🇱',
+        'Olandese' => '🇳🇱',
+        'Francese' => '🇫🇷',
+        'Spagnolo' => '🇪🇸',
+    ];
+
+    if ($value !== '' && isset($map[$value])) {
+        return $map[$value];
+    }
+
+    $language = trim((string) $language);
+    return $map[$language] ?? '';
+}
 ?>
 <style>
-.interhome-shell {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
+.interhome-shell{
+  display:grid;
+  gap:20px;
 }
 
 .interhome-upload-card,
 .interhome-table-card,
-.interhome-pdf-card {
-    overflow: hidden;
+.interhome-pdf-card{
+  border-top:5px solid var(--primary);
+  overflow:hidden;
 }
 
-.interhome-summary-grid {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 16px;
+.interhome-upload-form{
+  display:grid;
+  gap:16px;
 }
 
-.interhome-summary-card {
-    padding: 22px;
-    border-radius: 20px;
-    border: 1px solid #dbe4f0;
-    background: #fff;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+.interhome-file-drop{
+  display:grid;
+  gap:8px;
+  padding:20px;
+  border:1px dashed rgba(29,78,216,.32);
+  border-radius:18px;
+  background:linear-gradient(180deg,#f9fbff,#fff);
 }
 
-.interhome-summary-card strong {
-    font-size: 2rem;
-    line-height: 1;
+.interhome-file-title{
+  font-weight:800;
+  font-size:18px;
 }
 
-.interhome-summary-card.is-blue { background: #f3f7ff; }
-.interhome-summary-card.is-amber { background: #fff8ec; }
-.interhome-summary-card.is-green { background: #eefbf2; }
-.interhome-summary-card.is-purple { background: #f6f0ff; }
-
-.summary-label {
-    font-size: .82rem;
-    text-transform: uppercase;
-    letter-spacing: .06em;
-    color: #6a7a90;
+.interhome-file-subtitle{
+  color:var(--muted);
+  font-size:14px;
 }
 
-.summary-meta {
-    color: #6a7a90;
-    font-size: .92rem;
+.interhome-summary-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:16px;
 }
 
-.interhome-file-drop {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 24px;
-    border: 2px dashed #c8d6eb;
-    border-radius: 18px;
-    background: #f9fbfe;
-    cursor: pointer;
+.interhome-summary-card{
+  display:grid;
+  gap:8px;
+  padding:22px;
+  border-radius:20px;
+  border:1px solid var(--line);
 }
 
-.interhome-file-title {
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: #0f2240;
+.interhome-summary-card strong{
+  font-size:34px;
+  line-height:1;
 }
 
-.interhome-file-subtitle {
-    font-size: .95rem;
-    color: #62738a;
+.interhome-summary-card.is-blue{background:linear-gradient(180deg,#fff,#eef5ff)}
+.interhome-summary-card.is-green{background:linear-gradient(180deg,#fff,#effcf4)}
+.interhome-summary-card.is-purple{background:linear-gradient(180deg,#fff,#f5f3ff)}
+.interhome-summary-card.is-amber{background:linear-gradient(180deg,#fff,#fff7ed)}
+
+.interhome-toolbar{
+  display:flex;
+  gap:10px;
+  justify-content:flex-end;
+  flex-wrap:wrap;
 }
 
-.interhome-file-drop input[type="file"] {
-    margin-top: 10px;
+.interhome-table-card .section-title{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+  flex-wrap:wrap;
 }
 
-.interhome-toolbar {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    justify-content: flex-end;
-    flex-wrap: wrap;
+.interhome-import-table{
+  width:100%;
+  border-collapse:collapse;
+  table-layout:fixed;
 }
 
-.interhome-import-table {
-    width: 100%;
-    border-collapse: collapse;
+.interhome-import-table thead th{
+  background:#f4f7fb;
+  color:#51647f;
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  text-align:left;
+  padding:14px 16px;
+  border-bottom:1px solid var(--line);
+  white-space:nowrap;
 }
 
-.interhome-import-table thead th {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    background: #f4f7fb;
-    font-size: .82rem;
-    text-transform: uppercase;
-    letter-spacing: .04em;
-    color: #51647f;
-    padding: 14px 16px;
-    text-align: left;
-    border-bottom: 1px solid #dce6f3;
+.interhome-import-table tbody td{
+  padding:16px;
+  border-bottom:1px solid #e6edf7;
+  vertical-align:top;
+  overflow-wrap:anywhere;
 }
 
-.interhome-import-table tbody td {
-    padding: 16px;
-    border-bottom: 1px solid #e6edf7;
-    vertical-align: top;
+.interhome-import-row{
+  cursor:pointer;
 }
 
-.interhome-import-row:hover {
-    background: #f9fbff;
+.interhome-import-row:hover{
+  background:#f8fbff;
 }
 
-.interhome-customer {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+.interhome-import-table th:nth-child(1),
+.interhome-import-table td:nth-child(1){width:18%}
+.interhome-import-table th:nth-child(2),
+.interhome-import-table td:nth-child(2){width:12%}
+.interhome-import-table th:nth-child(3),
+.interhome-import-table td:nth-child(3){width:15%}
+.interhome-import-table th:nth-child(4),
+.interhome-import-table td:nth-child(4){width:9%}
+.interhome-import-table th:nth-child(5),
+.interhome-import-table td:nth-child(5){width:12%}
+.interhome-import-table th:nth-child(6),
+.interhome-import-table td:nth-child(6){width:20%}
+.interhome-import-table th:nth-child(7),
+.interhome-import-table td:nth-child(7){width:9%}
+.interhome-import-table th:nth-child(8),
+.interhome-import-table td:nth-child(8){width:10%}
+
+.interhome-customer{
+  display:grid;
+  gap:6px;
 }
 
-.interhome-customer-top {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
+.interhome-customer-top{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
 }
 
-.interhome-flag {
-    font-size: 1.1rem;
-    line-height: 1;
+.interhome-flag{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:24px;
+  height:24px;
+  padding:0 6px;
+  border-radius:999px;
+  background:#f3f6fb;
+  border:1px solid #d9e3ef;
+  font-size:14px;
+  line-height:1;
 }
 
-.interhome-state-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 10px;
-    border-radius: 999px;
-    font-size: .78rem;
-    font-weight: 700;
-    white-space: nowrap;
-    border: 1px solid transparent;
+.interhome-state-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:700;
+  border:1px solid transparent;
+  width:max-content;
+  max-width:100%;
 }
 
-.interhome-state-badge.is-new {
-    background: #e8f8ee;
-    color: #167c45;
-    border-color: #b7e6c9;
+.interhome-state-badge.is-new{
+  background:#e8f8ee;
+  color:#167c45;
+  border-color:#b7e6c9;
 }
 
-.interhome-state-badge.is-existing {
-    background: #f0f2f5;
-    color: #48566a;
-    border-color: #d8dde5;
+.interhome-state-badge.is-existing{
+  background:#f0f2f5;
+  color:#48566a;
+  border-color:#d8dde5;
 }
 
-.interhome-state-badge.is-modified {
-    background: #ebf3ff;
-    color: #1d5fd0;
-    border-color: #bfd4ff;
+.interhome-state-badge.is-modified{
+  background:#ebf3ff;
+  color:#1d5fd0;
+  border-color:#bfd4ff;
 }
 
-.interhome-state-badge.is-cancelled {
-    background: #ffefef;
-    color: #c62828;
-    border-color: #f3c2c2;
+.interhome-state-badge.is-cancelled{
+  background:#ffefef;
+  color:#c62828;
+  border-color:#f3c2c2;
 }
 
-.interhome-muted {
-    color: #6d7d92;
-    font-size: .92rem;
+.interhome-muted{
+  color:var(--muted);
+  font-size:14px;
 }
 
-.interhome-notes {
-    max-width: 340px;
-    white-space: normal;
-    word-break: break-word;
+.interhome-room-code{
+  display:block;
+  margin-top:4px;
 }
 
-.interhome-actions {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+.interhome-notes{
+  display:-webkit-box;
+  -webkit-line-clamp:3;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+  line-height:1.45;
+  max-height:4.4em;
+  word-break:break-word;
 }
 
-.interhome-pdf-panel {
-    margin-top: 14px;
+.interhome-actions{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  align-items:flex-start;
 }
 
-.interhome-pdf-frame {
-    width: 100%;
-    height: 950px;
-    border: 0;
-    border-radius: 18px;
-    background: #fff;
+.interhome-pdf-card .section-title{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+  flex-wrap:wrap;
 }
 
-.interhome-toggle-row {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 10px;
+.interhome-pdf-panel{
+  margin-top:14px;
 }
 
-@media (max-width: 1200px) {
-    .interhome-summary-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
+.interhome-pdf-frame{
+  width:100%;
+  height:1100px;
+  border:1px solid var(--line);
+  border-radius:18px;
+  background:#fff;
 }
 
-@media (max-width: 760px) {
-    .interhome-summary-grid {
-        grid-template-columns: 1fr;
-    }
+@media(max-width:1180px){
+  .interhome-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
 
-    .interhome-import-table thead {
-        display: none;
-    }
+@media(max-width:900px){
+  .interhome-import-table{
+    table-layout:auto;
+  }
+}
 
-    .interhome-import-table,
-    .interhome-import-table tbody,
-    .interhome-import-table tr,
-    .interhome-import-table td {
-        display: block;
-        width: 100%;
-    }
+@media(max-width:780px){
+  .interhome-summary-grid{
+    grid-template-columns:1fr;
+  }
 
-    .interhome-import-row {
-        border-bottom: 1px solid #e6edf7;
-    }
+  .interhome-import-table thead{
+    display:none;
+  }
 
-    .interhome-import-table tbody td {
-        border-bottom: 0;
-        padding: 10px 16px;
-    }
+  .interhome-import-table,
+  .interhome-import-table tbody,
+  .interhome-import-table tr,
+  .interhome-import-table td{
+    display:block;
+    width:100%;
+  }
 
-    .interhome-pdf-frame {
-        height: 720px;
-    }
+  .interhome-import-table tbody td{
+    padding:10px 16px;
+    border-bottom:0;
+  }
+
+  .interhome-import-row{
+    border-bottom:1px solid #e6edf7;
+  }
+
+  .interhome-actions{
+    flex-direction:row;
+    flex-wrap:wrap;
+  }
+
+  .interhome-pdf-frame{
+    height:780px;
+  }
 }
 </style>
 
@@ -359,15 +437,15 @@ function interhome_state_badge_class(?string $state): string
                             <?php
                             $state = (string) ($row['_pdf_state'] ?? 'existing');
                             $stateLabel = (string) ($row['_pdf_state_label'] ?? 'Prenotazione esistente');
-                            $flag = (string) ($row['_country_flag'] ?? '');
+                            $flag = normalize_country_flag($row['_country_flag'] ?? '', $row['_language'] ?? '');
                             ?>
-                            <tr class="interhome-import-row" data-row-href="<?= e(admin_url('import-interhome-review.php?row=' . urlencode((string) $row['import_row_id']))) ?>" style="cursor:pointer;">
+                            <tr class="interhome-import-row" data-row-href="<?= e(admin_url('import-interhome-review.php?row=' . urlencode((string) $row['import_row_id']))) ?>">
                                 <td>
                                     <div class="interhome-customer">
                                         <div class="interhome-customer-top">
                                             <strong><?= e($row['customer_name']) ?></strong>
                                             <?php if ($flag !== ''): ?>
-                                                <span class="interhome-flag" title="<?= e((string) ($row['_language'] ?? '')) ?>"><?= e($flag) ?></span>
+                                                <span class="interhome-flag" title="<?= e((string) ($row['_language'] ?? '')) ?>"><?= $flag ?></span>
                                             <?php endif; ?>
                                         </div>
 
@@ -383,7 +461,7 @@ function interhome_state_badge_class(?string $state): string
 
                                 <td>
                                     <strong><?= e($row['room_type']) ?></strong><br>
-                                    <span class="interhome-muted"><?= e((string) ($row['_raw_property'] ?? '')) ?></span>
+                                    <span class="interhome-muted interhome-room-code"><?= e((string) ($row['_raw_property'] ?? '')) ?></span>
                                 </td>
 
                                 <td><?= (int) ($row['adults'] ?? 0) ?> adulti / <?= (int) ($row['children_count'] ?? 0) ?> bambini</td>
@@ -402,9 +480,11 @@ function interhome_state_badge_class(?string $state): string
                                     <?php endif; ?>
                                 </td>
 
-                                <td class="interhome-notes">
+                                <td>
                                     <?php if (!empty($row['notes'])): ?>
-                                        <?= e(mb_strimwidth((string) $row['notes'], 0, 90, '…')) ?>
+                                        <div class="interhome-notes" title="<?= e((string) $row['notes']) ?>">
+                                            <?= e((string) $row['notes']) ?>
+                                        </div>
                                     <?php else: ?>
                                         <span class="interhome-muted">-</span>
                                     <?php endif; ?>
@@ -436,9 +516,7 @@ function interhome_state_badge_class(?string $state): string
                         <h2>PDF di lavoro</h2>
                         <p class="muted">Apri e chiudi il viewer quando ti serve. La visualizzazione resta ampia e leggibile.</p>
                     </div>
-                </div>
 
-                <div class="interhome-toggle-row">
                     <button type="button" class="btn btn-light" data-pdf-toggle aria-expanded="false">Apri PDF</button>
                 </div>
 
