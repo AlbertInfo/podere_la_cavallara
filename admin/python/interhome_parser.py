@@ -469,31 +469,43 @@ def main():
 
     pdf_path = sys.argv[1]
     doc = fitz.open(pdf_path)
-
-    all_rows: List[Dict[str, Any]] = []
-    pages_read = 0
-
-    for idx, page in enumerate(doc):
-        lines = extract_page_text_lines(page)
-        if not lines:
-            continue
-
-        date_positions = extract_row_date_positions(page)
-        pages_read += 1
-        parsed = parse_page(page, idx + 1, lines, date_positions)
-        all_rows.extend(parsed["rows"])
-
-    result = {
-        "ok": True,
-        "summary": {
-            "pages_read": pages_read,
-            "parsed_total": len(all_rows),
-        },
-        "rows": all_rows,
-    }
-
-    print(json.dumps(result, ensure_ascii=False))
-
+    run_debug_icon_export(doc, pdf_path)
 
 if __name__ == "__main__":
+
+
+    def save_icon_debug_crops(page, date_positions, page_no: int, debug_dir: str):
+    import os
+    os.makedirs(debug_dir, exist_ok=True)
+
+    scale = 4.0
+    matrix = fitz.Matrix(scale, scale)
+
+    for idx, pos in enumerate(date_positions[:12], start=1):
+        # crop largo per vedere bene dov'è davvero l'icona
+        rect = fitz.Rect(
+            0,
+            max(0, pos["y_top"] - 8),
+            90,
+            pos["y_bottom"] + 28
+        )
+        pix = page.get_pixmap(matrix=matrix, clip=rect, alpha=False)
+        out = os.path.join(debug_dir, f"page_{page_no}_row_{idx}_{pos['check_in']}_{pos['check_out']}.png".replace("/", "-"))
+        pix.save(out)
+
+        def run_debug_icon_export(doc, pdf_path: str):
+    import os
+    base_dir = os.path.dirname(os.path.abspath(pdf_path))
+    debug_dir = os.path.join(base_dir, "icon_debug")
+
+    for idx, page in enumerate(doc):
+        date_positions = extract_row_date_positions(page)
+        if not date_positions:
+            continue
+        save_icon_debug_crops(page, date_positions, idx + 1, debug_dir)
+
+    print(json.dumps({
+        "ok": True,
+        "debug_dir": debug_dir
+    }, ensure_ascii=False))
     main()
