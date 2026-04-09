@@ -1,75 +1,178 @@
 <?php
-require_once dirname(__DIR__) . '/includes/auth.php';
-require_once dirname(__DIR__) . '/includes/db.php';
-require_once dirname(__DIR__) . '/includes/interhome_pdf_import.php';
+declare(strict_types=1);
+
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/db.php';
 require_admin();
 verify_csrf();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    exit('Metodo non consentito.');
+}
+
+if (
+    !isset($_FILES['interhome_pdf']) ||
+    !is_array($_FILES['interhome_pdf']) ||
+    ($_FILES['interhome_pdf']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK
+) {
+    set_flash('error', 'Caricamento PDF non riuscito.');
     header('Location: ' . admin_url('import-interhome-pdf.php'));
     exit;
 }
 
-if (!isset($_FILES['interhome_pdf']) || !is_array($_FILES['interhome_pdf'])) {
-    set_flash('error', 'Seleziona un file PDF da analizzare.');
-    header('Location: ' . admin_url('import-interhome-pdf.php'));
-    exit;
-}
+$tmpFile = $_FILES['interhome_pdf']['tmp_name'];
+$originalName = (string)($_FILES['interhome_pdf']['name'] ?? 'interhome.pdf');
+$extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
 
-$file = $_FILES['interhome_pdf'];
-if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-    set_flash('error', 'Upload del PDF non riuscito.');
-    header('Location: ' . admin_url('import-interhome-pdf.php'));
-    exit;
-}
-
-$originalName = trim((string) ($file['name'] ?? 'arrivi.pdf'));
-$ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
-if ($ext !== 'pdf') {
+if ($extension !== 'pdf') {
     set_flash('error', 'Il file caricato deve essere un PDF.');
     header('Location: ' . admin_url('import-interhome-pdf.php'));
     exit;
 }
 
-$storageDir = dirname(__DIR__) . '/uploads/interhome';
-if (!is_dir($storageDir)) {
-    mkdir($storageDir, 0775, true);
-}
-
-if (!empty($_SESSION['interhome_import']['pdf_path'] ?? '') && is_file((string)$_SESSION['interhome_import']['pdf_path'])) {
-    @unlink((string)$_SESSION['interhome_import']['pdf_path']);
-}
-
-$storedName = 'interhome_' . date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . '.pdf';
-$storedPath = $storageDir . '/' . $storedName;
-
-if (!move_uploaded_file($file['tmp_name'], $storedPath)) {
-    set_flash('error', 'Impossibile salvare il file PDF caricato.');
+$storageRoot = realpath(__DIR__ . '/../storage');
+if ($storageRoot === false) {
+    set_flash('error', 'Cartella storage non trovata.');
     header('Location: ' . admin_url('import-interhome-pdf.php'));
     exit;
 }
 
-try {
-    $result = interhome_import_parse_pdf($storedPath, $pdo);
-    $_SESSION['interhome_import'] = [
-        'file_name' => $originalName,
-        'uploaded_at' => date('Y-m-d H:i:s'),
-        'rows' => $result['rows'],
-        'summary' => $result['summary'],
-        'pending_confirmation' => !empty($result['rows']),
-        'pdf_url' => admin_url('uploads/interhome/' . $storedName),
-        'pdf_path' => $storedPath,
-    ];
+$importsDir = $storageRoot . '/imports';
+$logsDir = $storageRoot . '/parser-logs';
 
-    if (!empty($result['rows'])) {
-        set_flash('success', 'PDF analizzato correttamente. Controlla il riepilogo e conferma il numero di prenotazioni trovate.');
-    } else {
-        set_flash('success', 'Analisi completata. Non ci sono nuove prenotazioni nel file PDF.');
-    }
-} catch (Throwable $e) {
-    @unlink($storedPath);
-    set_flash('error', 'Analisi PDF interrotta: ' . $e->getMessage());
+if (!is_dir($importsDir) || !is_writable($importsDir)) {
+    set_flash('error', 'La cartella storage/imports non è disponibile in scrittura.');
+    header('Location: ' . admin_url('import-interhome-pdf.php'));
+    exit;
 }
 
+if (!is_dir($logsDir) || !is_writable($logsDir)) {
+    set_flash('error', 'La cartella storage/parser-logs non è disponibile in scrittura.');
+    header('Location: ' . admin_url('import-interhome-pdf.php'));
+    exit;
+}
+
+$storedBasename = 'interhome_' . date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . '.pdf';
+$storedPdfPath = $importsDir . '/' . $storedBasename;
+
+if (!move_uploaded_file($tmpFile, $storedPdfPath)) {
+    set_flash('error', 'Impossibile salvare il PDF caricato.');
+    header('Location: ' . admin_url('import-interhome-pdf.php'));
+    exit;
+}
+
+$pythonBin = '/usr/bin/python3';
+$parserScript = realpath(__DIR__ . '/../python/interhome_parser.py');
+
+if ($parserScript === false || !file_exists($parserScript)) {
+    set_flash('error', 'Script parser Python non trovato.');
+    header('Location: ' . admin_url('import-interhome-pdf.php'));
+    exit;
+}
+
+$descriptorspec = [
+    0 => ['pipe', 'r'],
+    1 => ['pipe', 'w'],
+    2 => ['pipe', 'w'],
+];
+
+$process = proc_open(
+    [$pythonBin, $parserScript, $storedPdfPath],
+    $descriptorspec,
+    $pipes,
+    dirname(__DIR__)
+);
+
+if (!is_resource($process)) {
+    set_flash('error', 'Impossibile avviare il parser Python.');
+    header('Location: ' . admin_url('import-interhome-pdf.php'));
+    exit;
+}
+
+fclose($pipes[0]);
+
+$stdout = stream_get_contents($pipes[1]);
+fclose($pipes[1]);
+
+$stderr = stream_get_contents($pipes[2]);
+fclose($pipes[2]);
+
+$exitCode = proc_close($process);
+
+$logPayload = [
+    'time' => date('c'),
+    'file' => $storedBasename,
+    'exit_code' => $exitCode,
+    'stdout' => $stdout,
+    'stderr' => $stderr,
+];
+
+file_put_contents(
+    $logsDir . '/interhome_parser_' . date('Ymd_His') . '.log',
+    json_encode($logPayload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
+);
+
+if ($exitCode !== 0) {
+    set_flash('error', 'Il parser Python ha restituito un errore.');
+    header('Location: ' . admin_url('import-interhome-pdf.php'));
+    exit;
+}
+
+$data = json_decode($stdout, true);
+
+if (!is_array($data) || empty($data['ok']) || !isset($data['rows']) || !is_array($data['rows'])) {
+    set_flash('error', 'Output parser non valido.');
+    header('Location: ' . admin_url('import-interhome-pdf.php'));
+    exit;
+}
+
+$rows = [];
+$duplicatesSkipped = 0;
+
+$checkStmt = $pdo->prepare('SELECT id FROM prenotazioni WHERE external_reference = :external_reference LIMIT 1');
+
+foreach ($data['rows'] as $row) {
+    $externalReference = trim((string)($row['external_reference'] ?? ''));
+
+    if ($externalReference === '') {
+        continue;
+    }
+
+    $checkStmt->execute([
+        'external_reference' => $externalReference,
+    ]);
+
+    if ($checkStmt->fetch(PDO::FETCH_ASSOC)) {
+        $duplicatesSkipped++;
+        continue;
+    }
+
+    $row['import_row_id'] = 'imp_' . bin2hex(random_bytes(8));
+    $row['source'] = 'interhome_pdf';
+    $row['status'] = $row['status'] ?? 'confermata';
+    $row['customer_email'] = trim((string)($row['customer_email'] ?? ''));
+    $row['customer_phone'] = trim((string)($row['customer_phone'] ?? ''));
+    $row['notes'] = trim((string)($row['notes'] ?? '')) ?: null;
+    $row['adults'] = (int)($row['adults'] ?? 0);
+    $row['children_count'] = (int)($row['children_count'] ?? 0);
+
+    $rows[] = $row;
+}
+
+$_SESSION['interhome_import'] = [
+    'file_name' => $originalName,
+    'pdf_url' => admin_url('storage/imports/' . $storedBasename),
+    'pending_confirmation' => !empty($rows),
+    'summary' => [
+        'pages_read' => (int)($data['summary']['pages_read'] ?? 0),
+        'parsed_total' => (int)($data['summary']['parsed_total'] ?? 0),
+        'new_total' => count($rows),
+        'duplicates_skipped' => $duplicatesSkipped,
+    ],
+    'rows' => $rows,
+];
+
+set_flash('success', 'PDF analizzato correttamente.');
 header('Location: ' . admin_url('import-interhome-pdf.php'));
 exit;
