@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+import os
 import re
 import sys
 from typing import List, Dict, Any, Optional, Tuple
@@ -462,27 +463,13 @@ def parse_page(page, page_no: int, lines: List[str], date_positions: List[Dict[s
     return {"rows": rows}
 
 
-def main():
-    if len(sys.argv) < 2:
-        print(json.dumps({"ok": False, "error": "Percorso PDF mancante"}))
-        sys.exit(1)
-
-    pdf_path = sys.argv[1]
-    doc = fitz.open(pdf_path)
-    run_debug_icon_export(doc, pdf_path)
-
-if __name__ == "__main__":
-
-
-    def save_icon_debug_crops(page, date_positions, page_no: int, debug_dir: str):
-    import os
+def save_icon_debug_crops(page, date_positions, page_no: int, debug_dir: str):
     os.makedirs(debug_dir, exist_ok=True)
 
     scale = 4.0
     matrix = fitz.Matrix(scale, scale)
 
     for idx, pos in enumerate(date_positions[:12], start=1):
-        # crop largo per vedere bene dov'è davvero l'icona
         rect = fitz.Rect(
             0,
             max(0, pos["y_top"] - 8),
@@ -490,11 +477,14 @@ if __name__ == "__main__":
             pos["y_bottom"] + 28
         )
         pix = page.get_pixmap(matrix=matrix, clip=rect, alpha=False)
-        out = os.path.join(debug_dir, f"page_{page_no}_row_{idx}_{pos['check_in']}_{pos['check_out']}.png".replace("/", "-"))
+        out = os.path.join(
+            debug_dir,
+            f"page_{page_no}_row_{idx}_{pos['check_in']}_{pos['check_out']}.png".replace("/", "-")
+        )
         pix.save(out)
 
-        def run_debug_icon_export(doc, pdf_path: str):
-    import os
+
+def run_debug_icon_export(doc, pdf_path: str):
     base_dir = os.path.dirname(os.path.abspath(pdf_path))
     debug_dir = os.path.join(base_dir, "icon_debug")
 
@@ -508,4 +498,17 @@ if __name__ == "__main__":
         "ok": True,
         "debug_dir": debug_dir
     }, ensure_ascii=False))
+
+
+def main():
+    if len(sys.argv) < 2:
+        print(json.dumps({"ok": False, "error": "Percorso PDF mancante"}))
+        sys.exit(1)
+
+    pdf_path = sys.argv[1]
+    doc = fitz.open(pdf_path)
+    run_debug_icon_export(doc, pdf_path)
+
+
+if __name__ == "__main__":
     main()
