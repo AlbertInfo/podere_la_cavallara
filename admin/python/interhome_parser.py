@@ -257,10 +257,6 @@ def extract_page_text_lines(page) -> List[str]:
 
 
 def extract_row_date_positions(page) -> List[Dict[str, float]]:
-    """
-    Cerca le date nella tabella vera e propria, ignorando l'header.
-    Usiamo le parole con coordinate per agganciare lo stato icona.
-    """
     words = page.get_text("words")
     items = []
 
@@ -269,15 +265,6 @@ def extract_row_date_positions(page) -> List[Dict[str, float]]:
         t = clean(text)
 
         if not is_date(t):
-            continue
-
-        # Ignora la data creazione in alto e altre date fuori tabella
-        # La tabella parte visivamente molto più in basso.
-        if y0 < 180:
-            continue
-
-        # Le date di riga stanno nella colonna "Data", quindi verso sinistra
-        if x0 > 180:
             continue
 
         items.append({
@@ -290,7 +277,10 @@ def extract_row_date_positions(page) -> List[Dict[str, float]]:
 
     items.sort(key=lambda item: (round(item["y0"], 1), round(item["x0"], 1)))
 
-    # Raggruppa date ravvicinate sulla stessa riga grafica
+    print("DATE WORDS FOUND:")
+    for item in items[:40]:
+        print(item)
+
     grouped: List[List[Dict[str, float]]] = []
     for item in items:
         if not grouped:
@@ -303,7 +293,6 @@ def extract_row_date_positions(page) -> List[Dict[str, float]]:
         else:
             grouped.append([item])
 
-    # Ci servono gruppi con almeno 2 date (check-in / check-out)
     row_positions = []
     for group in grouped:
         if len(group) >= 2:
@@ -314,6 +303,10 @@ def extract_row_date_positions(page) -> List[Dict[str, float]]:
                 "y_top": min(g["y0"] for g in group),
                 "y_bottom": max(g["y1"] for g in group),
             })
+
+    print("ROW POSITIONS:")
+    for row in row_positions[:20]:
+        print(row)
 
     return row_positions
 
