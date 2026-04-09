@@ -14,7 +14,7 @@ if ($importState && !empty($importState['rows'])) {
     foreach ($importState['rows'] as $candidate) {
         if (($candidate['import_row_id'] ?? '') === $rowId) {
             $row = $candidate;
-            var_dump($rowId);  // Controlla che l'ID passato sia quello giusto
+            
             break;
         }
     }
@@ -343,7 +343,7 @@ $pdfStateLabel = (string) ($row['_pdf_state_label'] ?? 'Prenotazione esistente')
 
                 <label>
                     Email
-                    <input type="email" name="customer_email" value="<?= e((string) ($row['customer_email'] ?? 'Non presente nel PDF')) ?>" placeholder="Non presente nel PDF">
+                    <input type="email" name="customer_email" value="<?= e((string) ($row['customer_email'] ?? 'Non presente nel PDF@email.it')) ?>" placeholder="Non presente nel PDF">
                 </label>
 
                 <label>
