@@ -114,14 +114,26 @@ def language_to_flag(language: str) -> str:
 
 
 def classify_rgb(r: int, g: int, b: int) -> Optional[str]:
-    if g > 130 and r < 150 and b < 150:
+    # ignora quasi-bianco / sfondo
+    if r > 235 and g > 235 and b > 235:
+        return None
+
+    # verde
+    if g > 120 and r < 170 and b < 170:
         return "new"
-    if r > 160 and g < 130 and b < 130:
+
+    # rosso
+    if r > 150 and g < 140 and b < 140:
         return "cancelled"
-    if b > 150 and r < 150 and g < 190:
+
+    # blu
+    if b > 140 and r < 170 and g < 210:
         return "modified"
-    if abs(r - g) < 25 and abs(g - b) < 25 and r < 120 and g < 120 and b < 120:
+
+    # grigio / nero
+    if abs(r - g) < 35 and abs(g - b) < 35 and r < 170:
         return "existing"
+
     return None
 
 
@@ -130,7 +142,7 @@ def clamp(v: int, a: int, b: int) -> int:
 
 
 def detect_pdf_state(page, row_y_top: float, row_y_bottom: float) -> str:
-    scale = 2.0
+    scale = 3.0
     matrix = fitz.Matrix(scale, scale)
     pix = page.get_pixmap(matrix=matrix, alpha=False)
 
@@ -139,11 +151,13 @@ def detect_pdf_state(page, row_y_top: float, row_y_bottom: float) -> str:
     channels = pix.n
     samples = pix.samples
 
-    x0 = int(10 * scale)
-    x1 = int(55 * scale)
+    # allarga un po' la zona icona
+    x0 = int(8 * scale)
+    x1 = int(70 * scale)
 
-    y0 = int(max(0, (row_y_top - 3) * scale))
-    y1 = int(min(height - 1, (row_y_bottom + 3) * scale))
+    # la riga grafica è più alta della sola data
+    y0 = int(max(0, (row_y_top - 10) * scale))
+    y1 = int(min(height - 1, (row_y_bottom + 28) * scale))
 
     counts = {
         "new": 0,
@@ -172,11 +186,21 @@ def detect_pdf_state(page, row_y_top: float, row_y_bottom: float) -> str:
             if state:
                 counts[state] += 1
 
-    best_state = max(counts, key=counts.get)
-    if counts[best_state] <= 0:
+    # privilegia colori forti rispetto al grigio
+    strong = {
+        "new": counts["new"],
+        "modified": counts["modified"],
+        "cancelled": counts["cancelled"],
+    }
+    best_strong = max(strong, key=strong.get)
+
+    if strong[best_strong] > 20:
+        return best_strong
+
+    if counts["existing"] > 20:
         return "existing"
 
-    return best_state
+    return "existing"
 
 
 def extract_page_text_lines(page) -> List[str]:
