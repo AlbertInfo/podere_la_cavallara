@@ -302,7 +302,7 @@ $pdfStateLabel = (string) ($row['_pdf_state_label'] ?? 'Prenotazione esistente')
     <form class="booking-form" method="post" action="<?= e(admin_url('actions/create-prenotazione-from-interhome.php')) ?>" data-confirm="Confermi l’inserimento di questa prenotazione tra quelle registrate?">
         <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
         <input type="hidden" name="import_row_id" value="<?= e((string) $row['import_row_id']) ?>">
-
+<button class="btn btn-primary" type="submit">Conferma e salva</button>
         <section class="form-section">
             <h2 class="form-section-title">Soggiorno</h2>
             <div class="booking-form-grid">
@@ -343,7 +343,25 @@ $pdfStateLabel = (string) ($row['_pdf_state_label'] ?? 'Prenotazione esistente')
 
                 <label>
                     Email
-                    <input type="email" name="customer_email" value="<?= e((string) ($row['customer_email'] ?? 'email@email.it')) ?>" placeholder="Non presente nel PDF">
+                    <?php
+// Controllo che l'email non sia vuota e che sia un'email valida
+$email = $row['customer_email'] ?? '';
+
+// Se l'email non è valida, assegna il valore predefinito
+if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    $email = 'email@email.it';
+}
+?>
+                    <?php
+// Controllo che l'email non sia vuota e che sia un'email valida
+$email = $row['customer_email'] ?? '';
+
+// Se l'email non è valida, assegna il valore predefinito
+if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    $email = 'email_non_presente@email.it';
+}
+?>
+                    <input type="email" name="customer_email" value="<?= e($email) ?>" placeholder="Non presente nel PDF">
                 </label>
 
                 <label>
