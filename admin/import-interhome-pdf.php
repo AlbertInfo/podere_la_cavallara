@@ -416,19 +416,19 @@ function language_to_country_code(?string $language): string
                         </thead>
                         <tbody>
                         <?php foreach (($importState['rows'] ?? []) as $row): ?>
-                            <?php
-                            $state = (string) ($row['_pdf_state'] ?? 'existing');
-                            $stateLabel = (string) ($row['_pdf_state_label'] ?? 'Prenotazione esistente');
-                            $flag = normalize_country_flag($row['_country_flag'] ?? '', $row['_language'] ?? '');
-                            ?>
+    <?php
+    $state = (string) ($row['_pdf_state'] ?? 'existing');
+    $stateLabel = (string) ($row['_pdf_state_label'] ?? 'Prenotazione esistente');
+    $countryCode = language_to_country_code($row['_language'] ?? '');  // Usa language_to_country_code invece di normalize_country_flag
+    ?>
                             <tr class="interhome-import-row" data-row-href="<?= e(admin_url('import-interhome-review.php?row=' . urlencode((string) $row['import_row_id']))) ?>">
                                 <td>
                                     <div class="interhome-customer">
                                         <div class="interhome-customer-top">
                                             <strong><?= e($row['customer_name']) ?></strong>
-                                            <?php if ($flag !== ''): ?>
-                                                <span class="interhome-flag" title="<?= e((string) ($row['_language'] ?? '')) ?>"><?= $flag ?></span>
-                                            <?php endif; ?>
+                                            <?php if ($countryCode !== ''): ?>
+                    <span class="fi fi-<?= e($countryCode) ?> interhome-review-flag" title="<?= e((string) ($row['_language'] ?? '')) ?>"></span>
+                <?php endif; ?>
                                         </div>
 
                                         <span class="interhome-state-badge <?= e(interhome_state_badge_class($state)) ?>">
