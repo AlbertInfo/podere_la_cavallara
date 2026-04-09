@@ -173,7 +173,7 @@ tr:last-child td{border-bottom:0}
 .auth-card .muted{font-size:15px}
 .form-grid{display:grid;gap:16px}
 label{display:grid;gap:8px;font-weight:600;color:#334155}
-.booking-page{max-width:1160px;margin:0 auto}
+.booking-page{width: 100%;}
 .booking-hero{
   display:flex;align-items:flex-start;justify-content:space-between;gap:16px;
   margin-bottom:22px;flex-wrap:wrap;
