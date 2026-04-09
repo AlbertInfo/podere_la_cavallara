@@ -114,24 +114,24 @@ def language_to_flag(language: str) -> str:
 
 
 def classify_rgb(r: int, g: int, b: int) -> Optional[str]:
-    # ignora quasi-bianco / sfondo
-    if r > 235 and g > 235 and b > 235:
+    # sfondo / quasi bianco
+    if r > 240 and g > 240 and b > 240:
         return None
 
     # verde
-    if g > 120 and r < 170 and b < 170:
+    if g > 135 and r < 140 and b < 140:
         return "new"
 
     # rosso
-    if r > 150 and g < 140 and b < 140:
+    if r > 170 and g < 120 and b < 120:
         return "cancelled"
 
     # blu
-    if b > 140 and r < 170 and g < 210:
+    if b > 165 and r < 140 and g < 190:
         return "modified"
 
-    # grigio / nero
-    if abs(r - g) < 35 and abs(g - b) < 35 and r < 170:
+    # grigio scuro / nero
+    if abs(r - g) < 22 and abs(g - b) < 22 and r < 115:
         return "existing"
 
     return None
@@ -151,13 +151,14 @@ def detect_pdf_state(page, row_y_top: float, row_y_bottom: float) -> str:
     channels = pix.n
     samples = pix.samples
 
-    # allarga un po' la zona icona
-    x0 = int(8 * scale)
-    x1 = int(70 * scale)
+    # finestra più stretta e centrata davvero sull'icona
+    # dai test sul tuo PDF l'icona cade circa qui
+    x0 = int(38 * scale)
+    x1 = int(56 * scale)
 
-    # la riga grafica è più alta della sola data
-    y0 = int(max(0, (row_y_top - 10) * scale))
-    y1 = int(min(height - 1, (row_y_bottom + 28) * scale))
+    # leggiamo la parte alta della riga, dove sta il quadratino icona
+    y0 = int(max(0, (row_y_top - 2) * scale))
+    y1 = int(min(height - 1, (row_y_top + 16) * scale))
 
     counts = {
         "new": 0,
@@ -186,19 +187,20 @@ def detect_pdf_state(page, row_y_top: float, row_y_bottom: float) -> str:
             if state:
                 counts[state] += 1
 
-    # privilegia colori forti rispetto al grigio
-    strong = {
-        "new": counts["new"],
-        "modified": counts["modified"],
-        "cancelled": counts["cancelled"],
-    }
-    best_strong = max(strong, key=strong.get)
-
-    if strong[best_strong] > 20:
-        return best_strong
-
-    if counts["existing"] > 20:
+    # priorità ai colori forti
+    if counts["cancelled"] > 40:
+        return "cancelled"
+    if counts["new"] > 40:
+        return "new"
+    if counts["modified"] > 40:
+        return "modified"
+    if counts["existing"] > 25:
         return "existing"
+
+    # fallback sul massimo
+    best_state = max(counts, key=counts.get)
+    if counts[best_state] > 0:
+        return best_state
 
     return "existing"
 
