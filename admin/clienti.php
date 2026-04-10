@@ -90,297 +90,106 @@ if ($clientiTableReady) {
 require_once __DIR__ . '/includes/header.php';
 ?>
 <style>
-.clienti-shell{
-    display:grid;
-    gap:20px;
-}
-
-.clienti-kpi-grid{
-    display:grid;
-    grid-template-columns:repeat(5,minmax(0,1fr));
-    gap:16px;
-}
-
+.clienti-shell{display:grid;gap:20px}
+.clienti-kpi-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px}
 .clienti-kpi-card{
-    padding:20px;
-    border-radius:22px;
-    border:1px solid rgba(219,228,240,.95);
-    background:linear-gradient(180deg,#fff 0%,#f8fbff 100%);
-    box-shadow:var(--shadow);
+    padding:20px;border-radius:22px;border:1px solid rgba(219,228,240,.95);
+    background:linear-gradient(180deg,#fff 0%,#f8fbff 100%);box-shadow:var(--shadow)
 }
-
 .clienti-kpi-card:nth-child(1){background:linear-gradient(180deg,#fff,#eff6ff)}
 .clienti-kpi-card:nth-child(2){background:linear-gradient(180deg,#fff,#effcf4)}
 .clienti-kpi-card:nth-child(3){background:linear-gradient(180deg,#fff,#fefce8)}
 .clienti-kpi-card:nth-child(4){background:linear-gradient(180deg,#fff,#faf5ff)}
 .clienti-kpi-card:nth-child(5){background:linear-gradient(180deg,#fff,#fff1f2)}
-
-.clienti-kpi-label{
-    font-size:13px;
-    color:var(--muted);
-}
-
-.clienti-kpi-value{
-    margin-top:8px;
-    font-size:30px;
-    font-weight:800;
-}
-
-.clienti-grid{
-    display:grid;
-    grid-template-columns:minmax(320px,380px) minmax(0,1fr);
-    gap:20px;
-    align-items:start;
-}
-
-.clienti-grid > *{
-    min-width:0;
-}
-
-.clienti-form-card,
-.clienti-table-card{
-    min-width:0;
-    overflow:hidden;
-}
-
-.clienti-form-card{
-    border-top:5px solid var(--purple);
-}
-
-.clienti-table-card{
-    border-top:5px solid var(--primary);
-}
-
-.clienti-alert-card{
-    padding:22px;
-    border-radius:22px;
-    border:1px solid #fed7aa;
-    background:linear-gradient(180deg,#fff 0%,#fff7ed 100%);
-}
-
-.clienti-search-form{
-    min-width:260px;
-    flex:1 1 340px;
-    max-width:420px;
-}
-
-.clienti-search-form .search-input{
-    width:100%;
-}
-
-.clienti-empty-state{
-    padding:28px;
-    border-radius:22px;
-    border:1px dashed #cbd5e1;
-    background:#fff;
-    text-align:center;
-    color:var(--muted);
-}
-
-.clienti-table-card .section-title{
-    display:flex;
-    align-items:flex-start;
-    justify-content:space-between;
-    gap:16px;
-    flex-wrap:wrap;
-}
-
-.clienti-table-card .toolbar{
-    display:flex;
-    gap:10px;
-    flex-wrap:wrap;
-    align-items:center;
-    justify-content:flex-end;
-}
-
-.clienti-table .table-wrap{
-    width:100%;
-    overflow-x:auto;
-    overflow-y:hidden;
-    -webkit-overflow-scrolling:touch;
-}
-
-.clienti-table table{
-    width:100%;
-    min-width:1100px;
-    border-collapse:collapse;
-    table-layout:fixed;
-}
-
-.clienti-table th,
-.clienti-table td{
-    vertical-align:middle;
-}
-
-.clienti-table th{
-    white-space:nowrap;
-}
-
-.clienti-table td{
-    overflow-wrap:anywhere;
-}
-
-.clienti-table th:nth-child(1),
-.clienti-table td:nth-child(1){width:20%}
-
-.clienti-table th:nth-child(2),
-.clienti-table td:nth-child(2){width:20%}
-
-.clienti-table th:nth-child(3),
-.clienti-table td:nth-child(3){width:16%}
-
-.clienti-table th:nth-child(4),
-.clienti-table td:nth-child(4){width:18%}
-
-.clienti-table th:nth-child(5),
-.clienti-table td:nth-child(5){width:16%}
-
-.clienti-table th:nth-child(6),
-.clienti-table td:nth-child(6){width:10%}
-
-.clienti-inline-form{
-    display:contents;
-}
-
-.clienti-name-cell{
-    display:grid;
-    gap:6px;
-}
-
-.clienti-meta{
-    display:flex;
-    gap:8px;
-    flex-wrap:wrap;
-    align-items:center;
-}
-
-.clienti-flag{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    width:22px;
-    height:16px;
-    border-radius:3px;
-    box-shadow:0 0 0 1px rgba(0,0,0,.08);
-    flex:0 0 auto;
-}
-
-.clienti-pill{
-    display:inline-flex;
-    align-items:center;
-    padding:6px 10px;
-    border-radius:999px;
-    background:#eef2ff;
-    color:#3730a3;
-    font-size:12px;
-    font-weight:700;
-    max-width:100%;
-    overflow:hidden;
-    text-overflow:ellipsis;
-    white-space:nowrap;
-}
-
-.clienti-summary{
-    display:grid;
-    gap:6px;
-}
-
-.clienti-summary strong{
-    font-size:14px;
-    color:#0f172a;
-}
-
+.clienti-kpi-label{font-size:13px;color:var(--muted)}
+.clienti-kpi-value{margin-top:8px;font-size:30px;font-weight:800}
+.clienti-alert-card{padding:22px;border-radius:22px;border:1px solid #fed7aa;background:linear-gradient(180deg,#fff 0%,#fff7ed 100%)}
+.clienti-empty-state{padding:32px;border-radius:22px;border:1px dashed #cbd5e1;background:#fff;text-align:center;color:var(--muted)}
+.clienti-table-card{border-top:5px solid var(--primary);overflow:hidden}
+.clienti-table-card .section-title{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.clienti-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:flex-end;width:100%}
+.clienti-search-form{min-width:300px;flex:1 1 360px;max-width:460px}
+.clienti-search-form .search-input{width:100%}
+.clienti-toolbar-group{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.clienti-modal-trigger{display:inline-flex;align-items:center;gap:10px}
+.clienti-modal-trigger .btn{box-shadow:0 10px 24px rgba(37,99,235,.18)}
+.clienti-table .table-wrap{width:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
+.clienti-table table{width:100%;min-width:1180px;border-collapse:collapse;table-layout:fixed}
+.clienti-table th,.clienti-table td{vertical-align:middle}
+.clienti-table th{white-space:nowrap}
+.clienti-table td{overflow-wrap:anywhere}
+.clienti-table th:nth-child(1),.clienti-table td:nth-child(1){width:19%}
+.clienti-table th:nth-child(2),.clienti-table td:nth-child(2){width:18%}
+.clienti-table th:nth-child(3),.clienti-table td:nth-child(3){width:16%}
+.clienti-table th:nth-child(4),.clienti-table td:nth-child(4){width:17%}
+.clienti-table th:nth-child(5),.clienti-table td:nth-child(5){width:16%}
+.clienti-table th:nth-child(6),.clienti-table td:nth-child(6){width:14%}
+.clienti-name-cell,.clienti-summary{display:grid;gap:6px}
+.clienti-summary strong{font-size:14px;color:#0f172a}
+.clienti-meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.clienti-flag{display:inline-flex;align-items:center;justify-content:center;width:22px;height:16px;border-radius:3px;box-shadow:0 0 0 1px rgba(0,0,0,.08);flex:0 0 auto}
+.clienti-pill{display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:12px;font-weight:700;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.clienti-stat-badge{display:inline-flex;align-items:center;padding:7px 11px;border-radius:999px;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:800}
 .clienti-table td input,
 .clienti-table td select,
-.clienti-form-card input,
-.clienti-form-card select,
-.clienti-form-card textarea{
-    width:100%;
-    max-width:100%;
-    min-height:42px;
-    padding:10px 12px;
-    border-radius:14px;
-    box-sizing:border-box;
+.clienti-table td textarea,
+.clienti-modal-card input,
+.clienti-modal-card select,
+.clienti-modal-card textarea{
+    width:100%;max-width:100%;min-height:42px;padding:10px 12px;border-radius:14px;box-sizing:border-box
 }
-
-.clienti-table td textarea{
-    width:100%;
-    max-width:100%;
-    min-height:78px;
-    padding:10px 12px;
-    border-radius:14px;
-    resize:vertical;
-    box-sizing:border-box;
+.clienti-table td textarea{min-height:78px;resize:vertical}
+.clienti-actions{display:grid;gap:8px}
+.clienti-actions .btn{width:100%}
+.clienti-note{font-size:13px;color:var(--muted);line-height:1.6}
+.clienti-modal{
+    position:fixed;inset:0;display:none;align-items:flex-start;justify-content:center;
+    padding:40px 20px;background:rgba(15,23,42,.52);backdrop-filter:blur(6px);z-index:1200
 }
-
-.clienti-table .actions{
-    min-width:140px;
+.clienti-modal.is-open{display:flex}
+.clienti-modal-backdrop{position:absolute;inset:0}
+.clienti-modal-card{
+    position:relative;z-index:1;width:min(760px,100%);max-height:calc(100vh - 80px);overflow:auto;
+    border-radius:28px;border:1px solid rgba(191,219,254,.55);
+    background:linear-gradient(180deg,#ffffff 0%,#f8fbff 100%);
+    box-shadow:0 28px 80px rgba(15,23,42,.28);border-top:5px solid var(--purple)
 }
-
-.clienti-table .actions .btn{
-    width:100%;
+.clienti-modal-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:24px 24px 0}
+.clienti-modal-copy h2{margin:0 0 8px;font-size:28px;color:#0f172a}
+.clienti-modal-copy p{margin:0;color:var(--muted);max-width:560px;line-height:1.6}
+.clienti-modal-close{
+    width:42px;height:42px;border:1px solid rgba(203,213,225,.95);border-radius:999px;background:#fff;
+    color:#334155;font-size:22px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
+    box-shadow:0 10px 24px rgba(15,23,42,.08)
 }
-
-.clienti-note{
-    font-size:13px;
-    color:var(--muted);
-    line-height:1.5;
-}
-
-.clienti-stat-badge{
-    display:inline-flex;
-    align-items:center;
-    padding:7px 11px;
-    border-radius:999px;
-    background:#eff6ff;
-    color:#1d4ed8;
-    font-size:12px;
-    font-weight:800;
-}
-
+.clienti-modal-body{padding:22px 24px 24px}
+.clienti-modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.clienti-modal-grid label{display:grid;gap:8px;font-weight:700;color:#334155}
+.clienti-modal-grid label.full{grid-column:1 / -1}
+.clienti-modal-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding-top:6px}
+.clienti-modal-note{font-size:13px;color:var(--muted);line-height:1.5;max-width:460px}
+.clienti-modal-open-lock{overflow:hidden}
 @media (max-width:1280px){
-    .clienti-kpi-grid{
-        grid-template-columns:repeat(3,minmax(0,1fr));
-    }
-
-    .clienti-grid{
-        grid-template-columns:1fr;
-    }
+    .clienti-kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
-
 @media (max-width:1100px){
-    .clienti-kpi-grid{
-        grid-template-columns:repeat(2,minmax(0,1fr));
-    }
-
-    .clienti-table table{
-        min-width:980px;
-    }
+    .clienti-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .clienti-table table{min-width:1040px}
 }
-
 @media (max-width:760px){
-    .clienti-kpi-grid{
-        grid-template-columns:1fr;
-    }
-
-    .clienti-form-card,
-    .clienti-table-card{
-        overflow:visible;
-    }
-
-    .clienti-table-card .toolbar{
-        justify-content:stretch;
-    }
-
-    .clienti-search-form,
-    .clienti-table-card .toolbar .btn{
-        width:100%;
-        max-width:none;
-    }
-
-    .clienti-table table{
-        min-width:900px;
-    }
+    .clienti-kpi-grid{grid-template-columns:1fr}
+    .clienti-search-form,.clienti-toolbar,.clienti-toolbar-group{width:100%;max-width:none}
+    .clienti-toolbar{justify-content:stretch}
+    .clienti-toolbar .btn{width:100%}
+    .clienti-table table{min-width:940px}
+    .clienti-modal{padding:16px}
+    .clienti-modal-card{max-height:calc(100vh - 32px);border-radius:24px}
+    .clienti-modal-header{padding:20px 20px 0}
+    .clienti-modal-body{padding:18px 20px 20px}
+    .clienti-modal-grid{grid-template-columns:1fr}
+    .clienti-modal-grid label.full{grid-column:auto}
+    .clienti-modal-footer{justify-content:stretch}
+    .clienti-modal-footer .btn{width:100%}
 }
 </style>
 
@@ -430,75 +239,84 @@ require_once __DIR__ . '/includes/header.php';
             </article>
         </section>
 
-        <div class="clienti-grid">
-            <section class="card clienti-form-card">
-                <div class="section-title">
-                    <div>
-                        <h2>Nuovo cliente</h2>
-                        <p class="muted">Inserisci un'anagrafica manualmente: sarà disponibile subito nello storico clienti.</p>
+        <div class="clienti-modal" id="clienteCreateModal" aria-hidden="true">
+            <div class="clienti-modal-backdrop" data-close-cliente-modal></div>
+            <div class="clienti-modal-card" role="dialog" aria-modal="true" aria-labelledby="clienteCreateModalTitle">
+                <div class="clienti-modal-header">
+                    <div class="clienti-modal-copy">
+                        <h2 id="clienteCreateModalTitle">Nuovo cliente</h2>
+                        <p>Inserisci un'anagrafica manualmente con uno spazio ampio, ordinato e comodo da usare. Il cliente sarà disponibile subito nello storico.</p>
                     </div>
+                    <button class="clienti-modal-close" type="button" aria-label="Chiudi" data-close-cliente-modal>&times;</button>
                 </div>
 
-                <form class="booking-form" method="post" action="<?= e(admin_url('actions/create-cliente.php')) ?>">
-                    <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
-                    <div class="booking-form-grid">
-                        <label>
-                            Nome *
-                            <input type="text" name="first_name" required>
-                        </label>
-                        <label>
-                            Cognome
-                            <input type="text" name="last_name">
-                        </label>
-                        <label>
-                            Email
-                            <input type="email" name="email" placeholder="cliente@email.it">
-                        </label>
-                        <label>
-                            Cellulare
-                            <input type="text" name="phone" placeholder="+39 ...">
-                        </label>
-                        <label>
-                            Nazionalità / bandierina
-                            <select name="guest_country_code">
-                                <?php foreach ($countryOptions as $value => $label): ?>
-                                    <option value="<?= e($value) ?>"><?= e($label) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </label>
-                        <label>
-                            Lingua
-                            <select name="guest_language">
-                                <?php foreach ($languageOptions as $value => $label): ?>
-                                    <option value="<?= e($value) ?>"><?= e($label) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </label>
-                        <label class="full">
-                            Note
-                            <textarea name="notes" placeholder="Annotazioni utili sull'ospite, recapiti alternativi, dettagli utili..."></textarea>
-                        </label>
-                    </div>
-                    <div class="form-actions">
-                        <button class="btn btn-primary" type="submit">Salva cliente</button>
-                    </div>
-                </form>
-
-                <div class="clienti-note" style="margin-top:14px;">
-                    Le modifiche effettuate qui salvano l'anagrafica nel database. Per aggiornare in massa i clienti già presenti nelle prenotazioni, usa il pulsante di sincronizzazione accanto alla tabella.
+                <div class="clienti-modal-body">
+                    <form class="booking-form" method="post" action="<?= e(admin_url('actions/create-cliente.php')) ?>">
+                        <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+                        <div class="clienti-modal-grid">
+                            <label>
+                                Nome *
+                                <input type="text" name="first_name" required data-cliente-modal-first-field>
+                            </label>
+                            <label>
+                                Cognome
+                                <input type="text" name="last_name">
+                            </label>
+                            <label>
+                                Email
+                                <input type="email" name="email" placeholder="cliente@email.it">
+                            </label>
+                            <label>
+                                Cellulare
+                                <input type="text" name="phone" placeholder="+39 ...">
+                            </label>
+                            <label>
+                                Nazionalità / bandierina
+                                <select name="guest_country_code">
+                                    <?php foreach ($countryOptions as $value => $label): ?>
+                                        <option value="<?= e($value) ?>"><?= e($label) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </label>
+                            <label>
+                                Lingua
+                                <select name="guest_language">
+                                    <?php foreach ($languageOptions as $value => $label): ?>
+                                        <option value="<?= e($value) ?>"><?= e($label) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </label>
+                            <label class="full">
+                                Note
+                                <textarea name="notes" placeholder="Annotazioni utili sull'ospite, recapiti alternativi, dettagli utili..."></textarea>
+                            </label>
+                        </div>
+                        <div class="clienti-modal-footer">
+                            <div class="clienti-modal-note">Le modifiche effettuate qui salvano l'anagrafica nel database. Per aggiornare in massa i clienti già presenti nelle prenotazioni, usa il pulsante di sincronizzazione nella sezione archivio.</div>
+                            <div class="clienti-toolbar-group">
+                                <button class="btn btn-light" type="button" data-close-cliente-modal>Annulla</button>
+                                <button class="btn btn-primary" type="submit">Salva cliente</button>
+                            </div>
+                        </div>
+                    </form>
                 </div>
-            </section>
+            </div>
+        </div>
 
-            <section class="card clienti-table-card clienti-table">
-                <div class="section-title">
-                    <div>
-                        <h2>Archivio clienti</h2>
-                        <p class="muted">Ricerca veloce, modifica inline e panoramica immediata delle anagrafiche collegate alle prenotazioni.</p>
-                    </div>
-                    <div class="toolbar">
-                        <form class="clienti-search-form" method="get" action="<?= e(admin_url('clienti.php')) ?>">
-                            <input class="search-input" type="search" name="q" value="<?= e($search) ?>" placeholder="Cerca per nome, cognome, email o cellulare...">
-                        </form>
+        <section class="card clienti-table-card clienti-table">
+            <div class="section-title">
+                <div>
+                    <h2>Archivio clienti</h2>
+                    <p class="muted">Ricerca veloce, modifica inline, cancellazione diretta e panoramica immediata delle anagrafiche collegate alle prenotazioni.</p>
+                </div>
+                <div class="clienti-toolbar">
+                    <form class="clienti-search-form" method="get" action="<?= e(admin_url('clienti.php')) ?>">
+                        <input class="search-input" type="search" name="q" value="<?= e($search) ?>" placeholder="Cerca per nome, cognome, email o cellulare...">
+                    </form>
+                    <div class="clienti-toolbar-group">
+                        <button class="btn btn-primary clienti-modal-trigger" type="button" data-open-cliente-modal>
+                            <span>Nuovo cliente</span>
+                        </button>
                         <form method="post" action="<?= e(admin_url('actions/sync-clienti-from-prenotazioni.php')) ?>" onsubmit="return confirm('Vuoi sincronizzare lo storico clienti partendo dalle prenotazioni registrate?');">
                             <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
                             <button class="btn btn-light" type="submit">Sincronizza da prenotazioni</button>
@@ -508,97 +326,148 @@ require_once __DIR__ . '/includes/header.php';
                         <?php endif; ?>
                     </div>
                 </div>
+            </div>
 
-                <?php if (empty($clienti)): ?>
-                    <div class="clienti-empty-state">
-                        <strong>Nessun cliente trovato.</strong>
-                        <p style="margin-top:8px;">Inserisci un cliente manualmente oppure sincronizza lo storico dalle prenotazioni già registrate.</p>
-                    </div>
-                <?php else: ?>
-                    <div class="table-wrap">
-                        <table>
-                            <thead>
+            <?php if (empty($clienti)): ?>
+                <div class="clienti-empty-state">
+                    <strong>Nessun cliente trovato.</strong>
+                    <p style="margin-top:8px;">Usa il pulsante <strong>Nuovo cliente</strong> per inserire un'anagrafica manualmente oppure sincronizza lo storico dalle prenotazioni già registrate.</p>
+                </div>
+            <?php else: ?>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Cliente</th>
+                                <th>Contatti</th>
+                                <th>Nazionalità</th>
+                                <th>Storico prenotazioni</th>
+                                <th>Note</th>
+                                <th>Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($clienti as $cliente): ?>
+                                <?php
+                                    $clienteId = (int) $cliente['id'];
+                                    $clienteCountry = strtolower(trim((string) ($cliente['guest_country_code'] ?? '')));
+                                    $clienteLanguage = trim((string) ($cliente['guest_language'] ?? ''));
+                                    $bookingsCount = (int) ($cliente['bookings_count'] ?? 0);
+                                ?>
                                 <tr>
-                                    <th>Cliente</th>
-                                    <th>Contatti</th>
-                                    <th>Nazionalità</th>
-                                    <th>Storico prenotazioni</th>
-                                    <th>Note</th>
-                                    <th>Azioni</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($clienti as $cliente): ?>
-                                    <?php
-                                        $clienteId = (int) $cliente['id'];
-                                        $clienteCountry = strtolower(trim((string) ($cliente['guest_country_code'] ?? '')));
-                                        $clienteLanguage = trim((string) ($cliente['guest_language'] ?? ''));
-                                        $bookingsCount = (int) ($cliente['bookings_count'] ?? 0);
-                                    ?>
-                                    <tr>
-                                        <td>
-                                            <div class="clienti-name-cell">
-                                                <input type="text" name="first_name" value="<?= e((string) ($cliente['first_name'] ?? '')) ?>" form="cliente-form-<?= $clienteId ?>" required>
-                                                <input type="text" name="last_name" value="<?= e((string) ($cliente['last_name'] ?? '')) ?>" form="cliente-form-<?= $clienteId ?>" placeholder="Cognome">
-                                                <div class="clienti-meta">
-                                                    <span class="clienti-stat-badge"><?= $bookingsCount ?> prenotazioni</span>
-                                                    <span class="small muted">ID cliente #<?= $clienteId ?></span>
-                                                </div>
+                                    <td>
+                                        <div class="clienti-name-cell">
+                                            <input type="text" name="first_name" value="<?= e((string) ($cliente['first_name'] ?? '')) ?>" form="cliente-form-<?= $clienteId ?>" required>
+                                            <input type="text" name="last_name" value="<?= e((string) ($cliente['last_name'] ?? '')) ?>" form="cliente-form-<?= $clienteId ?>" placeholder="Cognome">
+                                            <div class="clienti-meta">
+                                                <span class="clienti-stat-badge"><?= $bookingsCount ?> prenotazioni</span>
+                                                <span class="small muted">ID cliente #<?= $clienteId ?></span>
                                             </div>
-                                        </td>
-                                        <td>
-                                            <div class="clienti-summary">
-                                                <input type="email" name="email" value="<?= e((string) ($cliente['email'] ?? '')) ?>" form="cliente-form-<?= $clienteId ?>" placeholder="Email non disponibile">
-                                                <input type="text" name="phone" value="<?= e((string) ($cliente['phone'] ?? '')) ?>" form="cliente-form-<?= $clienteId ?>" placeholder="Cellulare non disponibile">
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="clienti-summary">
-                                                <div class="clienti-meta">
-                                                    <?php if ($clienteCountry !== ''): ?>
-                                                        <span class="fi fi-<?= e($clienteCountry) ?> clienti-flag" title="<?= e($clienteLanguage !== '' ? $clienteLanguage : strtoupper($clienteCountry)) ?>"></span>
-                                                    <?php endif; ?>
-                                                    <select name="guest_country_code" form="cliente-form-<?= $clienteId ?>">
-                                                        <?php foreach ($countryOptions as $value => $label): ?>
-                                                            <option value="<?= e($value) ?>" <?= $clienteCountry === $value ? 'selected' : '' ?>><?= e($label) ?></option>
-                                                        <?php endforeach; ?>
-                                                    </select>
-                                                </div>
-                                                <select name="guest_language" form="cliente-form-<?= $clienteId ?>">
-                                                    <?php foreach ($languageOptions as $value => $label): ?>
-                                                        <option value="<?= e($value) ?>" <?= $clienteLanguage === $value ? 'selected' : '' ?>><?= e($label) ?></option>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="clienti-summary">
+                                            <input type="email" name="email" value="<?= e((string) ($cliente['email'] ?? '')) ?>" form="cliente-form-<?= $clienteId ?>" placeholder="Email non disponibile">
+                                            <input type="text" name="phone" value="<?= e((string) ($cliente['phone'] ?? '')) ?>" form="cliente-form-<?= $clienteId ?>" placeholder="Cellulare non disponibile">
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="clienti-summary">
+                                            <div class="clienti-meta">
+                                                <?php if ($clienteCountry !== ''): ?>
+                                                    <span class="fi fi-<?= e($clienteCountry) ?> clienti-flag" title="<?= e($clienteLanguage !== '' ? $clienteLanguage : strtoupper($clienteCountry)) ?>"></span>
+                                                <?php endif; ?>
+                                                <select name="guest_country_code" form="cliente-form-<?= $clienteId ?>">
+                                                    <?php foreach ($countryOptions as $value => $label): ?>
+                                                        <option value="<?= e($value) ?>" <?= $clienteCountry === $value ? 'selected' : '' ?>><?= e($label) ?></option>
                                                     <?php endforeach; ?>
                                                 </select>
                                             </div>
-                                        </td>
-                                        <td>
-                                            <div class="clienti-summary">
-                                                <strong><?= $bookingsCount ?> prenotazioni collegate</strong>
-                                                <span class="small muted">Ultima attività: <?= e((string) (($cliente['last_booking_created_at'] ?? '') !== '' ? $cliente['last_booking_created_at'] : $cliente['updated_at'])) ?></span>
-                                                <span class="clienti-pill"><?= e((string) ($cliente['source'] ?? 'manual_admin')) ?></span>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <textarea name="notes" form="cliente-form-<?= $clienteId ?>" placeholder="Note cliente..."><?= e((string) ($cliente['notes'] ?? '')) ?></textarea>
-                                        </td>
-                                        <td>
-                                            <div class="actions">
-                                                <button class="btn btn-primary btn-sm" type="submit" form="cliente-form-<?= $clienteId ?>">Salva modifiche</button>
-                                            </div>
-                                            <form id="cliente-form-<?= $clienteId ?>" method="post" action="<?= e(admin_url('actions/update-cliente.php')) ?>">
+                                            <select name="guest_language" form="cliente-form-<?= $clienteId ?>">
+                                                <?php foreach ($languageOptions as $value => $label): ?>
+                                                    <option value="<?= e($value) ?>" <?= $clienteLanguage === $value ? 'selected' : '' ?>><?= e($label) ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="clienti-summary">
+                                            <strong><?= $bookingsCount ?> prenotazioni collegate</strong>
+                                            <span class="small muted">Ultima attività: <?= e((string) (($cliente['last_booking_created_at'] ?? '') !== '' ? $cliente['last_booking_created_at'] : $cliente['updated_at'])) ?></span>
+                                            <span class="clienti-pill"><?= e((string) ($cliente['source'] ?? 'manual_admin')) ?></span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <textarea name="notes" form="cliente-form-<?= $clienteId ?>" placeholder="Note cliente..."><?= e((string) ($cliente['notes'] ?? '')) ?></textarea>
+                                    </td>
+                                    <td>
+                                        <div class="clienti-actions">
+                                            <button class="btn btn-primary btn-sm" type="submit" form="cliente-form-<?= $clienteId ?>">Salva modifiche</button>
+                                            <form method="post" action="<?= e(admin_url('actions/delete-cliente.php')) ?>" onsubmit="return confirm('Vuoi davvero cancellare questo cliente? Le prenotazioni collegate resteranno in archivio ma saranno scollegate dal cliente.');">
                                                 <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
                                                 <input type="hidden" name="cliente_id" value="<?= $clienteId ?>">
+                                                <button class="btn btn-danger btn-sm" type="submit">Cancella</button>
                                             </form>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                <?php endif; ?>
-            </section>
-        </div>
+                                        </div>
+                                        <form id="cliente-form-<?= $clienteId ?>" method="post" action="<?= e(admin_url('actions/update-cliente.php')) ?>">
+                                            <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+                                            <input type="hidden" name="cliente_id" value="<?= $clienteId ?>">
+                                        </form>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </section>
     <?php endif; ?>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var modal = document.getElementById('clienteCreateModal');
+    if (!modal) {
+        return;
+    }
+
+    var openButtons = document.querySelectorAll('[data-open-cliente-modal]');
+    var closeButtons = document.querySelectorAll('[data-close-cliente-modal]');
+    var firstField = modal.querySelector('[data-cliente-modal-first-field]');
+
+    function openModal() {
+        modal.classList.add('is-open');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('clienti-modal-open-lock');
+        if (firstField) {
+            setTimeout(function () {
+                firstField.focus();
+            }, 120);
+        }
+    }
+
+    function closeModal() {
+        modal.classList.remove('is-open');
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('clienti-modal-open-lock');
+    }
+
+    for (var i = 0; i < openButtons.length; i++) {
+        openButtons[i].addEventListener('click', openModal);
+    }
+
+    for (var j = 0; j < closeButtons.length; j++) {
+        closeButtons[j].addEventListener('click', closeModal);
+    }
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' || event.keyCode === 27) {
+            if (modal.classList.contains('is-open')) {
+                closeModal();
+            }
+        }
+    });
+});
+</script>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
