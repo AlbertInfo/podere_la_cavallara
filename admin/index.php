@@ -70,7 +70,35 @@ foreach ($registeredBookings as $bookingRow) {
 if ($registeredBookingRoomOptions) {
     uksort($registeredBookingRoomOptions, 'strnatcasecmp');
 }
+function language_to_country_code(?string $language): string
+{
+    return match (trim((string) $language)) {
+        'Italiano' => 'it',
+        'Inglese' => 'gb',
+        'Tedesco' => 'de',
+        'Ceco' => 'cz',
+        'Polacco' => 'pl',
+        'Olandese' => 'nl',
+        'Francese' => 'fr',
+        'Spagnolo' => 'es',
+        default => '',
+    };
+}
 
+function country_code_to_language(?string $guest_country_code): string
+{
+    return match (trim((string) $guest_country_code)) {
+        'it' => 'Italiano',
+        'gb' => 'Inglese',
+        'de' => 'Tedesco',
+        'cz' => 'Ceco',
+        'pl' => 'Polacco',
+        'nl' => 'Olandese',
+        'fr' => 'Francese',
+        'es' => 'Spagnolo',
+        default => '',
+    };
+}
 $pageTitle = 'Dashboard amministrazione';
 require_once __DIR__ . '/includes/header.php';
 ?>
@@ -324,6 +352,8 @@ require_once __DIR__ . '/includes/header.php';
                         <td><?= e($row['created_at']) ?></td>
                         <td>
                             <strong><?= e($row['customer_name']) ?></strong><br>
+                            <span class="fi fi-<?= e($row['guest_country_code']) ?> interhome-review-flag" title="<?= country_code_to_language($row['guest_country_code']) ?? '' ?>"></span> 
+                            <span class="small muted"><?= country_code_to_language($row['guest_country_code']) ?? '' ?> </span>  <br>             
                             <span class="small muted"><?= e($row['customer_email'] ?: 'Email non disponibile') ?></span>
                         </td>
                         <td>
