@@ -34,7 +34,7 @@ function customer_sync_has_column(PDO $pdo, string $table, string $column): bool
 
 function customer_sync_phone_key(?string $phone): ?string
 {
-    $phone = normalize_optional_phone((string) $phone);
+    $phone = admin_normalize_optional_phone((string) $phone);
     if ($phone === null) {
         return null;
     }
@@ -46,22 +46,29 @@ function customer_sync_phone_key(?string $phone): ?string
 
 function customer_sync_split_name(string $fullName): array
 {
-    $fullName = trim(preg_replace('/\s+/u', ' ', trim($fullName)) ?? trim($fullName));
+    $normalized = preg_replace('/\s+/u', ' ', trim($fullName));
+    $fullName = trim($normalized !== null ? $normalized : trim($fullName));
+
     if ($fullName === '') {
         return ['first_name' => '', 'last_name' => ''];
     }
 
-    $parts = array_values(array_filter(explode(' ', $fullName), static fn(string $part): bool => $part !== ''));
+    $parts = array_values(array_filter(explode(' ', $fullName), function ($part) {
+        return $part !== '';
+    }));
+
     if (count($parts) === 1) {
         return ['first_name' => $parts[0], 'last_name' => ''];
     }
 
-    $firstName = array_shift($parts) ?: '';
-    $lastName = implode(' ', $parts);
+    $firstName = array_shift($parts);
+    if (!is_string($firstName)) {
+        $firstName = '';
+    }
 
     return [
         'first_name' => $firstName,
-        'last_name' => $lastName,
+        'last_name' => implode(' ', $parts),
     ];
 }
 
@@ -74,26 +81,32 @@ function customer_sync_full_name(array $row): string
 
 function customer_sync_extract_booking_identity(array $booking): array
 {
-    $fullName = trim((string) ($booking['customer_name'] ?? ''));
-    $split = customer_sync_split_name($fullName);
+    $split = customer_sync_split_name(trim((string) ($booking['customer_name'] ?? '')));
 
-    $email = normalize_optional_email((string) ($booking['customer_email'] ?? ''));
-    $phone = normalize_optional_phone((string) ($booking['customer_phone'] ?? ''));
+    $email = admin_normalize_optional_email((string) ($booking['customer_email'] ?? ''));
+    $phone = admin_normalize_optional_phone((string) ($booking['customer_phone'] ?? ''));
     $phoneNormalized = customer_sync_phone_key($phone);
 
     $guestLanguage = trim((string) ($booking['guest_language'] ?? ''));
-    $guestCountryCode = normalize_country_code((string) ($booking['guest_country_code'] ?? ''));
+    $guestCountryCode = admin_normalize_country_code((string) ($booking['guest_country_code'] ?? ''));
 
     $rawPayload = $booking['raw_payload'] ?? null;
     if (($guestLanguage === '' || $guestCountryCode === null) && is_string($rawPayload) && $rawPayload !== '') {
         $decoded = json_decode($rawPayload, true);
         if (is_array($decoded)) {
-            $guestLanguage = $guestLanguage !== '' ? $guestLanguage : trim((string) ($decoded['guest_language'] ?? $decoded['detected_language'] ?? $decoded['original_row']['_language'] ?? ''));
+            if ($guestLanguage === '') {
+                $guestLanguage = trim((string) (
+                    $decoded['guest_language']
+                    ?? $decoded['detected_language']
+                    ?? ($decoded['original_row']['_language'] ?? '')
+                ));
+            }
+
             if ($guestCountryCode === null) {
-                $candidateCountry = $decoded['guest_country_code'] ?? $decoded['original_row']['guest_country_code'] ?? null;
-                $guestCountryCode = normalize_country_code(is_string($candidateCountry) ? $candidateCountry : '');
+                $candidateCountry = $decoded['guest_country_code'] ?? ($decoded['original_row']['guest_country_code'] ?? null);
+                $guestCountryCode = admin_normalize_country_code(is_string($candidateCountry) ? $candidateCountry : '');
                 if ($guestCountryCode === null && $guestLanguage !== '') {
-                    $guestCountryCode = normalize_country_code(language_to_country_code($guestLanguage));
+                    $guestCountryCode = admin_normalize_country_code(customer_language_to_country_code($guestLanguage));
                 }
             }
         }
@@ -160,10 +173,10 @@ function customer_sync_upsert(PDO $pdo, array $customer, string $source = 'preno
     $payload = [
         'first_name' => trim((string) ($customer['first_name'] ?? '')),
         'last_name' => trim((string) ($customer['last_name'] ?? '')),
-        'email' => normalize_optional_email((string) ($customer['email'] ?? '')),
-        'phone' => normalize_optional_phone((string) ($customer['phone'] ?? '')),
+        'email' => admin_normalize_optional_email((string) ($customer['email'] ?? '')),
+        'phone' => admin_normalize_optional_phone((string) ($customer['phone'] ?? '')),
         'phone_normalized' => customer_sync_phone_key((string) ($customer['phone'] ?? '')),
-        'guest_country_code' => normalize_country_code((string) ($customer['guest_country_code'] ?? '')),
+        'guest_country_code' => admin_normalize_country_code((string) ($customer['guest_country_code'] ?? '')),
         'guest_language' => trim((string) ($customer['guest_language'] ?? '')) ?: null,
         'source' => trim($source) !== '' ? trim($source) : 'prenotazione_sync',
         'notes' => trim((string) ($customer['notes'] ?? '')) ?: null,
@@ -174,13 +187,13 @@ function customer_sync_upsert(PDO $pdo, array $customer, string $source = 'preno
             'id' => (int) $existing['id'],
             'first_name' => $payload['first_name'] !== '' ? $payload['first_name'] : (string) ($existing['first_name'] ?? ''),
             'last_name' => $payload['last_name'] !== '' ? $payload['last_name'] : (string) ($existing['last_name'] ?? ''),
-            'email' => $payload['email'] ?? (($existing['email'] ?? '') !== '' ? (string) $existing['email'] : null),
-            'phone' => $payload['phone'] ?? (($existing['phone'] ?? '') !== '' ? (string) $existing['phone'] : null),
-            'phone_normalized' => $payload['phone_normalized'] ?? (($existing['phone_normalized'] ?? '') !== '' ? (string) $existing['phone_normalized'] : null),
-            'guest_country_code' => $payload['guest_country_code'] ?? (($existing['guest_country_code'] ?? '') !== '' ? (string) $existing['guest_country_code'] : null),
-            'guest_language' => $payload['guest_language'] ?? (($existing['guest_language'] ?? '') !== '' ? (string) $existing['guest_language'] : null),
-            'source' => (string) ($existing['source'] ?? $payload['source']),
-            'notes' => $payload['notes'] ?? (($existing['notes'] ?? '') !== '' ? (string) $existing['notes'] : null),
+            'email' => $payload['email'] !== null ? $payload['email'] : (((string) ($existing['email'] ?? '')) !== '' ? (string) $existing['email'] : null),
+            'phone' => $payload['phone'] !== null ? $payload['phone'] : (((string) ($existing['phone'] ?? '')) !== '' ? (string) $existing['phone'] : null),
+            'phone_normalized' => $payload['phone_normalized'] !== null ? $payload['phone_normalized'] : (((string) ($existing['phone_normalized'] ?? '')) !== '' ? (string) $existing['phone_normalized'] : null),
+            'guest_country_code' => $payload['guest_country_code'] !== null ? $payload['guest_country_code'] : (((string) ($existing['guest_country_code'] ?? '')) !== '' ? (string) $existing['guest_country_code'] : null),
+            'guest_language' => $payload['guest_language'] !== null ? $payload['guest_language'] : (((string) ($existing['guest_language'] ?? '')) !== '' ? (string) $existing['guest_language'] : null),
+            'source' => ((string) ($existing['source'] ?? '')) !== '' ? (string) $existing['source'] : $payload['source'],
+            'notes' => $payload['notes'] !== null ? $payload['notes'] : (((string) ($existing['notes'] ?? '')) !== '' ? (string) $existing['notes'] : null),
         ];
 
         $stmt = $pdo->prepare('UPDATE clienti SET

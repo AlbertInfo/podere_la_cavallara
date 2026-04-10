@@ -29,12 +29,18 @@ function admin_normalize_guest_language(?string $value): string
         return 'it';
     }
 
-    return match ($normalized) {
-        'it', 'ita', 'italian', 'italiano' => 'it',
-        'de', 'deu', 'ger', 'german', 'tedesco', 'deutsch' => 'de',
-        'en', 'eng', 'english', 'inglese' => 'en',
-        default => 'it',
-    };
+    $map = [
+        'it' => 'it', 'ita' => 'it', 'italian' => 'it', 'italiano' => 'it',
+        'de' => 'de', 'deu' => 'de', 'ger' => 'de', 'german' => 'de', 'tedesco' => 'de', 'deutsch' => 'de',
+        'en' => 'en', 'eng' => 'en', 'english' => 'en', 'inglese' => 'en',
+    ];
+
+    return isset($map[$normalized]) ? $map[$normalized] : 'it';
+}
+
+function admin_source_contains(string $source, string $needle): bool
+{
+    return $needle !== '' && strpos($source, $needle) !== false;
 }
 
 function admin_infer_request_language(array $request): string
@@ -53,10 +59,10 @@ function admin_infer_request_language(array $request): string
     }
 
     $source = strtolower(trim((string) ($request['source'] ?? '')));
-    if (str_contains($source, '_de') || str_contains($source, 'german') || str_contains($source, 'deutsch')) {
+    if (admin_source_contains($source, '_de') || admin_source_contains($source, 'german') || admin_source_contains($source, 'deutsch')) {
         return 'de';
     }
-    if (str_contains($source, '_en') || str_contains($source, 'english')) {
+    if (admin_source_contains($source, '_en') || admin_source_contains($source, 'english')) {
         return 'en';
     }
 
@@ -90,11 +96,12 @@ function admin_extract_stay_dates(string $stayPeriod): array
 
 function admin_booking_template_path(string $language): ?string
 {
-    $suffix = match ($language) {
-        'de' => '_DE',
-        'en' => '_EN',
-        default => '',
-    };
+    $suffix = '';
+    if ($language === 'de') {
+        $suffix = '_DE';
+    } elseif ($language === 'en') {
+        $suffix = '_EN';
+    }
 
     $candidates = [
         dirname(__DIR__) . '/email-templates/confirmation' . $suffix . '.html',
@@ -127,59 +134,25 @@ function admin_booking_confirmation_copy(string $language, array $booking): arra
     if ($language === 'de') {
         return [
             'subject' => 'Ihre Buchung ist bestätigt - Podere La Cavallara',
-            'heading_from' => 'Vielen Dank für Ihre Kontaktaufnahme!',
-            'heading_to' => 'Ihre Buchung ist bestätigt!',
-            'section_from' => 'Anfrage',
-            'section_to' => 'Buchungsbestätigung',
             'content' => "
                 <p>Liebe/r {$name},</p>
                 <p>herzlichen Glückwunsch, Ihre Buchung wurde erfolgreich bestätigt.</p>
                 <p>Wir freuen uns darauf, Sie im <strong>Podere La Cavallara</strong> in Montefiascone willkommen zu heißen.</p>
                 <h3 style='margin:26px 0 12px;'>Buchungsübersicht</h3>
                 <table cellpadding='8' cellspacing='0' width='100%' style='border-collapse:collapse;'>
-                    <tr>
-                        <td style='border-bottom:1px solid #ddd; width:180px;'><strong>Name</strong></td>
-                        <td style='border-bottom:1px solid #ddd;'>{$name}</td>
-                    </tr>
-                    <tr>
-                        <td style='border-bottom:1px solid #ddd;'><strong>E-Mail</strong></td>
-                        <td style='border-bottom:1px solid #ddd;'>{$email}</td>
-                    </tr>
-                    <tr>
-                        <td style='border-bottom:1px solid #ddd;'><strong>Aufenthalt</strong></td>
-                        <td style='border-bottom:1px solid #ddd;'>{$stay}</td>
-                    </tr>
-                    <tr>
-                        <td style='border-bottom:1px solid #ddd;'><strong>Unterkunft</strong></td>
-                        <td style='border-bottom:1px solid #ddd;'>{$room}</td>
-                    </tr>
-                    <tr>
-                        <td style='border-bottom:1px solid #ddd;'><strong>Erwachsene</strong></td>
-                        <td style='border-bottom:1px solid #ddd;'>{$adults}</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Kinder</strong></td>
-                        <td>{$children}</td>
-                    </tr>
+                    <tr><td style='border-bottom:1px solid #ddd; width:180px;'><strong>Name</strong></td><td style='border-bottom:1px solid #ddd;'>{$name}</td></tr>
+                    <tr><td style='border-bottom:1px solid #ddd;'><strong>E-Mail</strong></td><td style='border-bottom:1px solid #ddd;'>{$email}</td></tr>
+                    <tr><td style='border-bottom:1px solid #ddd;'><strong>Aufenthalt</strong></td><td style='border-bottom:1px solid #ddd;'>{$stay}</td></tr>
+                    <tr><td style='border-bottom:1px solid #ddd;'><strong>Unterkunft</strong></td><td style='border-bottom:1px solid #ddd;'>{$room}</td></tr>
+                    <tr><td style='border-bottom:1px solid #ddd;'><strong>Erwachsene</strong></td><td style='border-bottom:1px solid #ddd;'>{$adults}</td></tr>
+                    <tr><td><strong>Kinder</strong></td><td>{$children}</td></tr>
                 </table>
                 <h3 style='margin:26px 0 12px;'>Ihre Unterkunft</h3>
                 <table cellpadding='8' cellspacing='0' width='100%' style='border-collapse:collapse;'>
-                    <tr>
-                        <td style='border-bottom:1px solid #ddd; width:180px;'><strong>Struktur</strong></td>
-                        <td style='border-bottom:1px solid #ddd;'>Podere La Cavallara</td>
-                    </tr>
-                    <tr>
-                        <td style='border-bottom:1px solid #ddd;'><strong>Ort</strong></td>
-                        <td style='border-bottom:1px solid #ddd;'>Montefiascone, Italien</td>
-                    </tr>
-                    <tr>
-                        <td style='border-bottom:1px solid #ddd;'><strong>Website</strong></td>
-                        <td style='border-bottom:1px solid #ddd;'><a href='{$websiteEscaped}' target='_blank' rel='noopener'>{$websiteEscaped}</a></td>
-                    </tr>
-                    <tr>
-                        <td><strong>E-Mail</strong></td>
-                        <td>{$structureEmail}</td>
-                    </tr>
+                    <tr><td style='border-bottom:1px solid #ddd; width:180px;'><strong>Struktur</strong></td><td style='border-bottom:1px solid #ddd;'>Podere La Cavallara</td></tr>
+                    <tr><td style='border-bottom:1px solid #ddd;'><strong>Ort</strong></td><td style='border-bottom:1px solid #ddd;'>Montefiascone, Italien</td></tr>
+                    <tr><td style='border-bottom:1px solid #ddd;'><strong>Website</strong></td><td style='border-bottom:1px solid #ddd;'><a href='{$websiteEscaped}' target='_blank' rel='noopener'>{$websiteEscaped}</a></td></tr>
+                    <tr><td><strong>E-Mail</strong></td><td>{$structureEmail}</td></tr>
                 </table>
                 <p style='margin-top:20px;'>Bei Fragen können Sie gerne direkt auf diese E-Mail antworten.</p>
             ",
@@ -189,202 +162,135 @@ function admin_booking_confirmation_copy(string $language, array $booking): arra
     if ($language === 'en') {
         return [
             'subject' => 'Your booking is confirmed - Podere La Cavallara',
-            'heading_from' => 'Thank you for contacting us!',
-            'heading_to' => 'Your booking is confirmed!',
-            'section_from' => 'Request',
-            'section_to' => 'Booking confirmation',
             'content' => "
                 <p>Dear {$name},</p>
                 <p>great news: your booking has been successfully confirmed.</p>
                 <p>We look forward to welcoming you to <strong>Podere La Cavallara</strong> in Montefiascone.</p>
                 <h3 style='margin:26px 0 12px;'>Booking summary</h3>
                 <table cellpadding='8' cellspacing='0' width='100%' style='border-collapse:collapse;'>
-                    <tr>
-                        <td style='border-bottom:1px solid #ddd; width:180px;'><strong>Name</strong></td>
-                        <td style='border-bottom:1px solid #ddd;'>{$name}</td>
-                    </tr>
-                    <tr>
-                        <td style='border-bottom:1px solid #ddd;'><strong>Email</strong></td>
-                        <td style='border-bottom:1px solid #ddd;'>{$email}</td>
-                    </tr>
-                    <tr>
-                        <td style='border-bottom:1px solid #ddd;'><strong>Stay dates</strong></td>
-                        <td style='border-bottom:1px solid #ddd;'>{$stay}</td>
-                    </tr>
-                    <tr>
-                        <td style='border-bottom:1px solid #ddd;'><strong>Accommodation</strong></td>
-                        <td style='border-bottom:1px solid #ddd;'>{$room}</td>
-                    </tr>
-                    <tr>
-                        <td style='border-bottom:1px solid #ddd;'><strong>Adults</strong></td>
-                        <td style='border-bottom:1px solid #ddd;'>{$adults}</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Children</strong></td>
-                        <td>{$children}</td>
-                    </tr>
+                    <tr><td style='border-bottom:1px solid #ddd; width:180px;'><strong>Name</strong></td><td style='border-bottom:1px solid #ddd;'>{$name}</td></tr>
+                    <tr><td style='border-bottom:1px solid #ddd;'><strong>Email</strong></td><td style='border-bottom:1px solid #ddd;'>{$email}</td></tr>
+                    <tr><td style='border-bottom:1px solid #ddd;'><strong>Stay dates</strong></td><td style='border-bottom:1px solid #ddd;'>{$stay}</td></tr>
+                    <tr><td style='border-bottom:1px solid #ddd;'><strong>Accommodation</strong></td><td style='border-bottom:1px solid #ddd;'>{$room}</td></tr>
+                    <tr><td style='border-bottom:1px solid #ddd;'><strong>Adults</strong></td><td style='border-bottom:1px solid #ddd;'>{$adults}</td></tr>
+                    <tr><td><strong>Children</strong></td><td>{$children}</td></tr>
                 </table>
-                <h3 style='margin:26px 0 12px;'>Property details</h3>
+                <h3 style='margin:26px 0 12px;'>Your stay</h3>
                 <table cellpadding='8' cellspacing='0' width='100%' style='border-collapse:collapse;'>
-                    <tr>
-                        <td style='border-bottom:1px solid #ddd; width:180px;'><strong>Property</strong></td>
-                        <td style='border-bottom:1px solid #ddd;'>Podere La Cavallara</td>
-                    </tr>
-                    <tr>
-                        <td style='border-bottom:1px solid #ddd;'><strong>Location</strong></td>
-                        <td style='border-bottom:1px solid #ddd;'>Montefiascone, Italy</td>
-                    </tr>
-                    <tr>
-                        <td style='border-bottom:1px solid #ddd;'><strong>Website</strong></td>
-                        <td style='border-bottom:1px solid #ddd;'><a href='{$websiteEscaped}' target='_blank' rel='noopener'>{$websiteEscaped}</a></td>
-                    </tr>
-                    <tr>
-                        <td><strong>Email</strong></td>
-                        <td>{$structureEmail}</td>
-                    </tr>
+                    <tr><td style='border-bottom:1px solid #ddd; width:180px;'><strong>Property</strong></td><td style='border-bottom:1px solid #ddd;'>Podere La Cavallara</td></tr>
+                    <tr><td style='border-bottom:1px solid #ddd;'><strong>Location</strong></td><td style='border-bottom:1px solid #ddd;'>Montefiascone, Italy</td></tr>
+                    <tr><td style='border-bottom:1px solid #ddd;'><strong>Website</strong></td><td style='border-bottom:1px solid #ddd;'><a href='{$websiteEscaped}' target='_blank' rel='noopener'>{$websiteEscaped}</a></td></tr>
+                    <tr><td><strong>Email</strong></td><td>{$structureEmail}</td></tr>
                 </table>
-                <p style='margin-top:20px;'>If you need anything, you can simply reply to this email.</p>
+                <p style='margin-top:20px;'>If you have any questions, just reply to this email.</p>
             ",
         ];
     }
 
     return [
-        'subject' => 'Prenotazione confermata - Podere La Cavallara',
-        'heading_from' => 'Grazie per averci contattato!',
-        'heading_to' => 'La tua prenotazione è confermata!',
-        'section_from' => 'Richiesta',
-        'section_to' => 'Prenotazione confermata',
+        'subject' => 'La tua prenotazione è confermata - Podere La Cavallara',
         'content' => "
-            <p>Gentile {$name},</p>
-            <p>complimenti, la tua prenotazione è stata confermata con successo.</p>
+            <p>Ciao {$name},</p>
+            <p>complimenti, la tua prenotazione è andata a buon fine.</p>
             <p>Ti aspettiamo a <strong>Podere La Cavallara</strong>, a Montefiascone, per il tuo soggiorno.</p>
             <h3 style='margin:26px 0 12px;'>Riepilogo prenotazione</h3>
             <table cellpadding='8' cellspacing='0' width='100%' style='border-collapse:collapse;'>
-                <tr>
-                    <td style='border-bottom:1px solid #ddd; width:180px;'><strong>Nome</strong></td>
-                    <td style='border-bottom:1px solid #ddd;'>{$name}</td>
-                </tr>
-                <tr>
-                    <td style='border-bottom:1px solid #ddd;'><strong>Email</strong></td>
-                    <td style='border-bottom:1px solid #ddd;'>{$email}</td>
-                </tr>
-                <tr>
-                    <td style='border-bottom:1px solid #ddd;'><strong>Soggiorno</strong></td>
-                    <td style='border-bottom:1px solid #ddd;'>{$stay}</td>
-                </tr>
-                <tr>
-                    <td style='border-bottom:1px solid #ddd;'><strong>Sistemazione</strong></td>
-                    <td style='border-bottom:1px solid #ddd;'>{$room}</td>
-                </tr>
-                <tr>
-                    <td style='border-bottom:1px solid #ddd;'><strong>Adulti</strong></td>
-                    <td style='border-bottom:1px solid #ddd;'>{$adults}</td>
-                </tr>
-                <tr>
-                    <td><strong>Bambini</strong></td>
-                    <td>{$children}</td>
-                </tr>
+                <tr><td style='border-bottom:1px solid #ddd; width:180px;'><strong>Nome</strong></td><td style='border-bottom:1px solid #ddd;'>{$name}</td></tr>
+                <tr><td style='border-bottom:1px solid #ddd;'><strong>Email</strong></td><td style='border-bottom:1px solid #ddd;'>{$email}</td></tr>
+                <tr><td style='border-bottom:1px solid #ddd;'><strong>Soggiorno</strong></td><td style='border-bottom:1px solid #ddd;'>{$stay}</td></tr>
+                <tr><td style='border-bottom:1px solid #ddd;'><strong>Soluzione</strong></td><td style='border-bottom:1px solid #ddd;'>{$room}</td></tr>
+                <tr><td style='border-bottom:1px solid #ddd;'><strong>Adulti</strong></td><td style='border-bottom:1px solid #ddd;'>{$adults}</td></tr>
+                <tr><td><strong>Bambini</strong></td><td>{$children}</td></tr>
             </table>
             <h3 style='margin:26px 0 12px;'>Dati struttura</h3>
             <table cellpadding='8' cellspacing='0' width='100%' style='border-collapse:collapse;'>
-                <tr>
-                    <td style='border-bottom:1px solid #ddd; width:180px;'><strong>Struttura</strong></td>
-                    <td style='border-bottom:1px solid #ddd;'>Podere La Cavallara</td>
-                </tr>
-                <tr>
-                    <td style='border-bottom:1px solid #ddd;'><strong>Località</strong></td>
-                    <td style='border-bottom:1px solid #ddd;'>Montefiascone, Italia</td>
-                </tr>
-                <tr>
-                    <td style='border-bottom:1px solid #ddd;'><strong>Sito web</strong></td>
-                    <td style='border-bottom:1px solid #ddd;'><a href='{$websiteEscaped}' target='_blank' rel='noopener'>{$websiteEscaped}</a></td>
-                </tr>
-                <tr>
-                    <td><strong>Email</strong></td>
-                    <td>{$structureEmail}</td>
-                </tr>
+                <tr><td style='border-bottom:1px solid #ddd; width:180px;'><strong>Struttura</strong></td><td style='border-bottom:1px solid #ddd;'>Podere La Cavallara</td></tr>
+                <tr><td style='border-bottom:1px solid #ddd;'><strong>Località</strong></td><td style='border-bottom:1px solid #ddd;'>Montefiascone, Italia</td></tr>
+                <tr><td style='border-bottom:1px solid #ddd;'><strong>Sito web</strong></td><td style='border-bottom:1px solid #ddd;'><a href='{$websiteEscaped}' target='_blank' rel='noopener'>{$websiteEscaped}</a></td></tr>
+                <tr><td><strong>Email</strong></td><td>{$structureEmail}</td></tr>
             </table>
-            <p style='margin-top:20px;'>Per qualsiasi necessità puoi rispondere direttamente a questa email.</p>
+            <p style='margin-top:20px;'>Per qualsiasi esigenza puoi rispondere direttamente a questa email.</p>
         ",
     ];
 }
 
-function admin_build_booking_confirmation_body(string $language, array $booking): string
-{
-    $copy = admin_booking_confirmation_copy($language, $booking);
-    $templatePath = admin_booking_template_path($language);
-
-    if ($templatePath === null) {
-        return $copy['content'];
-    }
-
-    $html = (string) file_get_contents($templatePath);
-    $html = str_replace($copy['heading_from'], $copy['heading_to'], $html);
-    $html = str_replace($copy['section_from'], $copy['section_to'], $html);
-    $html = str_replace(['message', 'messaggio'], $copy['content'], $html);
-
-    return $html;
-}
-
 function admin_send_booking_confirmation_email(array $booking, string $language): array
 {
-    global $MAIL_FROM, $MAIL_FROM_NAME, $MAIL_ADMIN, $MAIL_ADMIN_NAME, $SMTP_HOST, $SMTP_USER, $SMTP_PASS, $SMTP_PORT;
-
     $customerEmail = trim((string) ($booking['customer_email'] ?? ''));
     if ($customerEmail === '' || !filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
         return [
             'success' => false,
             'skipped' => true,
-            'message' => 'Email cliente assente o non valida.',
             'language' => $language,
+            'message' => 'Indirizzo email del cliente non disponibile o non valido.',
         ];
     }
 
+    $language = admin_normalize_guest_language($language);
     $copy = admin_booking_confirmation_copy($language, $booking);
-    $body = admin_build_booking_confirmation_body($language, $booking);
+    $templatePath = admin_booking_template_path($language);
+    $html = null;
 
-    if (!class_exists('PHPMailer\\PHPMailer\\PHPMailer')) {
-        return [
-            'success' => false,
-            'skipped' => false,
-            'message' => 'PHPMailer non disponibile nel progetto admin.',
-            'language' => $language,
-        ];
+    if ($templatePath !== null) {
+        $html = @file_get_contents($templatePath);
+        if (is_string($html) && $html !== '') {
+            $message = $copy['content'];
+            $html = str_replace(['{{message}}', '[message]'], $message, $html);
+        }
     }
+
+    if (!is_string($html) || $html === '') {
+        $html = '<html><body style="font-family:Arial,sans-serif;background:#f5f5f5;padding:24px;">'
+            . '<div style="max-width:700px;margin:0 auto;background:#fff;padding:28px;border-radius:12px;">'
+            . $copy['content']
+            . '</div></body></html>';
+    }
+
+    global $MAIL_FROM, $MAIL_FROM_NAME, $MAIL_ADMIN, $MAIL_ADMIN_NAME, $SMTP_HOST, $SMTP_USER, $SMTP_PASS, $SMTP_PORT;
 
     try {
-        $mail = new PHPMailer\PHPMailer\PHPMailer(true);
-        $mail->isSMTP();
-        $mail->Host = $SMTP_HOST;
-        $mail->SMTPAuth = true;
-        $mail->Username = $SMTP_USER;
-        $mail->Password = $SMTP_PASS;
-        $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port = $SMTP_PORT;
-        $mail->CharSet = 'UTF-8';
-        $mail->setFrom($MAIL_FROM, $MAIL_FROM_NAME);
-        $mail->addAddress($customerEmail, (string) ($booking['customer_name'] ?? ''));
-        if (!empty($MAIL_ADMIN)) {
-            $mail->addReplyTo($MAIL_ADMIN, $MAIL_ADMIN_NAME ?? $MAIL_FROM_NAME);
-        }
-        $mail->isHTML(true);
-        $mail->Subject = $copy['subject'];
-        $mail->Body = $body;
-        $mail->AltBody = strip_tags(str_replace(['<br>', '<br/>', '<br />'], "\n", $body));
-        $mail->send();
+        if (class_exists('PHPMailer\\PHPMailer\\PHPMailer')) {
+            $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+            $mail->isSMTP();
+            $mail->Host = $SMTP_HOST;
+            $mail->SMTPAuth = true;
+            $mail->Username = $SMTP_USER;
+            $mail->Password = $SMTP_PASS;
+            $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->Port = $SMTP_PORT;
+            $mail->CharSet = 'UTF-8';
+            $mail->setFrom($MAIL_FROM, $MAIL_FROM_NAME);
+            $mail->addAddress($customerEmail, (string) ($booking['customer_name'] ?? 'Ospite'));
+            if (!empty($MAIL_ADMIN)) {
+                $mail->addReplyTo($MAIL_ADMIN, $MAIL_ADMIN_NAME ?? $MAIL_FROM_NAME);
+            }
+            $mail->isHTML(true);
+            $mail->Subject = $copy['subject'];
+            $mail->Body = $html;
+            $mail->send();
 
-        return [
-            'success' => true,
-            'skipped' => false,
-            'message' => 'Email di conferma inviata correttamente.',
-            'language' => $language,
-        ];
+            return [
+                'success' => true,
+                'language' => $language,
+                'message' => 'Email inviata correttamente.',
+            ];
+        }
     } catch (Throwable $e) {
         return [
             'success' => false,
-            'skipped' => false,
-            'message' => $e->getMessage(),
             'language' => $language,
+            'message' => $e->getMessage(),
         ];
     }
+
+    $headers = "MIME-Version: 1.0\r\n";
+    $headers .= "Content-type:text/html;charset=UTF-8\r\n";
+    $headers .= 'From: ' . ($MAIL_FROM_NAME ?? 'Podere La Cavallara') . ' <' . $MAIL_FROM . ">\r\n";
+    $sent = @mail($customerEmail, $copy['subject'], $html, $headers);
+
+    return [
+        'success' => (bool) $sent,
+        'language' => $language,
+        'message' => $sent ? 'Email inviata correttamente.' : 'Invio email tramite mail() non riuscito.',
+    ];
 }

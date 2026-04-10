@@ -24,7 +24,7 @@ if (!$request) {
 }
 
 $language = admin_infer_request_language($request);
-[$checkInIso, $checkOutIso] = admin_extract_stay_dates((string) ($request['date_booking'] ?? ''));
+list($checkInIso, $checkOutIso) = admin_extract_stay_dates((string) ($request['date_booking'] ?? ''));
 $customerEmail = trim((string) ($request['email_booking'] ?? ''));
 $customerPhone = trim((string) ($request['phone_booking'] ?? ''));
 $adults = (int) ($request['adults_booking'] ?? 0);
@@ -83,7 +83,11 @@ foreach ($optionalColumns as $column => $value) {
     }
 }
 
-$placeholders = array_map(static fn(string $column): string => ':' . $column, $columns);
+$placeholders = [];
+foreach ($columns as $column) {
+    $placeholders[] = ':' . $column;
+}
+
 $sql = sprintf(
     'INSERT INTO prenotazioni (%s) VALUES (%s)',
     implode(', ', $columns),
@@ -135,7 +139,7 @@ $updateParams = ['id' => $prenotazioneId];
 
 if (admin_db_has_column($pdo, 'prenotazioni', 'booking_confirmation_language')) {
     $updateFields[] = 'booking_confirmation_language = :booking_confirmation_language';
-    $updateParams['booking_confirmation_language'] = $mailResult['language'] ?? $language;
+    $updateParams['booking_confirmation_language'] = isset($mailResult['language']) ? $mailResult['language'] : $language;
 }
 
 if (admin_db_has_column($pdo, 'prenotazioni', 'booking_confirmation_sent_at') && !empty($mailResult['success'])) {
@@ -147,7 +151,7 @@ if (admin_db_has_column($pdo, 'prenotazioni', 'booking_confirmation_error')) {
     $updateParams['booking_confirmation_error'] = !empty($mailResult['success']) ? null : (string) ($mailResult['message'] ?? 'Invio email non riuscito.');
 }
 
-if ($updateFields !== []) {
+if (!empty($updateFields)) {
     $updateSql = 'UPDATE prenotazioni SET ' . implode(', ', $updateFields) . ' WHERE id = :id LIMIT 1';
     $updateStmt = $pdo->prepare($updateSql);
     $updateStmt->execute($updateParams);

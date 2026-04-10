@@ -32,7 +32,7 @@ if ($data['customer_name'] === '' || $data['stay_period'] === '' || $data['room_
     exit;
 }
 
-$normalizedEmail = normalize_optional_email($data['customer_email']);
+$normalizedEmail = admin_normalize_optional_email($data['customer_email']);
 if ($data['customer_email'] !== '' && $normalizedEmail === null) {
     set_flash('error', 'Inserisci un indirizzo email valido oppure lascia il campo vuoto.');
     header('Location: ' . admin_url('edit-prenotazione.php?id=' . $id));
@@ -45,8 +45,8 @@ if (!in_array($data['status'], ['confermata', 'in_attesa', 'annullata'], true)) 
     exit;
 }
 
-$dates = parse_stay_period_dates($data['stay_period']);
-$normalizedPhone = normalize_optional_phone($data['customer_phone']);
+$dates = admin_parse_stay_period_dates($data['stay_period']);
+$normalizedPhone = admin_normalize_optional_phone($data['customer_phone']);
 
 $stmt = $pdo->prepare('UPDATE prenotazioni SET
     customer_name = :customer_name,

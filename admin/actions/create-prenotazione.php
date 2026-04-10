@@ -31,7 +31,7 @@ if ($stayPeriod === '' || $roomType === '' || $customerName === '') {
     exit;
 }
 
-$normalizedEmail = normalize_optional_email($customerEmail);
+$normalizedEmail = admin_normalize_optional_email($customerEmail);
 if ($customerEmail !== '' && $normalizedEmail === null) {
     set_flash('error', 'Inserisci un indirizzo email valido oppure lascia il campo vuoto.');
     header('Location: ' . admin_url('new-prenotazione.php'));
@@ -52,7 +52,8 @@ if ($source === '') {
     $source = 'manual_admin';
 }
 
-$dates = parse_stay_period_dates($stayPeriod);
+$dates = admin_parse_stay_period_dates($stayPeriod);
+$normalizedPhone = admin_normalize_optional_phone($customerPhone);
 
 $stmt = $pdo->prepare(
     'INSERT INTO prenotazioni (
@@ -105,7 +106,7 @@ $stmt->execute([
     'customer_name' => $customerName,
     'customer_email' => $normalizedEmail,
     'email_missing' => $normalizedEmail === null ? 1 : 0,
-    'customer_phone' => normalize_optional_phone($customerPhone),
+    'customer_phone' => $normalizedPhone,
     'stay_period' => $stayPeriod,
     'check_in' => $dates['check_in'],
     'check_out' => $dates['check_out'],
@@ -124,7 +125,7 @@ customer_sync_booking_row($pdo, [
     'id' => $prenotazioneId,
     'customer_name' => $customerName,
     'customer_email' => $normalizedEmail,
-    'customer_phone' => normalize_optional_phone($customerPhone),
+    'customer_phone' => $normalizedPhone,
     'raw_payload' => $rawPayload,
 ], 'prenotazione_manuale');
 

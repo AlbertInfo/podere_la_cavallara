@@ -49,7 +49,7 @@ if ($stayPeriod === '' || $roomType === '' || $customerName === '' || $externalR
     exit;
 }
 
-$normalizedEmail = normalize_optional_email($customerEmail);
+$normalizedEmail = admin_normalize_optional_email($customerEmail);
 if ($customerEmail !== '' && $normalizedEmail === null) {
     set_flash('error', 'Inserisci un indirizzo email valido oppure lascia il campo vuoto.');
     header('Location: ' . admin_url('import-interhome-review.php?row=' . urlencode($rowId)));
@@ -61,16 +61,16 @@ if (!in_array($status, $allowedStatuses, true)) {
     $status = 'confermata';
 }
 
-$dates = parse_stay_period_dates($stayPeriod);
-$normalizedPhone = normalize_optional_phone($customerPhone);
-$propertyCode = extract_property_code($row['_raw_property'] ?? '');
+$dates = admin_parse_stay_period_dates($stayPeriod);
+$normalizedPhone = admin_normalize_optional_phone($customerPhone);
+$propertyCode = admin_extract_property_code(isset($row['_raw_property']) ? $row['_raw_property'] : '');
 $guestLanguage = trim((string) ($row['_language'] ?? ''));
-$guestCountryCode = normalize_country_code(language_to_country_code($guestLanguage));
+$guestCountryCode = admin_normalize_country_code(customer_language_to_country_code($guestLanguage));
 
 $checkExisting = $pdo->prepare('SELECT id FROM prenotazioni WHERE external_reference = :external_reference LIMIT 1');
 $checkExisting->execute(['external_reference' => $externalReference]);
 if ($checkExisting->fetch(PDO::FETCH_ASSOC)) {
-    $_SESSION['interhome_import']['rows'] = array_values(array_filter($import['rows'], static function (array $r) use ($rowId): bool {
+    $_SESSION['interhome_import']['rows'] = array_values(array_filter($import['rows'], function ($r) use ($rowId) {
         return ($r['import_row_id'] ?? '') !== $rowId;
     }));
     $_SESSION['interhome_import']['summary']['new_total'] = count($_SESSION['interhome_import']['rows']);
@@ -168,7 +168,7 @@ if ($success) {
         'raw_payload' => $rawPayload,
     ], 'interhome_pdf');
 
-    $_SESSION['interhome_import']['rows'] = array_values(array_filter($import['rows'], static function (array $r) use ($rowId): bool {
+    $_SESSION['interhome_import']['rows'] = array_values(array_filter($import['rows'], function ($r) use ($rowId) {
         return ($r['import_row_id'] ?? '') !== $rowId;
     }));
     $_SESSION['interhome_import']['summary']['new_total'] = count($_SESSION['interhome_import']['rows']);

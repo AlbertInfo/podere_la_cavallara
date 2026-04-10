@@ -24,7 +24,7 @@ $firstName = trim((string) ($_POST['first_name'] ?? ''));
 $lastName = trim((string) ($_POST['last_name'] ?? ''));
 $emailInput = trim((string) ($_POST['email'] ?? ''));
 $phoneInput = trim((string) ($_POST['phone'] ?? ''));
-$countryCode = normalize_country_code((string) ($_POST['guest_country_code'] ?? ''));
+$countryCode = admin_normalize_country_code((string) ($_POST['guest_country_code'] ?? ''));
 $guestLanguage = trim((string) ($_POST['guest_language'] ?? ''));
 $notes = trim((string) ($_POST['notes'] ?? ''));
 
@@ -34,14 +34,14 @@ if ($firstName === '' && $lastName === '') {
     exit;
 }
 
-$email = normalize_optional_email($emailInput);
+$email = admin_normalize_optional_email($emailInput);
 if ($emailInput !== '' && $email === null) {
     set_flash('error', 'Inserisci un indirizzo email valido oppure lascia il campo vuoto.');
     header('Location: ' . admin_url('clienti.php'));
     exit;
 }
 
-$phone = normalize_optional_phone($phoneInput);
+$phone = admin_normalize_optional_phone($phoneInput);
 $phoneNormalized = customer_sync_phone_key($phone);
 
 $stmt = $pdo->prepare('UPDATE clienti SET
