@@ -1,6 +1,7 @@
 <?php
 require_once dirname(__DIR__) . '/includes/auth.php';
 require_once dirname(__DIR__) . '/includes/db.php';
+require_once dirname(__DIR__) . '/includes/customer-sync.php';
 require_admin();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -63,6 +64,8 @@ if (!in_array($status, $allowedStatuses, true)) {
 $dates = parse_stay_period_dates($stayPeriod);
 $normalizedPhone = normalize_optional_phone($customerPhone);
 $propertyCode = extract_property_code($row['_raw_property'] ?? '');
+$guestLanguage = trim((string) ($row['_language'] ?? ''));
+$guestCountryCode = normalize_country_code(language_to_country_code($guestLanguage));
 
 $checkExisting = $pdo->prepare('SELECT id FROM prenotazioni WHERE external_reference = :external_reference LIMIT 1');
 $checkExisting->execute(['external_reference' => $externalReference]);
@@ -94,6 +97,8 @@ $stmt = $pdo->prepare(
         status,
         source,
         external_reference,
+        guest_language,
+        guest_country_code,
         raw_payload,
         imported_at,
         created_at,
@@ -115,6 +120,8 @@ $stmt = $pdo->prepare(
         :status,
         :source,
         :external_reference,
+        :guest_language,
+        :guest_country_code,
         :raw_payload,
         NOW(),
         NOW(),
@@ -144,10 +151,23 @@ $success = $stmt->execute([
     'status' => $status,
     'source' => $source,
     'external_reference' => $externalReference,
+    'guest_language' => $guestLanguage !== '' ? $guestLanguage : null,
+    'guest_country_code' => $guestCountryCode,
     'raw_payload' => $rawPayload,
 ]);
 
 if ($success) {
+    $prenotazioneId = (int) $pdo->lastInsertId();
+    customer_sync_booking_row($pdo, [
+        'id' => $prenotazioneId,
+        'customer_name' => $customerName,
+        'customer_email' => $normalizedEmail,
+        'customer_phone' => $normalizedPhone,
+        'guest_language' => $guestLanguage,
+        'guest_country_code' => $guestCountryCode,
+        'raw_payload' => $rawPayload,
+    ], 'interhome_pdf');
+
     $_SESSION['interhome_import']['rows'] = array_values(array_filter($import['rows'], static function (array $r) use ($rowId): bool {
         return ($r['import_row_id'] ?? '') !== $rowId;
     }));

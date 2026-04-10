@@ -13,6 +13,7 @@ $sidebarCounters = [
     'registered_bookings' => 0,
     'booking_requests' => 0,
     'contact_requests' => 0,
+    'clienti' => 0,
 ];
 
 if ($currentAdmin && isset($pdo) && $pdo instanceof PDO) {
@@ -20,11 +21,18 @@ if ($currentAdmin && isset($pdo) && $pdo instanceof PDO) {
         $sidebarCounters['registered_bookings'] = (int) $pdo->query('SELECT COUNT(*) FROM prenotazioni')->fetchColumn();
         $sidebarCounters['booking_requests'] = (int) $pdo->query('SELECT COUNT(*) FROM booking_requests')->fetchColumn();
         $sidebarCounters['contact_requests'] = (int) $pdo->query('SELECT COUNT(*) FROM contact_requests')->fetchColumn();
+
+        try {
+            $sidebarCounters['clienti'] = (int) $pdo->query('SELECT COUNT(*) FROM clienti')->fetchColumn();
+        } catch (Throwable $e) {
+            $sidebarCounters['clienti'] = 0;
+        }
     } catch (Throwable $e) {
         $sidebarCounters = [
             'registered_bookings' => 0,
             'booking_requests' => 0,
             'contact_requests' => 0,
+            'clienti' => 0,
         ];
     }
 }
@@ -61,6 +69,11 @@ if ($currentAdmin && isset($pdo) && $pdo instanceof PDO) {
                     <a class="sidebar-link<?= admin_nav_active(['index.php'], $currentPath) ?>" href="<?= e(admin_url('index.php#registered-bookings')) ?>">
                         <span class="sidebar-link__content">Prenotazioni registrate</span>
                         <span class="sidebar-counter"><?= (int) $sidebarCounters['registered_bookings'] ?></span>
+                    </a>
+
+                    <a class="sidebar-link<?= admin_nav_active(['clienti.php'], $currentPath) ?>" href="<?= e(admin_url('clienti.php')) ?>">
+                        <span class="sidebar-link__content">Storico clienti</span>
+                        <span class="sidebar-counter"><?= (int) $sidebarCounters['clienti'] ?></span>
                     </a>
 
                     <a class="sidebar-link<?= admin_nav_active(['new-prenotazione.php'], $currentPath) ?>" href="<?= e(admin_url('new-prenotazione.php')) ?>">
@@ -112,6 +125,7 @@ if ($currentAdmin && isset($pdo) && $pdo instanceof PDO) {
                         <img src="<?= e(admin_url('assets/img/logo.svg')) ?>" alt="Podere La Cavallara">
                     </a>
                     <div class="topbar-actions">
+                        <a class="btn btn-light btn-sm" href="<?= e(admin_url('clienti.php')) ?>">Clienti</a>
                         <a class="btn btn-light btn-sm" href="<?= e(admin_url('file-manager.php')) ?>">Archivio PDF</a>
                         <a class="btn btn-light btn-sm" href="<?= e(admin_url('import-interhome-pdf.php')) ?>">Importa PDF</a>
                         <a class="btn btn-primary btn-sm" href="<?= e(admin_url('new-prenotazione.php')) ?>">Nuova prenotazione</a>

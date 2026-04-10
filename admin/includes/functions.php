@@ -121,7 +121,6 @@ function validate_password_reset(PDO $pdo, string $email, string $token): ?array
     return null;
 }
 
-
 function normalize_optional_email(string $email): ?string
 {
     $email = trim($email);
@@ -143,7 +142,8 @@ function normalize_optional_phone(string $phone): ?string
         return null;
     }
 
-    return $phone;
+    $phone = preg_replace('/\s+/u', ' ', $phone);
+    return $phone !== null ? trim($phone) : trim($phone);
 }
 
 function parse_stay_period_dates(string $stayPeriod): array
@@ -200,6 +200,37 @@ function extract_property_code(?string $rawProperty): ?string
     }
 
     return null;
+}
+
+function language_to_country_code(?string $language): ?string
+{
+    $language = trim((string) $language);
+    if ($language === '') {
+        return null;
+    }
+
+    return match ($language) {
+        'Italiano', 'Italian', 'IT', 'it' => 'it',
+        'Inglese', 'English', 'EN', 'en' => 'gb',
+        'Tedesco', 'Deutsch', 'German', 'DE', 'de' => 'de',
+        'Ceco', 'Czech', 'CZ', 'cz' => 'cz',
+        'Polacco', 'Polish', 'PL', 'pl' => 'pl',
+        'Olandese', 'Dutch', 'NL', 'nl' => 'nl',
+        'Francese', 'French', 'FR', 'fr' => 'fr',
+        'Spagnolo', 'Spanish', 'ES', 'es' => 'es',
+        default => null,
+    };
+}
+
+function normalize_country_code(?string $countryCode): ?string
+{
+    $countryCode = strtolower(trim((string) $countryCode));
+    if ($countryCode === '') {
+        return null;
+    }
+
+    $allowed = ['it', 'gb', 'de', 'cz', 'pl', 'nl', 'fr', 'es'];
+    return in_array($countryCode, $allowed, true) ? $countryCode : null;
 }
 
 function json_response(array $payload, int $status = 200): void

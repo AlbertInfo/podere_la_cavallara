@@ -1,6 +1,7 @@
 <?php
 require_once dirname(__DIR__) . '/includes/auth.php';
 require_once dirname(__DIR__) . '/includes/db.php';
+require_once dirname(__DIR__) . '/includes/customer-sync.php';
 require_admin();
 verify_csrf();
 
@@ -45,6 +46,7 @@ if (!in_array($data['status'], ['confermata', 'in_attesa', 'annullata'], true)) 
 }
 
 $dates = parse_stay_period_dates($data['stay_period']);
+$normalizedPhone = normalize_optional_phone($data['customer_phone']);
 
 $stmt = $pdo->prepare('UPDATE prenotazioni SET
     customer_name = :customer_name,
@@ -68,7 +70,7 @@ $stmt->execute([
     'customer_name' => $data['customer_name'],
     'customer_email' => $normalizedEmail,
     'email_missing' => $normalizedEmail === null ? 1 : 0,
-    'customer_phone' => normalize_optional_phone($data['customer_phone']),
+    'customer_phone' => $normalizedPhone,
     'stay_period' => $data['stay_period'],
     'check_in' => $dates['check_in'],
     'check_out' => $dates['check_out'],
@@ -81,6 +83,13 @@ $stmt->execute([
     'external_reference' => $data['external_reference'] !== '' ? $data['external_reference'] : null,
     'id' => $id,
 ]);
+
+$bookingStmt = $pdo->prepare('SELECT * FROM prenotazioni WHERE id = :id LIMIT 1');
+$bookingStmt->execute(['id' => $id]);
+$booking = $bookingStmt->fetch(PDO::FETCH_ASSOC);
+if ($booking) {
+    customer_sync_booking_row($pdo, $booking, 'prenotazione_update');
+}
 
 set_flash('success', 'Prenotazione aggiornata correttamente.');
 header('Location: ' . admin_url('index.php') . '#registered-bookings');

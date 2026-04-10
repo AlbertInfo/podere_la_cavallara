@@ -2,6 +2,7 @@
 require_once dirname(__DIR__) . '/includes/auth.php';
 require_once dirname(__DIR__) . '/includes/db.php';
 require_once dirname(__DIR__) . '/includes/booking-confirmation.php';
+require_once dirname(__DIR__) . '/includes/customer-sync.php';
 require_admin();
 verify_csrf();
 
@@ -110,6 +111,15 @@ try {
     header('Location: ' . admin_url('index.php') . '#booking-requests');
     exit;
 }
+
+customer_sync_booking_row($pdo, [
+    'id' => $prenotazioneId,
+    'customer_name' => (string) ($request['name_booking'] ?? ''),
+    'customer_email' => $customerEmail !== '' ? $customerEmail : null,
+    'customer_phone' => $customerPhone !== '' ? $customerPhone : null,
+    'guest_language' => '',
+    'raw_payload' => $params['raw_payload'],
+], 'booking_request');
 
 $mailResult = admin_send_booking_confirmation_email([
     'customer_name' => (string) ($request['name_booking'] ?? ''),

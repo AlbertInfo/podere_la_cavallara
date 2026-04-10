@@ -1,6 +1,7 @@
 <?php
 require_once dirname(__DIR__) . '/includes/auth.php';
 require_once dirname(__DIR__) . '/includes/db.php';
+require_once dirname(__DIR__) . '/includes/customer-sync.php';
 require_admin();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -117,6 +118,15 @@ $stmt->execute([
     'external_reference' => $externalReference !== '' ? $externalReference : null,
     'raw_payload' => $rawPayload,
 ]);
+
+$prenotazioneId = (int) $pdo->lastInsertId();
+customer_sync_booking_row($pdo, [
+    'id' => $prenotazioneId,
+    'customer_name' => $customerName,
+    'customer_email' => $normalizedEmail,
+    'customer_phone' => normalize_optional_phone($customerPhone),
+    'raw_payload' => $rawPayload,
+], 'prenotazione_manuale');
 
 set_flash('success', 'Prenotazione aggiunta correttamente.');
 header('Location: ' . admin_url('index.php#registered-bookings'));
