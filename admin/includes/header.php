@@ -8,6 +8,26 @@ function admin_nav_active(array $targets, string $currentPath): string
 {
     return in_array($currentPath, $targets, true) ? ' is-active' : '';
 }
+
+$sidebarCounters = [
+    'registered_bookings' => 0,
+    'booking_requests' => 0,
+    'contact_requests' => 0,
+];
+
+if ($currentAdmin && isset($pdo) && $pdo instanceof PDO) {
+    try {
+        $sidebarCounters['registered_bookings'] = (int) $pdo->query('SELECT COUNT(*) FROM prenotazioni')->fetchColumn();
+        $sidebarCounters['booking_requests'] = (int) $pdo->query('SELECT COUNT(*) FROM booking_requests')->fetchColumn();
+        $sidebarCounters['contact_requests'] = (int) $pdo->query('SELECT COUNT(*) FROM contact_requests')->fetchColumn();
+    } catch (Throwable $e) {
+        $sidebarCounters = [
+            'registered_bookings' => 0,
+            'booking_requests' => 0,
+            'contact_requests' => 0,
+        ];
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -15,7 +35,7 @@ function admin_nav_active(array $targets, string $currentPath): string
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= e($pageTitle) ?></title>
-    <link rel="stylesheet" href="/admin/assets/css/admin-modern.css?v=30">
+    <link rel="stylesheet" href="/admin/assets/css/admin-modern.css?v=34">
     <link rel="stylesheet" href="/admin/assets/css/interhome-import.css?v=95">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -34,12 +54,40 @@ function admin_nav_active(array $targets, string $currentPath): string
                 </a>
 
                 <nav class="sidebar-nav" aria-label="Menu area admin">
-                    <a class="sidebar-link<?= admin_nav_active(['index.php'], $currentPath) ?>" href="<?= e(admin_url('index.php#overview')) ?>">Dashboard</a>
-                    <a class="sidebar-link<?= admin_nav_active(['index.php'], $currentPath) ?>" href="<?= e(admin_url('index.php#registered-bookings')) ?>">Prenotazioni registrate</a>
-                    <a class="sidebar-link<?= admin_nav_active(['new-prenotazione.php'], $currentPath) ?>" href="<?= e(admin_url('new-prenotazione.php')) ?>">Nuova prenotazione</a>
-                    <a class="sidebar-link<?= admin_nav_active(['import-interhome-pdf.php', 'import-interhome-review.php'], $currentPath) ?>" href="<?= e(admin_url('import-interhome-pdf.php')) ?>">Importa PDF Interhome</a>
-                    <a class="sidebar-link<?= admin_nav_active(['index.php'], $currentPath) ?>" href="<?= e(admin_url('index.php#booking-requests')) ?>">Richieste prenotazione</a>
-                    <a class="sidebar-link<?= admin_nav_active(['index.php'], $currentPath) ?>" href="<?= e(admin_url('index.php#contact-requests')) ?>">Richieste contatto</a>
+                    <a class="sidebar-link<?= admin_nav_active(['index.php'], $currentPath) ?>" href="<?= e(admin_url('index.php#overview')) ?>">
+                        <span class="sidebar-link__content">Dashboard</span>
+                    </a>
+
+                    <a class="sidebar-link<?= admin_nav_active(['index.php'], $currentPath) ?>" href="<?= e(admin_url('index.php#registered-bookings')) ?>">
+                        <span class="sidebar-link__content">Prenotazioni registrate</span>
+                        <span class="sidebar-counter"><?= (int) $sidebarCounters['registered_bookings'] ?></span>
+                    </a>
+
+                    <a class="sidebar-link<?= admin_nav_active(['new-prenotazione.php'], $currentPath) ?>" href="<?= e(admin_url('new-prenotazione.php')) ?>">
+                        <span class="sidebar-link__content">Nuova prenotazione</span>
+                    </a>
+
+                    <a class="sidebar-link<?= admin_nav_active(['import-interhome-pdf.php', 'import-interhome-review.php'], $currentPath) ?>" href="<?= e(admin_url('import-interhome-pdf.php')) ?>">
+                        <span class="sidebar-link__content">Importa PDF Interhome</span>
+                    </a>
+
+                    <a class="sidebar-link<?= admin_nav_active(['file-manager.php'], $currentPath) ?>" href="<?= e(admin_url('file-manager.php')) ?>">
+                        <span class="sidebar-link__content">Archivio PDF</span>
+                    </a>
+
+                    <a class="sidebar-link<?= admin_nav_active(['index.php'], $currentPath) ?>" href="<?= e(admin_url('index.php#booking-requests')) ?>">
+                        <span class="sidebar-link__content">Richieste prenotazione</span>
+                        <?php if ($sidebarCounters['booking_requests'] > 0): ?>
+                            <span class="sidebar-counter sidebar-counter--alert"><?= (int) $sidebarCounters['booking_requests'] ?></span>
+                        <?php endif; ?>
+                    </a>
+
+                    <a class="sidebar-link<?= admin_nav_active(['index.php'], $currentPath) ?>" href="<?= e(admin_url('index.php#contact-requests')) ?>">
+                        <span class="sidebar-link__content">Richieste contatto</span>
+                        <?php if ($sidebarCounters['contact_requests'] > 0): ?>
+                            <span class="sidebar-counter sidebar-counter--alert"><?= (int) $sidebarCounters['contact_requests'] ?></span>
+                        <?php endif; ?>
+                    </a>
                 </nav>
 
                 <div class="sidebar-footer">
@@ -64,6 +112,7 @@ function admin_nav_active(array $targets, string $currentPath): string
                         <img src="<?= e(admin_url('assets/img/logo.svg')) ?>" alt="Podere La Cavallara">
                     </a>
                     <div class="topbar-actions">
+                        <a class="btn btn-light btn-sm" href="<?= e(admin_url('file-manager.php')) ?>">Archivio PDF</a>
                         <a class="btn btn-light btn-sm" href="<?= e(admin_url('import-interhome-pdf.php')) ?>">Importa PDF</a>
                         <a class="btn btn-primary btn-sm" href="<?= e(admin_url('new-prenotazione.php')) ?>">Nuova prenotazione</a>
                     </div>
