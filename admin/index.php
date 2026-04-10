@@ -234,6 +234,15 @@ require_once __DIR__ . '/includes/header.php';
 #registered-bookings-table tr.mobile-detail-row.is-past strong{
     color:#7f1d1d;
 }
+.interhome-review-flag{
+   
+  display:inline-block;
+  width:22px;
+  height:16px;
+  border-radius:3px;
+  box-shadow:0 0 0 1px rgba(0,0,0,.08);
+
+}
 @media (max-width:1100px){
     .dashboard-filters-grid{
         grid-template-columns:1fr 1fr;
