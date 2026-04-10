@@ -28,24 +28,6 @@ function interhome_state_badge_class(?string $state): string
 
     return 'is-existing';
 }
-
-function language_to_country_code(?string $language): string
-{
-    $language = trim((string) $language);
-
-    $map = [
-        'Italiano' => 'it',
-        'Inglese' => 'gb',
-        'Tedesco' => 'de',
-        'Ceco' => 'cz',
-        'Polacco' => 'pl',
-        'Olandese' => 'nl',
-        'Francese' => 'fr',
-        'Spagnolo' => 'es',
-    ];
-
-    return isset($map[$language]) ? $map[$language] : '';
-}
 ?>
 <style>
 .interhome-shell{

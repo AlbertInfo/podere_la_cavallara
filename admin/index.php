@@ -69,25 +69,7 @@ foreach ($registeredBookings as $bookingRow) {
 }
 if ($registeredBookingRoomOptions) {
     uksort($registeredBookingRoomOptions, 'strnatcasecmp');
-}
-function language_to_country_code(?string $language): string
-{
-    $language = trim((string) $language);
-
-    $map = [
-        'Italiano' => 'it',
-        'Inglese' => 'gb',
-        'Tedesco' => 'de',
-        'Ceco' => 'cz',
-        'Polacco' => 'pl',
-        'Olandese' => 'nl',
-        'Francese' => 'fr',
-        'Spagnolo' => 'es',
-    ];
-
-    return isset($map[$language]) ? $map[$language] : '';
-}
-$pageTitle = 'Dashboard amministrazione';
+}$pageTitle = 'Dashboard amministrazione';
 require_once __DIR__ . '/includes/header.php';
 ?>
 <section id="overview" class="kpi-row">

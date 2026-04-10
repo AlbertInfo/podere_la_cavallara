@@ -100,24 +100,6 @@ function review_state_badge_class(?string $state): string
 //     return $map[$language] ?? '';
 // }
 
-function language_to_country_code(?string $language): string
-{
-    $language = trim((string) $language);
-
-    $map = [
-        'Italiano' => 'it',
-        'Inglese' => 'gb',
-        'Tedesco' => 'de',
-        'Ceco' => 'cz',
-        'Polacco' => 'pl',
-        'Olandese' => 'nl',
-        'Francese' => 'fr',
-        'Spagnolo' => 'es',
-    ];
-
-    return isset($map[$language]) ? $map[$language] : '';
-}
-
 $countryCode = language_to_country_code($row['_language'] ?? '');
 $pdfState = (string) ($row['_pdf_state'] ?? 'existing');
 $pdfStateLabel = (string) ($row['_pdf_state_label'] ?? 'Prenotazione esistente');
