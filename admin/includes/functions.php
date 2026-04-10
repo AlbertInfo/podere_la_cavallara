@@ -159,59 +159,59 @@ function normalize_optional_phone(string $phone): ?string
     return $phone === '' ? null : $phone;
 }
 
-function language_to_country_code(?string $language): ?string
-{
-    $language = trim((string) $language);
+// function language_to_country_code(?string $language): ?string
+// {
+//     $language = trim((string) $language);
 
-    if ($language === '') {
-        return null;
-    }
+//     if ($language === '') {
+//         return null;
+//     }
 
-    $map = [
-        'Italiano' => 'it',
-        'Italian' => 'it',
-        'IT' => 'it',
-        'it' => 'it',
+//     $map = [
+//         'Italiano' => 'it',
+//         'Italian' => 'it',
+//         'IT' => 'it',
+//         'it' => 'it',
 
-        'Inglese' => 'gb',
-        'English' => 'gb',
-        'EN' => 'gb',
-        'en' => 'gb',
+//         'Inglese' => 'gb',
+//         'English' => 'gb',
+//         'EN' => 'gb',
+//         'en' => 'gb',
 
-        'Tedesco' => 'de',
-        'Deutsch' => 'de',
-        'German' => 'de',
-        'DE' => 'de',
-        'de' => 'de',
+//         'Tedesco' => 'de',
+//         'Deutsch' => 'de',
+//         'German' => 'de',
+//         'DE' => 'de',
+//         'de' => 'de',
 
-        'Ceco' => 'cz',
-        'Czech' => 'cz',
-        'CZ' => 'cz',
-        'cz' => 'cz',
+//         'Ceco' => 'cz',
+//         'Czech' => 'cz',
+//         'CZ' => 'cz',
+//         'cz' => 'cz',
 
-        'Polacco' => 'pl',
-        'Polish' => 'pl',
-        'PL' => 'pl',
-        'pl' => 'pl',
+//         'Polacco' => 'pl',
+//         'Polish' => 'pl',
+//         'PL' => 'pl',
+//         'pl' => 'pl',
 
-        'Olandese' => 'nl',
-        'Dutch' => 'nl',
-        'NL' => 'nl',
-        'nl' => 'nl',
+//         'Olandese' => 'nl',
+//         'Dutch' => 'nl',
+//         'NL' => 'nl',
+//         'nl' => 'nl',
 
-        'Francese' => 'fr',
-        'French' => 'fr',
-        'FR' => 'fr',
-        'fr' => 'fr',
+//         'Francese' => 'fr',
+//         'French' => 'fr',
+//         'FR' => 'fr',
+//         'fr' => 'fr',
 
-        'Spagnolo' => 'es',
-        'Spanish' => 'es',
-        'ES' => 'es',
-        'es' => 'es',
-    ];
+//         'Spagnolo' => 'es',
+//         'Spanish' => 'es',
+//         'ES' => 'es',
+//         'es' => 'es',
+//     ];
 
-    return isset($map[$language]) ? $map[$language] : null;
-}
+//     return isset($map[$language]) ? $map[$language] : null;
+// }
 
 function normalize_country_code(?string $countryCode): ?string
 {
