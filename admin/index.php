@@ -179,24 +179,24 @@ require_once __DIR__ . '/includes/header.php';
 }
 .booking-time-badge.is-past{
     background:#fff1f2;
-    color:#be123c;
-    border-color:#fecdd3;
+    color:#8d8b8b;
+    border-color:#8d8b8b;
 }
 #registered-bookings-table tr.desktop-row.is-past td{
     background:linear-gradient(180deg,#fff8f8 0%,#fff2f4 100%);
 }
 #registered-bookings-table tr.desktop-row.is-past td:first-child{
-    box-shadow:inset 4px 0 0 #e11d48;
+    box-shadow:inset 4px 0 0 rgba(205, 205, 205, .95);
 }
 #registered-bookings-table tr.desktop-row.is-past strong{
-    color:#7f1d1d;
+    color:#8d8b8b;
 }
 #registered-bookings-table tr.desktop-row.is-past .small.muted{
-    color:#8b5a68;
+    color:#8d8b8b;
 }
 #registered-bookings-table tr.mobile-summary-row.is-past td,
 #registered-bookings-table tr.mobile-detail-row.is-past td{
-    background:linear-gradient(180deg,#fff8f8 0%,#fff2f4 100%);
+    background:linear-gradient(180deg,#fff8f8 0%,#8d8b8b 100%);
 }
 #registered-bookings-table tr.mobile-summary-row.is-past .mobile-summary-card,
 #registered-bookings-table tr.mobile-detail-row.is-past .mobile-detail-grid{
