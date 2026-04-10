@@ -69,26 +69,7 @@ foreach ($registeredBookings as $bookingRow) {
 }
 if ($registeredBookingRoomOptions) {
     uksort($registeredBookingRoomOptions, 'strnatcasecmp');
-}
-$guestLanguageCountryMap = [
-    'Italiano' => 'it',
-    'Inglese' => 'gb',
-    'Tedesco' => 'de',
-    'Ceco' => 'cz',
-    'Polacco' => 'pl',
-    'Olandese' => 'nl',
-    'Francese' => 'fr',
-    'Spagnolo' => 'es',
-    'Italian' => 'it',
-    'English' => 'gb',
-    'German' => 'de',
-    'Czech' => 'cz',
-    'Polish' => 'pl',
-    'Dutch' => 'nl',
-    'French' => 'fr',
-    'Spanish' => 'es',
-];
-$pageTitle = 'Dashboard amministrazione';
+}$pageTitle = 'Dashboard amministrazione';
 require_once __DIR__ . '/includes/header.php';
 ?>
 <section id="overview" class="kpi-row">
@@ -167,53 +148,6 @@ require_once __DIR__ . '/includes/header.php';
     display:flex;
     justify-content:flex-end;
     margin-top:14px;
-}
-.dashboard-toggle-field{
-    display:flex;
-    align-items:center;
-    gap:12px;
-    min-height:52px;
-    padding:0 16px;
-    border:1px solid rgba(203,213,225,.95);
-    border-radius:16px;
-    background:#fff;
-    box-shadow:0 10px 30px rgba(15,23,42,.04);
-    cursor:pointer;
-}
-.dashboard-toggle-field input{
-    width:18px;
-    height:18px;
-    margin:0;
-    accent-color:var(--primary);
-    cursor:pointer;
-}
-.dashboard-toggle-copy{
-    display:grid;
-    gap:2px;
-}
-.dashboard-toggle-copy strong{
-    font-size:14px;
-    color:#0f172a;
-}
-.dashboard-toggle-copy span{
-    font-size:12px;
-    color:var(--muted);
-}
-.booking-customer-top{
-    display:flex;
-    align-items:center;
-    gap:8px;
-    flex-wrap:wrap;
-}
-.booking-customer-flag{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    width:22px;
-    height:16px;
-    border-radius:3px;
-    box-shadow:0 0 0 1px rgba(0,0,0,.08);
-    flex:0 0 auto;
 }
 .dashboard-empty-state{
     margin-top:16px;
@@ -306,7 +240,7 @@ require_once __DIR__ . '/includes/header.php';
         <div class="dashboard-filters-header">
             <div>
                 <h3>Filtri prenotazioni</h3>
-                <p class="muted">Cerca per nome e cognome, filtra per casa, mostra solo quando serve le prenotazioni passate e ordina le prenotazioni per check-in o data di registrazione.</p>
+                <p class="muted">Cerca per nome e cognome, filtra per casa e stato del soggiorno, poi ordina le prenotazioni per check-in o data di registrazione.</p>
             </div>
             <div class="dashboard-filters-count" data-visible-bookings-count>
                 <?= count($registeredBookings) ?> prenotazioni visibili
@@ -329,15 +263,13 @@ require_once __DIR__ . '/includes/header.php';
                 </select>
             </label>
 
-            <label class="dashboard-filter-field">
-                <span>Visibilità soggiorni</span>
-                <span class="dashboard-toggle-field">
-                    <input id="registeredBookingsShowPast" type="checkbox">
-                    <span class="dashboard-toggle-copy">
-                        <strong>Mostra prenotazioni passate</strong>
-                        <span>Di default restano nascoste per tenere pulita la dashboard.</span>
-                    </span>
-                </span>
+            <label class="dashboard-filter-field" for="registeredBookingsPhaseFilter">
+                <span>Stato soggiorno</span>
+                <select id="registeredBookingsPhaseFilter">
+                    <option value="">Tutte</option>
+                    <option value="active">Prenotazioni attive</option>
+                    <option value="past">Prenotazioni passate</option>
+                </select>
             </label>
 
             <label class="dashboard-filter-field" for="registeredBookingsSort">
@@ -377,11 +309,6 @@ require_once __DIR__ . '/includes/header.php';
                         $bookingCheckOut = dashboard_extract_check_out_iso($row);
                         $bookingIsPast = $bookingCheckOut !== '' && $bookingCheckOut < $dashboardTodayIso;
                         $bookingPhase = $bookingIsPast ? 'past' : 'active';
-                        $bookingCountryCode = strtolower(trim((string) ($row['guest_country_code'] ?? '')));
-                        if ($bookingCountryCode === '') {
-                            $bookingLanguage = trim((string) ($row['guest_language'] ?? ''));
-                            $bookingCountryCode = isset($guestLanguageCountryMap[$bookingLanguage]) ? $guestLanguageCountryMap[$bookingLanguage] : '';
-                        }
                     ?>
                     <!-- DESKTOP ROW -->
                     <tr class="desktop-row<?= $bookingIsPast ? ' is-past' : '' ?>"
@@ -394,12 +321,7 @@ require_once __DIR__ . '/includes/header.php';
                         data-created-at="<?= e((string)$row['created_at']) ?>">
                         <td><?= e($row['created_at']) ?></td>
                         <td>
-                            <div class="booking-customer-top">
-                                <strong><?= e($row['customer_name']) ?></strong>
-                                <?php if ($bookingCountryCode !== ''): ?>
-                                    <span class="fi fi-<?= e($bookingCountryCode) ?> booking-customer-flag" title="<?= e((string) (($row['guest_language'] ?? '') !== '' ? $row['guest_language'] : strtoupper($bookingCountryCode))) ?>"></span>
-                                <?php endif; ?>
-                            </div>
+                            <strong><?= e($row['customer_name']) ?></strong><br>
                             <span class="small muted"><?= e($row['customer_email'] ?: 'Email non disponibile') ?></span>
                         </td>
                         <td>
@@ -429,24 +351,14 @@ require_once __DIR__ . '/includes/header.php';
                         <td>
                             <div class="mobile-summary-card">
                                 <div class="mobile-summary-head">
-                                    <div class="booking-customer-top">
-                                        <strong><?= e($row['customer_name']) ?></strong>
-                                        <?php if ($bookingCountryCode !== ''): ?>
-                                            <span class="fi fi-<?= e($bookingCountryCode) ?> booking-customer-flag" title="<?= e((string) (($row['guest_language'] ?? '') !== '' ? $row['guest_language'] : strtoupper($bookingCountryCode))) ?>"></span>
-                                        <?php endif; ?>
-                                    </div>
+                                    <strong><?= e($row['customer_name']) ?></strong>
                                     <span class="mobile-chevron">▾</span>
                                 </div>
 
                                 <div class="mobile-summary-grid">
                                     <div>
                                         <span>Cliente</span>
-                                        <div class="booking-customer-top">
-                                            <strong><?= e($row['customer_name']) ?></strong>
-                                            <?php if ($bookingCountryCode !== ''): ?>
-                                                <span class="fi fi-<?= e($bookingCountryCode) ?> booking-customer-flag" title="<?= e((string) (($row['guest_language'] ?? '') !== '' ? $row['guest_language'] : strtoupper($bookingCountryCode))) ?>"></span>
-                                            <?php endif; ?>
-                                        </div>
+                                        <strong><?= e($row['customer_name']) ?></strong>
                                     </div>
                                     <div>
                                         <span>Soggiorno</span>
@@ -792,13 +704,13 @@ document.addEventListener('DOMContentLoaded', function () {
     const table = document.getElementById('registered-bookings-table');
     const searchInput = document.getElementById('registeredBookingsSearch');
     const roomFilter = document.getElementById('registeredBookingsRoomFilter');
-    const showPastToggle = document.getElementById('registeredBookingsShowPast');
+    const phaseFilter = document.getElementById('registeredBookingsPhaseFilter');
     const sortSelect = document.getElementById('registeredBookingsSort');
     const resetButton = document.getElementById('registeredBookingsReset');
     const countLabel = document.querySelector('[data-visible-bookings-count]');
     const emptyState = document.getElementById('registeredBookingsEmptyState');
 
-    if (!table || !searchInput || !roomFilter || !showPastToggle || !sortSelect || !resetButton) {
+    if (!table || !searchInput || !roomFilter || !phaseFilter || !sortSelect || !resetButton) {
         return;
     }
 
@@ -937,7 +849,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function applyRegisteredBookingsFilters() {
         const query = searchInput.value.trim().toLowerCase();
         const selectedRoom = roomFilter.value.trim().toLowerCase();
-        const showPastBookings = !!showPastToggle.checked;
+        const selectedPhase = phaseFilter.value.trim().toLowerCase();
         const sortValue = sortSelect.value;
         const orderedGroups = sortGroups(groups, sortValue);
         let visibleCount = 0;
@@ -945,7 +857,7 @@ document.addEventListener('DOMContentLoaded', function () {
         orderedGroups.forEach(function (group) {
             const matchesQuery = query === '' || group.searchText.indexOf(query) !== -1;
             const matchesRoom = selectedRoom === '' || group.roomType === selectedRoom;
-            const matchesPhase = showPastBookings || group.bookingPhase !== 'past';
+            const matchesPhase = selectedPhase === '' || group.bookingPhase === selectedPhase;
             const isVisible = matchesQuery && matchesRoom && matchesPhase;
 
             group.desktopRow.hidden = !isVisible;
@@ -981,7 +893,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    [searchInput, roomFilter, showPastToggle, sortSelect].forEach(function (element) {
+    [searchInput, roomFilter, phaseFilter, sortSelect].forEach(function (element) {
         element.addEventListener('input', applyRegisteredBookingsFilters);
         element.addEventListener('change', applyRegisteredBookingsFilters);
     });
@@ -989,7 +901,7 @@ document.addEventListener('DOMContentLoaded', function () {
     resetButton.addEventListener('click', function () {
         searchInput.value = '';
         roomFilter.value = '';
-        showPastToggle.checked = false;
+        phaseFilter.value = '';
         sortSelect.value = 'created_desc';
         applyRegisteredBookingsFilters();
     });
