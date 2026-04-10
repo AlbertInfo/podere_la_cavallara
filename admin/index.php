@@ -236,11 +236,9 @@ require_once __DIR__ . '/includes/header.php';
 }
 .interhome-review-flag{
    
-  display:inline-block;
-  width:22px;
-  height:16px;
+  
   border-radius:3px;
-  box-shadow:0 0 0 1px rgba(0,0,0,.08);
+  
 
 }
 @media (max-width:1100px){
