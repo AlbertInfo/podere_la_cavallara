@@ -220,6 +220,9 @@ require_once __DIR__ . '/includes/header.php';
 #registered-bookings-table tr.mobile-detail-row.is-past strong{
     color:#7f1d1d;
 }
+.notes-container{
+    max-width: 250px;
+}
 @media (max-width:1100px){
     .dashboard-filters-grid{
         grid-template-columns:1fr 1fr;
@@ -380,7 +383,7 @@ require_once __DIR__ . '/includes/header.php';
                         <td><?= e($row['room_type']) ?></td>
                         <td><?= (int)$row['adults'] ?> adulti / <?= (int)$row['children_count'] ?> bambini</td>
                         <td><span class="badge success"><?= e($row['status']) ?></span></td>
-                        <td><?= e($row['notes']) ?></td>
+                        <td class="notes-container" ><?= e($row['notes']) ?></td>
                         <td>
                             <div class="actions">
                                 <a class="btn btn-light btn-sm" href="<?= e(admin_url('edit-prenotazione.php?id=' . (int)$row['id'])) ?>">Modifica</a>
