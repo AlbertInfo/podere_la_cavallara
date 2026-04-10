@@ -51,7 +51,7 @@ require_once __DIR__ . '/includes/header.php';
 
                 <label>
                     Adulti *
-                    <input type="number" name="adults" min="1" step="1" value="<?= (int)$prenotazione['adults'] ?>" required>
+                    <input type="number" name="adults" min="0" step="1" value="<?= (int)$prenotazione['adults'] ?>" required>
                 </label>
 
                 <label>
