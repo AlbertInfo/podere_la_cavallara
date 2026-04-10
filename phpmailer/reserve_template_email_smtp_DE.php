@@ -24,6 +24,40 @@ if (!file_exists($mailConfig)) {
 require_once $dbConfig;
 require_once $mailConfig;
 
+
+function booking_requests_has_column(PDO $pdo, string $column): bool {
+    static $cache = [];
+    if (array_key_exists($column, $cache)) {
+        return $cache[$column];
+    }
+
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'booking_requests' AND COLUMN_NAME = :column_name");
+    $stmt->execute(['column_name' => $column]);
+    $cache[$column] = ((int) $stmt->fetchColumn()) > 0;
+    return $cache[$column];
+}
+
+function booking_parse_requested_dates(string $dateBooking): array {
+    $dateBooking = trim($dateBooking);
+    if ($dateBooking === '') {
+        return [null, null];
+    }
+
+    $normalized = str_replace(' al ', ' - ', $dateBooking);
+    $parts = array_values(array_filter(array_map('trim', explode(' - ', $normalized))));
+    if (count($parts) < 2) {
+        return [null, null];
+    }
+
+    $checkIn = DateTime::createFromFormat('d/m/Y', $parts[0]) ?: null;
+    $checkOut = DateTime::createFromFormat('d/m/Y', $parts[1]) ?: null;
+
+    return [
+        $checkIn ? $checkIn->format('Y-m-d') : null,
+        $checkOut ? $checkOut->format('Y-m-d') : null,
+    ];
+}
+
 $mail = new PHPMailer(true);
 
 try {
@@ -204,29 +238,20 @@ if (count($requests) >= 3) {
     $mail->send();
 
     // Salvataggio DB
-    $insert = $pdo->prepare("
-        INSERT INTO booking_requests (
-            date_booking,
-            rooms_booking,
-            adults_booking,
-            childs_booking,
-            name_booking,
-            email_booking,
-            ip_address,
-            user_agent
-        ) VALUES (
-            :date_booking,
-            :rooms_booking,
-            :adults_booking,
-            :childs_booking,
-            :name_booking,
-            :email_booking,
-            :ip_address,
-            :user_agent
-        )
-    ");
+    [$requestedCheckIn, $requestedCheckOut] = booking_parse_requested_dates($date_booking);
 
-    $insert->execute([
+    $columns = [
+        'date_booking',
+        'rooms_booking',
+        'adults_booking',
+        'childs_booking',
+        'name_booking',
+        'email_booking',
+        'ip_address',
+        'user_agent'
+    ];
+
+    $params = [
         'date_booking' => $date_booking,
         'rooms_booking' => $rooms_booking,
         'adults_booking' => $adults_booking,
@@ -235,7 +260,31 @@ if (count($requests) >= 3) {
         'email_booking' => $email_booking,
         'ip_address' => $_SERVER['REMOTE_ADDR'] ?? null,
         'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? null
-    ]);
+    ];
+
+    $optionalColumns = [
+        'customer_language' => 'de',
+        'source' => 'website_form_de',
+        'requested_check_in' => $requestedCheckIn,
+        'requested_check_out' => $requestedCheckOut,
+        'requested_room_type' => $rooms_booking,
+        'adults_count' => (int) $adults_booking,
+        'children_count' => (int) $childs_booking,
+    ];
+
+    foreach ($optionalColumns as $column => $value) {
+        if (booking_requests_has_column($pdo, $column)) {
+            $columns[] = $column;
+            $params[$column] = $value;
+        }
+    }
+
+    $placeholders = array_map(static fn(string $column): string => ':' . $column, $columns);
+    $insert = $pdo->prepare(
+        'INSERT INTO booking_requests (' . implode(', ', $columns) . ') VALUES (' . implode(', ', $placeholders) . ')'
+    );
+
+    $insert->execute($params);
 
     echo '<div id="success_page" data-title="Buchungsanfrage erfolgreich gesendet" data-text="Wir haben Ihre Buchungsanfrage erhalten. Wir melden uns schnellstmöglich bei Ihnen zurück."></div>';
 
