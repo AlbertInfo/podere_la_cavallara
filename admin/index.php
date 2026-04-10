@@ -243,7 +243,7 @@ require_once __DIR__ . '/includes/header.php';
 }
 
 .notes_space{
-    background-color: red;
+    max-width: 250px;
 }
 @media (max-width:1100px){
     .dashboard-filters-grid{
