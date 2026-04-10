@@ -3,6 +3,28 @@ require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/db.php';
 require_admin();
 
+function dashboard_extract_check_in_iso(array $row): string
+{
+    $checkIn = trim((string) ($row['check_in'] ?? ''));
+    if ($checkIn !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $checkIn)) {
+        return $checkIn;
+    }
+
+    $stayPeriod = trim((string) ($row['stay_period'] ?? ''));
+    if ($stayPeriod === '') {
+        return '';
+    }
+
+    $normalized = str_replace(' al ', ' - ', $stayPeriod);
+    $parts = array_values(array_filter(array_map('trim', explode(' - ', $normalized))));
+    if (count($parts) < 2) {
+        return '';
+    }
+
+    $date = DateTime::createFromFormat('d/m/Y', $parts[0]);
+    return $date ? $date->format('Y-m-d') : '';
+}
+
 $bookingRequests = $pdo->query('SELECT * FROM booking_requests ORDER BY created_at DESC LIMIT 100')->fetchAll(PDO::FETCH_ASSOC);
 $contactRequests = $pdo->query('SELECT * FROM contact_requests ORDER BY created_at DESC LIMIT 100')->fetchAll(PDO::FETCH_ASSOC);
 $registeredBookings = $pdo->query('SELECT * FROM prenotazioni ORDER BY created_at DESC LIMIT 100')->fetchAll(PDO::FETCH_ASSOC);
@@ -13,6 +35,17 @@ $stats = [
     'registered_bookings' => (int) $pdo->query('SELECT COUNT(*) FROM prenotazioni')->fetchColumn(),
     'today_requests' => (int) $pdo->query('SELECT COUNT(*) FROM booking_requests WHERE DATE(created_at) = CURDATE()')->fetchColumn(),
 ];
+
+$registeredBookingRoomOptions = [];
+foreach ($registeredBookings as $bookingRow) {
+    $roomName = trim((string) ($bookingRow['room_type'] ?? ''));
+    if ($roomName !== '') {
+        $registeredBookingRoomOptions[$roomName] = $roomName;
+    }
+}
+if ($registeredBookingRoomOptions) {
+    uksort($registeredBookingRoomOptions, 'strnatcasecmp');
+}
 
 $pageTitle = 'Dashboard amministrazione';
 require_once __DIR__ . '/includes/header.php';
@@ -41,6 +74,89 @@ require_once __DIR__ . '/includes/header.php';
 
 </section>
 
+<style>
+.dashboard-filters-panel{
+    margin-bottom:20px;
+    padding:22px;
+    border:1px solid rgba(219,228,240,.95);
+    border-radius:20px;
+    background:linear-gradient(180deg,#fbfdff 0%,#f6f9ff 100%);
+}
+.dashboard-filters-header{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:16px;
+    flex-wrap:wrap;
+    margin-bottom:18px;
+}
+.dashboard-filters-header h3{
+    margin:0 0 6px;
+    font-size:18px;
+    color:var(--primary);
+}
+.dashboard-filters-count{
+    display:inline-flex;
+    align-items:center;
+    min-height:40px;
+    padding:10px 14px;
+    border-radius:999px;
+    background:#fff;
+    border:1px solid rgba(191,219,254,.95);
+    color:#1e3a8a;
+    font-weight:700;
+}
+.dashboard-filters-grid{
+    display:grid;
+    grid-template-columns:minmax(280px,1.7fr) repeat(2,minmax(220px,1fr));
+    gap:14px;
+}
+.dashboard-filter-field{
+    display:grid;
+    gap:8px;
+    font-weight:700;
+    color:#334155;
+}
+.dashboard-filter-field span{
+    font-size:13px;
+    color:var(--muted);
+    font-weight:700;
+}
+.dashboard-filter-actions{
+    display:flex;
+    justify-content:flex-end;
+    margin-top:14px;
+}
+.dashboard-empty-state{
+    margin-top:16px;
+    padding:18px;
+    border-radius:18px;
+    border:1px dashed #bfd0e6;
+    background:#fff;
+    color:var(--muted);
+    text-align:center;
+    font-weight:600;
+}
+@media (max-width:1100px){
+    .dashboard-filters-grid{
+        grid-template-columns:1fr 1fr;
+    }
+}
+@media (max-width:760px){
+    .dashboard-filters-panel{
+        padding:18px;
+    }
+    .dashboard-filters-grid{
+        grid-template-columns:1fr;
+    }
+    .dashboard-filters-count,
+    .dashboard-filter-actions .btn{
+        width:100%;
+        justify-content:center;
+    }
+}
+</style>
+
 <section id="registered-bookings" class="card section-registered" style="margin-top:20px;">
     <div class="section-title">
         <div>
@@ -48,11 +164,54 @@ require_once __DIR__ . '/includes/header.php';
             <p class="muted">Elenco delle prenotazioni trasferite dall’admin o inserite manualmente dal gestionale.</p>
         </div>
         <div class="toolbar">
-            <input class="search-input" type="search" placeholder="Cerca prenotazioni..." data-table-filter="#registered-bookings-table">
             <a class="btn btn-light" href="<?= e(admin_url('import-interhome-pdf.php')) ?>">Importa PDF Interhome</a>
             <a class="btn btn-primary" href="<?= e(admin_url('new-prenotazione.php')) ?>">Nuova prenotazione</a>
         </div>
     </div>
+
+    <div class="dashboard-filters-panel" aria-label="Filtri prenotazioni confermate">
+        <div class="dashboard-filters-header">
+            <div>
+                <h3>Filtri prenotazioni</h3>
+                <p class="muted">Cerca per nome e cognome, filtra per casa e ordina le prenotazioni per check-in o data di registrazione.</p>
+            </div>
+            <div class="dashboard-filters-count" data-visible-bookings-count>
+                <?= count($registeredBookings) ?> prenotazioni visibili
+            </div>
+        </div>
+
+        <div class="dashboard-filters-grid">
+            <label class="dashboard-filter-field" for="registeredBookingsSearch">
+                <span>Ricerca cliente</span>
+                <input id="registeredBookingsSearch" class="search-input" type="search" placeholder="Cerca nome, cognome, email o riferimento...">
+            </label>
+
+            <label class="dashboard-filter-field" for="registeredBookingsRoomFilter">
+                <span>Tipologia casa</span>
+                <select id="registeredBookingsRoomFilter">
+                    <option value="">Tutte le case</option>
+                    <?php foreach ($registeredBookingRoomOptions as $roomOption): ?>
+                        <option value="<?= e($roomOption) ?>"><?= e($roomOption) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+
+            <label class="dashboard-filter-field" for="registeredBookingsSort">
+                <span>Ordina per</span>
+                <select id="registeredBookingsSort">
+                    <option value="created_desc">Data registrazione: più recente</option>
+                    <option value="checkin_asc">Check-in: più vicino → più lontano</option>
+                    <option value="checkin_desc">Check-in: più lontano → più vicino</option>
+                    <option value="name_asc">Cliente: A → Z</option>
+                </select>
+            </label>
+        </div>
+
+        <div class="dashboard-filter-actions">
+            <button class="btn btn-light btn-sm" type="button" id="registeredBookingsReset">Reset filtri</button>
+        </div>
+    </div>
+
     <div class="table-wrap">
         <table id="registered-bookings-table">
             <thead>
@@ -68,10 +227,15 @@ require_once __DIR__ . '/includes/header.php';
                 </tr>
             </thead>
             <tbody>
-            <tbody>
                 <?php foreach ($registeredBookings as $row): ?>
+                    <?php $bookingCheckIn = dashboard_extract_check_in_iso($row); ?>
                     <!-- DESKTOP ROW -->
-                    <tr class="desktop-row">
+                    <tr class="desktop-row"
+                        data-booking-id="<?= (int)$row['id'] ?>"
+                        data-customer-name="<?= e((string)$row['customer_name']) ?>"
+                        data-room-type="<?= e((string)$row['room_type']) ?>"
+                        data-check-in="<?= e($bookingCheckIn) ?>"
+                        data-created-at="<?= e((string)$row['created_at']) ?>">
                         <td><?= e($row['created_at']) ?></td>
                         <td>
                             <strong><?= e($row['customer_name']) ?></strong><br>
@@ -176,6 +340,9 @@ require_once __DIR__ . '/includes/header.php';
                 <?php endforeach; ?>
             </tbody>
         </table>
+    </div>
+    <div id="registeredBookingsEmptyState" class="dashboard-empty-state" hidden>
+        Nessuna prenotazione trovata con i filtri selezionati.
     </div>
 </section>
 
@@ -440,4 +607,209 @@ require_once __DIR__ . '/includes/header.php';
         </table>
     </div>
 </section>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const table = document.getElementById('registered-bookings-table');
+    const searchInput = document.getElementById('registeredBookingsSearch');
+    const roomFilter = document.getElementById('registeredBookingsRoomFilter');
+    const sortSelect = document.getElementById('registeredBookingsSort');
+    const resetButton = document.getElementById('registeredBookingsReset');
+    const countLabel = document.querySelector('[data-visible-bookings-count]');
+    const emptyState = document.getElementById('registeredBookingsEmptyState');
+
+    if (!table || !searchInput || !roomFilter || !sortSelect || !resetButton) {
+        return;
+    }
+
+    const tbody = table.querySelector('tbody');
+    if (!tbody) {
+        return;
+    }
+
+    const desktopRows = Array.from(tbody.querySelectorAll('tr.desktop-row'));
+    if (!desktopRows.length) {
+        if (countLabel) {
+            countLabel.textContent = '0 prenotazioni visibili';
+        }
+        if (emptyState) {
+            emptyState.hidden = false;
+        }
+        return;
+    }
+
+    function parseIsoDate(value) {
+        if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+            return Number.POSITIVE_INFINITY;
+        }
+
+        const parts = value.split('-').map(Number);
+        return new Date(parts[0], parts[1] - 1, parts[2]).getTime();
+    }
+
+    function parseDateTime(value) {
+        if (!value) {
+            return 0;
+        }
+
+        const normalized = String(value).replace(' ', 'T');
+        const timestamp = Date.parse(normalized);
+        return Number.isNaN(timestamp) ? 0 : timestamp;
+    }
+
+    const groups = desktopRows.map(function (desktopRow, index) {
+        const summaryRow = desktopRow.nextElementSibling && desktopRow.nextElementSibling.classList.contains('mobile-summary-row')
+            ? desktopRow.nextElementSibling
+            : null;
+        const detailRow = summaryRow && summaryRow.nextElementSibling && summaryRow.nextElementSibling.classList.contains('mobile-detail-row')
+            ? summaryRow.nextElementSibling
+            : null;
+
+        return {
+            originalIndex: index,
+            desktopRow: desktopRow,
+            summaryRow: summaryRow,
+            detailRow: detailRow,
+            customerName: (desktopRow.dataset.customerName || '').toLowerCase(),
+            roomType: (desktopRow.dataset.roomType || '').toLowerCase(),
+            checkInValue: desktopRow.dataset.checkIn || '',
+            checkInTimestamp: parseIsoDate(desktopRow.dataset.checkIn || ''),
+            createdAtTimestamp: parseDateTime(desktopRow.dataset.createdAt || ''),
+            searchText: [
+                desktopRow.textContent,
+                summaryRow ? summaryRow.textContent : '',
+                detailRow ? detailRow.textContent : ''
+            ].join(' ').toLowerCase()
+        };
+    });
+
+    function appendGroup(group) {
+        tbody.appendChild(group.desktopRow);
+        if (group.summaryRow) {
+            tbody.appendChild(group.summaryRow);
+        }
+        if (group.detailRow) {
+            tbody.appendChild(group.detailRow);
+        }
+    }
+
+    function compareWithFallback(first, second, fallbackKey) {
+        if (first === second) {
+            return fallbackKey;
+        }
+        return first < second ? -1 : 1;
+    }
+
+    function sortGroups(list, sortValue) {
+        return list.slice().sort(function (a, b) {
+            const fallback = a.originalIndex - b.originalIndex;
+
+            if (sortValue === 'checkin_asc') {
+                const aMissing = !Number.isFinite(a.checkInTimestamp);
+                const bMissing = !Number.isFinite(b.checkInTimestamp);
+                if (aMissing && bMissing) return fallback;
+                if (aMissing) return 1;
+                if (bMissing) return -1;
+                return compareWithFallback(a.checkInTimestamp, b.checkInTimestamp, fallback);
+            }
+
+            if (sortValue === 'checkin_desc') {
+                const aMissing = !Number.isFinite(a.checkInTimestamp);
+                const bMissing = !Number.isFinite(b.checkInTimestamp);
+                if (aMissing && bMissing) return fallback;
+                if (aMissing) return 1;
+                if (bMissing) return -1;
+                return compareWithFallback(b.checkInTimestamp, a.checkInTimestamp, fallback);
+            }
+
+            if (sortValue === 'name_asc') {
+                const compare = a.customerName.localeCompare(b.customerName, 'it', { sensitivity: 'base' });
+                return compare === 0 ? fallback : compare;
+            }
+
+            return compareWithFallback(b.createdAtTimestamp, a.createdAtTimestamp, fallback);
+        });
+    }
+
+    function syncDetailVisibility() {
+        groups.forEach(function (group) {
+            if (!group.detailRow) {
+                return;
+            }
+
+            const visible = !group.desktopRow.hidden;
+            const isOpen = group.summaryRow && group.summaryRow.classList.contains('is-open');
+            group.detailRow.hidden = !visible || !isOpen;
+        });
+    }
+
+    function updateVisibleCount(total) {
+        if (!countLabel) {
+            return;
+        }
+        countLabel.textContent = total === 1
+            ? '1 prenotazione visibile'
+            : total + ' prenotazioni visibili';
+    }
+
+    function applyRegisteredBookingsFilters() {
+        const query = searchInput.value.trim().toLowerCase();
+        const selectedRoom = roomFilter.value.trim().toLowerCase();
+        const sortValue = sortSelect.value;
+        const orderedGroups = sortGroups(groups, sortValue);
+        let visibleCount = 0;
+
+        orderedGroups.forEach(function (group) {
+            const matchesQuery = query === '' || group.searchText.indexOf(query) !== -1;
+            const matchesRoom = selectedRoom === '' || group.roomType === selectedRoom;
+            const isVisible = matchesQuery && matchesRoom;
+
+            group.desktopRow.hidden = !isVisible;
+            if (group.summaryRow) {
+                group.summaryRow.hidden = !isVisible;
+            }
+            if (group.detailRow && !isVisible) {
+                group.detailRow.hidden = true;
+            }
+
+            if (isVisible) {
+                visibleCount += 1;
+            }
+
+            appendGroup(group);
+        });
+
+        syncDetailVisibility();
+        updateVisibleCount(visibleCount);
+
+        if (emptyState) {
+            emptyState.hidden = visibleCount !== 0;
+        }
+    }
+
+    groups.forEach(function (group) {
+        if (!group.summaryRow) {
+            return;
+        }
+
+        group.summaryRow.addEventListener('click', function () {
+            window.setTimeout(syncDetailVisibility, 0);
+        });
+    });
+
+    [searchInput, roomFilter, sortSelect].forEach(function (element) {
+        element.addEventListener('input', applyRegisteredBookingsFilters);
+        element.addEventListener('change', applyRegisteredBookingsFilters);
+    });
+
+    resetButton.addEventListener('click', function () {
+        searchInput.value = '';
+        roomFilter.value = '';
+        sortSelect.value = 'created_desc';
+        applyRegisteredBookingsFilters();
+    });
+
+    applyRegisteredBookingsFilters();
+});
+</script>
+
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
