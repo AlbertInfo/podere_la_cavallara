@@ -497,7 +497,7 @@ require_once __DIR__ . '/includes/header.php';
                     <th>Camera</th>
                     <th>Persone</th>
                     <th>Contatti</th>
-                    <th>Origine</th>
+                    <th>Note</th>
                     <th>Azioni</th>
                 </tr>
             </thead>
@@ -518,6 +518,7 @@ require_once __DIR__ . '/includes/header.php';
                             <span class="small muted"><?= e($row['phone_booking'] ?? '-') ?></span>
                         </td>
                         <td><span class="badge <?= ($row['source'] ?? '') !== 'website_form' ? 'warning' : '' ?>"><?= e($row['source'] ?? 'website_form') ?></span></td>
+                        <td> <?= ($row['notes'] ?? '')  ?></td>
                         <td>
                             <div class="actions">
                                 <form method="post" action="<?= e(admin_url('actions/register-booking.php')) ?>" data-confirm="Registrare questa richiesta come prenotazione confermata?">
