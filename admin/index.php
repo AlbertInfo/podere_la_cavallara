@@ -314,7 +314,7 @@ require_once __DIR__ . '/includes/header.php';
                     <th>Camera</th>
                     <th>Persone</th>
                     <th>Stato</th>
-                    <th>Origine</th>
+                    <th>Note</th>
                     <th>Azioni</th>
                 </tr>
             </thead>
@@ -380,7 +380,7 @@ require_once __DIR__ . '/includes/header.php';
                         <td><?= e($row['room_type']) ?></td>
                         <td><?= (int)$row['adults'] ?> adulti / <?= (int)$row['children_count'] ?> bambini</td>
                         <td><span class="badge success"><?= e($row['status']) ?></span></td>
-                        <td><span class="badge"><?= e($row['source']) ?></span></td>
+                        <td><?= e($row['notes']) ?></td>
                         <td>
                             <div class="actions">
                                 <a class="btn btn-light btn-sm" href="<?= e(admin_url('edit-prenotazione.php?id=' . (int)$row['id'])) ?>">Modifica</a>
