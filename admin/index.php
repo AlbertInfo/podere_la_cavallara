@@ -372,7 +372,7 @@ require_once __DIR__ . '/includes/header.php';
                         <td><?= e($row['room_type']) ?></td>
                         <td><?= (int)$row['adults'] ?> adulti / <?= (int)$row['children_count'] ?> bambini</td>
                         <td><span class="badge success"><?= e($row['status']) ?></span></td>
-                        <td><? ($row['notes']) ?? '' ?></td>
+                        <td><?= ($row['notes']) ?? '' ?></td>
                         <td>
                             <div class="actions">
                                 <a class="btn btn-light btn-sm" href="<?= e(admin_url('edit-prenotazione.php?id=' . (int)$row['id'])) ?>">Modifica</a>
