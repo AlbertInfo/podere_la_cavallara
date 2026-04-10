@@ -128,3 +128,100 @@ function json_response(array $payload, int $status = 200): void
     echo json_encode($payload, JSON_UNESCAPED_UNICODE);
     exit;
 }
+
+
+function normalize_optional_email(string $email): ?string
+{
+    $email = trim($email);
+
+    if ($email === '') {
+        return null;
+    }
+
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return null;
+    }
+
+    return $email;
+}
+
+function normalize_optional_phone(string $phone): ?string
+{
+    $phone = trim($phone);
+
+    if ($phone === '' || $phone === 'Non presente nel PDF') {
+        return null;
+    }
+
+    $phone = preg_replace('/\s+/u', ' ', $phone) ?: $phone;
+    $phone = trim($phone);
+
+    return $phone === '' ? null : $phone;
+}
+
+function language_to_country_code(?string $language): ?string
+{
+    $language = trim((string) $language);
+
+    if ($language === '') {
+        return null;
+    }
+
+    $map = [
+        'Italiano' => 'it',
+        'Italian' => 'it',
+        'IT' => 'it',
+        'it' => 'it',
+
+        'Inglese' => 'gb',
+        'English' => 'gb',
+        'EN' => 'gb',
+        'en' => 'gb',
+
+        'Tedesco' => 'de',
+        'Deutsch' => 'de',
+        'German' => 'de',
+        'DE' => 'de',
+        'de' => 'de',
+
+        'Ceco' => 'cz',
+        'Czech' => 'cz',
+        'CZ' => 'cz',
+        'cz' => 'cz',
+
+        'Polacco' => 'pl',
+        'Polish' => 'pl',
+        'PL' => 'pl',
+        'pl' => 'pl',
+
+        'Olandese' => 'nl',
+        'Dutch' => 'nl',
+        'NL' => 'nl',
+        'nl' => 'nl',
+
+        'Francese' => 'fr',
+        'French' => 'fr',
+        'FR' => 'fr',
+        'fr' => 'fr',
+
+        'Spagnolo' => 'es',
+        'Spanish' => 'es',
+        'ES' => 'es',
+        'es' => 'es',
+    ];
+
+    return isset($map[$language]) ? $map[$language] : null;
+}
+
+function normalize_country_code(?string $countryCode): ?string
+{
+    $countryCode = strtolower(trim((string) $countryCode));
+
+    if ($countryCode === '') {
+        return null;
+    }
+
+    $allowed = ['it', 'gb', 'de', 'cz', 'pl', 'nl', 'fr', 'es'];
+
+    return in_array($countryCode, $allowed, true) ? $countryCode : null;
+}
