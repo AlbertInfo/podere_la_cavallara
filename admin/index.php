@@ -180,6 +180,22 @@ require_once __DIR__ . '/includes/header.php';
     color:#8d8b8b;
     border-color:#8d8b8b;
 }
+.booking-customer-top{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex-wrap:wrap;
+}
+.booking-customer-flag{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:22px;
+    height:16px;
+    border-radius:3px;
+    box-shadow:0 0 0 1px rgba(0,0,0,.08);
+    flex:0 0 auto;
+}
 #registered-bookings-table tr.desktop-row.is-past td{
     background:linear-gradient(180deg,#fff8f8 0%,#fff2f4 100%);
 }
@@ -309,6 +325,32 @@ require_once __DIR__ . '/includes/header.php';
                         $bookingCheckOut = dashboard_extract_check_out_iso($row);
                         $bookingIsPast = $bookingCheckOut !== '' && $bookingCheckOut < $dashboardTodayIso;
                         $bookingPhase = $bookingIsPast ? 'past' : 'active';
+                        $bookingGuestCountryCode = strtolower(trim((string) ($row['guest_country_code'] ?? '')));
+                        if ($bookingGuestCountryCode === '') {
+                            $bookingGuestLanguage = trim((string) ($row['guest_language'] ?? ''));
+                            $bookingLanguageMap = [
+                                'Italiano' => 'it',
+                                'Italian' => 'it',
+                                'Inglese' => 'gb',
+                                'English' => 'gb',
+                                'Tedesco' => 'de',
+                                'Deutsch' => 'de',
+                                'German' => 'de',
+                                'Ceco' => 'cz',
+                                'Czech' => 'cz',
+                                'Polacco' => 'pl',
+                                'Polish' => 'pl',
+                                'Olandese' => 'nl',
+                                'Dutch' => 'nl',
+                                'Francese' => 'fr',
+                                'French' => 'fr',
+                                'Spagnolo' => 'es',
+                                'Spanish' => 'es',
+                            ];
+                            if (isset($bookingLanguageMap[$bookingGuestLanguage])) {
+                                $bookingGuestCountryCode = $bookingLanguageMap[$bookingGuestLanguage];
+                            }
+                        }
                     ?>
                     <!-- DESKTOP ROW -->
                     <tr class="desktop-row<?= $bookingIsPast ? ' is-past' : '' ?>"
@@ -321,7 +363,12 @@ require_once __DIR__ . '/includes/header.php';
                         data-created-at="<?= e((string)$row['created_at']) ?>">
                         <td><?= e($row['created_at']) ?></td>
                         <td>
-                            <strong><?= e($row['customer_name']) ?></strong><br>
+                            <div class="booking-customer-top">
+                                <strong><?= e($row['customer_name']) ?></strong>
+                                <?php if ($bookingGuestCountryCode !== ''): ?>
+                                    <span class="fi fi-<?= e($bookingGuestCountryCode) ?> booking-customer-flag" title="<?= e((string) ($row['guest_language'] ?? strtoupper($bookingGuestCountryCode))) ?>"></span>
+                                <?php endif; ?>
+                            </div>
                             <span class="small muted"><?= e($row['customer_email'] ?: 'Email non disponibile') ?></span>
                         </td>
                         <td>
@@ -351,14 +398,24 @@ require_once __DIR__ . '/includes/header.php';
                         <td>
                             <div class="mobile-summary-card">
                                 <div class="mobile-summary-head">
-                                    <strong><?= e($row['customer_name']) ?></strong>
+                                    <div class="booking-customer-top">
+                                        <strong><?= e($row['customer_name']) ?></strong>
+                                        <?php if ($bookingGuestCountryCode !== ''): ?>
+                                            <span class="fi fi-<?= e($bookingGuestCountryCode) ?> booking-customer-flag" title="<?= e((string) ($row['guest_language'] ?? strtoupper($bookingGuestCountryCode))) ?>"></span>
+                                        <?php endif; ?>
+                                    </div>
                                     <span class="mobile-chevron">▾</span>
                                 </div>
 
                                 <div class="mobile-summary-grid">
                                     <div>
                                         <span>Cliente</span>
-                                        <strong><?= e($row['customer_name']) ?></strong>
+                                        <div class="booking-customer-top">
+                                            <strong><?= e($row['customer_name']) ?></strong>
+                                            <?php if ($bookingGuestCountryCode !== ''): ?>
+                                                <span class="fi fi-<?= e($bookingGuestCountryCode) ?> booking-customer-flag" title="<?= e((string) ($row['guest_language'] ?? strtoupper($bookingGuestCountryCode))) ?>"></span>
+                                            <?php endif; ?>
+                                        </div>
                                     </div>
                                     <div>
                                         <span>Soggiorno</span>
