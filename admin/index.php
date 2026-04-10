@@ -74,26 +74,18 @@ function language_to_country_code(?string $language): string
 {
     $language = trim((string) $language);
 
-    switch ($language) {
-        case 'Italiano':
-            return 'it';
-        case 'Inglese':
-            return 'gb';
-        case 'Tedesco':
-            return 'de';
-        case 'Ceco':
-            return 'cz';
-        case 'Polacco':
-            return 'pl';
-        case 'Olandese':
-            return 'nl';
-        case 'Francese':
-            return 'fr';
-        case 'Spagnolo':
-            return 'es';
-        default:
-            return '';
-    }
+    $map = [
+        'Italiano' => 'it',
+        'Inglese' => 'gb',
+        'Tedesco' => 'de',
+        'Ceco' => 'cz',
+        'Polacco' => 'pl',
+        'Olandese' => 'nl',
+        'Francese' => 'fr',
+        'Spagnolo' => 'es',
+    ];
+
+    return isset($map[$language]) ? $map[$language] : '';
 }
 $pageTitle = 'Dashboard amministrazione';
 require_once __DIR__ . '/includes/header.php';

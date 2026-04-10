@@ -49,16 +49,19 @@ function review_state_badge_class(?string $state): string
 {
     $state = (string) $state;
 
-    switch ($state) {
-        case 'new':
-            return 'is-new';
-        case 'cancelled':
-            return 'is-cancelled';
-        case 'modified':
-            return 'is-modified';
-        default:
-            return 'is-existing';
+    if ($state === 'new') {
+        return 'is-new';
     }
+
+    if ($state === 'cancelled') {
+        return 'is-cancelled';
+    }
+
+    if ($state === 'modified') {
+        return 'is-modified';
+    }
+
+    return 'is-existing';
 }
 
 // function normalize_review_flag(?string $value, ?string $language = null): string
@@ -101,26 +104,18 @@ function language_to_country_code(?string $language): string
 {
     $language = trim((string) $language);
 
-    switch ($language) {
-        case 'Italiano':
-            return 'it';
-        case 'Inglese':
-            return 'gb';
-        case 'Tedesco':
-            return 'de';
-        case 'Ceco':
-            return 'cz';
-        case 'Polacco':
-            return 'pl';
-        case 'Olandese':
-            return 'nl';
-        case 'Francese':
-            return 'fr';
-        case 'Spagnolo':
-            return 'es';
-        default:
-            return '';
-    }
+    $map = [
+        'Italiano' => 'it',
+        'Inglese' => 'gb',
+        'Tedesco' => 'de',
+        'Ceco' => 'cz',
+        'Polacco' => 'pl',
+        'Olandese' => 'nl',
+        'Francese' => 'fr',
+        'Spagnolo' => 'es',
+    ];
+
+    return isset($map[$language]) ? $map[$language] : '';
 }
 
 $countryCode = language_to_country_code($row['_language'] ?? '');

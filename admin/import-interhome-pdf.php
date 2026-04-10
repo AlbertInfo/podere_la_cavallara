@@ -14,42 +14,37 @@ function interhome_state_badge_class(?string $state): string
 {
     $state = (string) $state;
 
-    switch ($state) {
-        case 'new':
-            return 'is-new';
-        case 'cancelled':
-            return 'is-cancelled';
-        case 'modified':
-            return 'is-modified';
-        default:
-            return 'is-existing';
+    if ($state === 'new') {
+        return 'is-new';
     }
+
+    if ($state === 'cancelled') {
+        return 'is-cancelled';
+    }
+
+    if ($state === 'modified') {
+        return 'is-modified';
+    }
+
+    return 'is-existing';
 }
 
 function language_to_country_code(?string $language): string
 {
     $language = trim((string) $language);
 
-    switch ($language) {
-        case 'Italiano':
-            return 'it';
-        case 'Inglese':
-            return 'gb';
-        case 'Tedesco':
-            return 'de';
-        case 'Ceco':
-            return 'cz';
-        case 'Polacco':
-            return 'pl';
-        case 'Olandese':
-            return 'nl';
-        case 'Francese':
-            return 'fr';
-        case 'Spagnolo':
-            return 'es';
-        default:
-            return '';
-    }
+    $map = [
+        'Italiano' => 'it',
+        'Inglese' => 'gb',
+        'Tedesco' => 'de',
+        'Ceco' => 'cz',
+        'Polacco' => 'pl',
+        'Olandese' => 'nl',
+        'Francese' => 'fr',
+        'Spagnolo' => 'es',
+    ];
+
+    return isset($map[$language]) ? $map[$language] : '';
 }
 ?>
 <style>
@@ -341,7 +336,10 @@ function language_to_country_code(?string $language): string
             <h1>Importa PDF Interhome</h1>
             <p class="muted">Carica il PDF arrivi dell’agenzia, verifica il riepilogo e lavora le prenotazioni una per una.</p>
         </div>
-        <a class="btn btn-light" href="<?= e(admin_url('index.php#registered-bookings')) ?>">Torna alle prenotazioni</a>
+        <div class="toolbar">
+            <a class="btn btn-light" href="<?= e(admin_url('file-manager.php')) ?>">Archivio PDF</a>
+            <a class="btn btn-light" href="<?= e(admin_url('index.php#registered-bookings')) ?>">Torna alle prenotazioni</a>
+        </div>
     </div>
 
     <section class="card interhome-upload-card">
@@ -411,6 +409,7 @@ function language_to_country_code(?string $language): string
                     </div>
                     <div class="toolbar" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                         <input class="search-input" type="search" placeholder="Cerca prenotazioni nel PDF..." data-table-filter="#interhome-import-table">
+                        <a class="btn btn-light" href="<?= e(admin_url('file-manager.php')) ?>">Archivio PDF</a>
                         <?php if (!empty($importState['pdf_url'])): ?>
                             <button type="button" class="btn btn-light" data-pdf-toggle aria-expanded="false">Apri PDF</button>
                         <?php endif; ?>
