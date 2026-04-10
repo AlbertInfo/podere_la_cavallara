@@ -47,12 +47,18 @@ $statuses = [
 
 function review_state_badge_class(?string $state): string
 {
-    return match ((string) $state) {
-        'new' => 'is-new',
-        'cancelled' => 'is-cancelled',
-        'modified' => 'is-modified',
-        default => 'is-existing',
-    };
+    $state = (string) $state;
+
+    switch ($state) {
+        case 'new':
+            return 'is-new';
+        case 'cancelled':
+            return 'is-cancelled';
+        case 'modified':
+            return 'is-modified';
+        default:
+            return 'is-existing';
+    }
 }
 
 // function normalize_review_flag(?string $value, ?string $language = null): string
@@ -93,19 +99,31 @@ function review_state_badge_class(?string $state): string
 
 function language_to_country_code(?string $language): string
 {
-    return match (trim((string) $language)) {
-        'Italiano' => 'it',
-        'Inglese' => 'gb',
-        'Tedesco' => 'de',
-        'Ceco' => 'cz',
-        'Polacco' => 'pl',
-        'Olandese' => 'nl',
-        'Francese' => 'fr',
-        'Spagnolo' => 'es',
-        default => '',
-    };
+    $language = trim((string) $language);
+
+    switch ($language) {
+        case 'Italiano':
+            return 'it';
+        case 'Inglese':
+            return 'gb';
+        case 'Tedesco':
+            return 'de';
+        case 'Ceco':
+            return 'cz';
+        case 'Polacco':
+            return 'pl';
+        case 'Olandese':
+            return 'nl';
+        case 'Francese':
+            return 'fr';
+        case 'Spagnolo':
+            return 'es';
+        default:
+            return '';
+    }
 }
 
+$countryCode = language_to_country_code($row['_language'] ?? '');
 $pdfState = (string) ($row['_pdf_state'] ?? 'existing');
 $pdfStateLabel = (string) ($row['_pdf_state_label'] ?? 'Prenotazione esistente');
 ?>
@@ -342,12 +360,30 @@ $pdfStateLabel = (string) ($row['_pdf_state_label'] ?? 'Prenotazione esistente')
 
                 <label>
                     Email
-                    <input type="email" name="customer_email" value="<?= e((string) ($row['customer_email'] ?? '')) ?>" placeholder="Non presente nel PDF">
+                    <?php
+// Controllo che l'email non sia vuota e che sia un'email valida
+$email = $row['customer_email'] ?? '';
+
+// Se l'email non è valida, assegna il valore predefinito
+if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    $email = 'email@email.it';
+}
+?>
+                    <?php
+// Controllo che l'email non sia vuota e che sia un'email valida
+$email = $row['customer_email'] ?? '';
+
+// Se l'email non è valida, assegna il valore predefinito
+if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    $email = 'email_non_presente@email.it';
+}
+?>
+                    <input type="email" name="customer_email" value="<?= e($email) ?>" placeholder="Non presente nel PDF">
                 </label>
 
                 <label>
                     Telefono
-                    <input type="text" name="customer_phone" value="<?= e((string) ($row['customer_phone'] ?? '')) ?>" placeholder="Non presente nel PDF">
+                    <input type="text" name="customer_phone" value="<?= e((string) ($row['customer_phone'] ?? 'Non presente nel PDF')) ?>" placeholder="Non presente nel PDF">
                 </label>
 
                 <label>

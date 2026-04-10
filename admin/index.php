@@ -72,32 +72,28 @@ if ($registeredBookingRoomOptions) {
 }
 function language_to_country_code(?string $language): string
 {
-    return match (trim((string) $language)) {
-        'Italiano' => 'it',
-        'Inglese' => 'gb',
-        'Tedesco' => 'de',
-        'Ceco' => 'cz',
-        'Polacco' => 'pl',
-        'Olandese' => 'nl',
-        'Francese' => 'fr',
-        'Spagnolo' => 'es',
-        default => '',
-    };
-}
+    $language = trim((string) $language);
 
-function country_code_to_language(?string $guest_country_code): string
-{
-    return match (trim((string) $guest_country_code)) {
-        'it' => 'Italiano',
-        'gb' => 'Inglese',
-        'de' => 'Tedesco',
-        'cz' => 'Ceco',
-        'pl' => 'Polacco',
-        'nl' => 'Olandese',
-        'fr' => 'Francese',
-        'es' => 'Spagnolo',
-        default => '',
-    };
+    switch ($language) {
+        case 'Italiano':
+            return 'it';
+        case 'Inglese':
+            return 'gb';
+        case 'Tedesco':
+            return 'de';
+        case 'Ceco':
+            return 'cz';
+        case 'Polacco':
+            return 'pl';
+        case 'Olandese':
+            return 'nl';
+        case 'Francese':
+            return 'fr';
+        case 'Spagnolo':
+            return 'es';
+        default:
+            return '';
+    }
 }
 $pageTitle = 'Dashboard amministrazione';
 require_once __DIR__ . '/includes/header.php';
@@ -234,17 +230,6 @@ require_once __DIR__ . '/includes/header.php';
 #registered-bookings-table tr.mobile-detail-row.is-past strong{
     color:#7f1d1d;
 }
-.interhome-review-flag{
-   
-  
-  border-radius:3px;
-  
-
-}
-
-.notes_space{
-    max-width: 250px;
-}
 @media (max-width:1100px){
     .dashboard-filters-grid{
         grid-template-columns:1fr 1fr;
@@ -339,7 +324,7 @@ require_once __DIR__ . '/includes/header.php';
                     <th>Camera</th>
                     <th>Persone</th>
                     <th>Stato</th>
-                    <th>Note</th>
+                    <th>Origine</th>
                     <th>Azioni</th>
                 </tr>
             </thead>
@@ -363,8 +348,6 @@ require_once __DIR__ . '/includes/header.php';
                         <td><?= e($row['created_at']) ?></td>
                         <td>
                             <strong><?= e($row['customer_name']) ?></strong><br>
-                            <span class="fi fi-<?= e($row['guest_country_code']) ?> interhome-review-flag" title="<?= country_code_to_language($row['guest_country_code']) ?? '' ?>"></span> 
-                            <span class="small muted"><?= country_code_to_language($row['guest_country_code']) ?? '' ?> </span>  <br>             
                             <span class="small muted"><?= e($row['customer_email'] ?: 'Email non disponibile') ?></span>
                         </td>
                         <td>
@@ -376,7 +359,7 @@ require_once __DIR__ . '/includes/header.php';
                         <td><?= e($row['room_type']) ?></td>
                         <td><?= (int)$row['adults'] ?> adulti / <?= (int)$row['children_count'] ?> bambini</td>
                         <td><span class="badge success"><?= e($row['status']) ?></span></td>
-                        <td class="notes_space"><?= ($row['notes']) ?? '' ?></td>
+                        <td><span class="badge"><?= e($row['source']) ?></span></td>
                         <td>
                             <div class="actions">
                                 <a class="btn btn-light btn-sm" href="<?= e(admin_url('edit-prenotazione.php?id=' . (int)$row['id'])) ?>">Modifica</a>
@@ -522,7 +505,6 @@ require_once __DIR__ . '/includes/header.php';
                             <span class="small muted"><?= e($row['phone_booking'] ?? '-') ?></span>
                         </td>
                         <td><span class="badge <?= ($row['source'] ?? '') !== 'website_form' ? 'warning' : '' ?>"><?= e($row['source'] ?? 'website_form') ?></span></td>
-                       
                         <td>
                             <div class="actions">
                                 <form method="post" action="<?= e(admin_url('actions/register-booking.php')) ?>" data-confirm="Registrare questa richiesta come prenotazione confermata?">
