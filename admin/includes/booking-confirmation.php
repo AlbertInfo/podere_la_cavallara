@@ -134,7 +134,7 @@ function admin_booking_confirmation_copy(string $language, array $booking): arra
             'content' => "
                 <p>Liebe/r {$name},</p>
                 <p>herzlichen Glückwunsch, Ihre Buchung wurde erfolgreich bestätigt.</p>
-                <p>Wir freuen uns darauf, Sie im <strong>Podere La Cavallara</strong> in Montefiascone willkommen zu heißen.</p>
+                <p>Wir freuen uns, Sie im <strong>Podere La Cavallara </strong> in Montefiascone, Via Cannelle 103, begrüßen zu dürfen. Für weitere Informationen stehen wir Ihnen gerne zur Verfügung.</p>
                 <h3 style='margin:26px 0 12px;'>Buchungsübersicht</h3>
                 <table cellpadding='8' cellspacing='0' width='100%' style='border-collapse:collapse;'>
                     <tr>
@@ -196,7 +196,7 @@ function admin_booking_confirmation_copy(string $language, array $booking): arra
             'content' => "
                 <p>Dear {$name},</p>
                 <p>great news: your booking has been successfully confirmed.</p>
-                <p>We look forward to welcoming you to <strong>Podere La Cavallara</strong> in Montefiascone.</p>
+                <p>We will be happy to welcome you to <strong>Podere La Cavallara</strong> in Montefiascone </p> Via Cannelle, 103. For any information do not hesitate to contact us.</p>
                 <h3 style='margin:26px 0 12px;'>Booking summary</h3>
                 <table cellpadding='8' cellspacing='0' width='100%' style='border-collapse:collapse;'>
                     <tr>
@@ -257,7 +257,7 @@ function admin_booking_confirmation_copy(string $language, array $booking): arra
         'content' => "
             <p>Gentile {$name},</p>
             <p>complimenti, la tua prenotazione è stata confermata con successo.</p>
-            <p>Ti aspettiamo a <strong>Podere La Cavallara</strong>, a Montefiascone, per il tuo soggiorno.</p>
+            <p>Ti aspettiamo a <strong>Podere La Cavallara</strong>, a Montefiascone Via Cannelle 103, per il tuo soggiorno!! Per qualsiasi informazione non esitare a contattarci.</p>
             <h3 style='margin:26px 0 12px;'>Riepilogo prenotazione</h3>
             <table cellpadding='8' cellspacing='0' width='100%' style='border-collapse:collapse;'>
                 <tr>
