@@ -75,7 +75,7 @@ require_once __DIR__ . '/includes/header.php';
                         <td><?= e($row['created_at']) ?></td>
                         <td>
                             <strong><?= e($row['customer_name']) ?></strong><br>
-                            <span class="small muted"><?= e($row['customer_email']) ?></span>
+                            <span class="small muted"><?= e($row['customer_email'] ?: 'Email non disponibile') ?></span>
                         </td>
                         <td><?= e($row['stay_period']) ?></td>
                         <td><?= e($row['room_type']) ?></td>
@@ -135,7 +135,7 @@ require_once __DIR__ . '/includes/header.php';
                                 </div>
                                 <div>
                                     <span>Email</span>
-                                    <strong><?= e($row['customer_email']) ?></strong>
+                                    <strong><?= e($row['customer_email'] ?: 'Email non disponibile') ?></strong>
                                 </div>
                                 <div>
                                     <span>Telefono</span>

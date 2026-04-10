@@ -47,17 +47,29 @@ if ($stayPeriod === '' || $roomType === '' || $customerName === '' || $externalR
     header('Location: ' . admin_url('import-interhome-review.php?row=' . urlencode($rowId)));
     exit;
 }
-if ($customerEmail !== '' && !filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
+
+$normalizedEmail = normalize_optional_email($customerEmail);
+if ($customerEmail !== '' && $normalizedEmail === null) {
     set_flash('error', 'Inserisci un indirizzo email valido oppure lascia il campo vuoto.');
     header('Location: ' . admin_url('import-interhome-review.php?row=' . urlencode($rowId)));
     exit;
 }
 
+$allowedStatuses = ['confermata', 'in_attesa', 'annullata'];
+if (!in_array($status, $allowedStatuses, true)) {
+    $status = 'confermata';
+}
+
+$dates = parse_stay_period_dates($stayPeriod);
+$normalizedPhone = normalize_optional_phone($customerPhone);
+$propertyCode = extract_property_code($row['_raw_property'] ?? '');
+
 $checkExisting = $pdo->prepare('SELECT id FROM prenotazioni WHERE external_reference = :external_reference LIMIT 1');
 $checkExisting->execute(['external_reference' => $externalReference]);
 if ($checkExisting->fetch(PDO::FETCH_ASSOC)) {
-    // remove from queue anyway
-    $_SESSION['interhome_import']['rows'] = array_values(array_filter($import['rows'], static fn(array $r): bool => ($r['import_row_id'] ?? '') !== $rowId));
+    $_SESSION['interhome_import']['rows'] = array_values(array_filter($import['rows'], static function (array $r) use ($rowId): bool {
+        return ($r['import_row_id'] ?? '') !== $rowId;
+    }));
     $_SESSION['interhome_import']['summary']['new_total'] = count($_SESSION['interhome_import']['rows']);
     set_flash('success', 'La prenotazione era già registrata ed è stata rimossa dall’elenco importato.');
     header('Location: ' . admin_url('import-interhome-pdf.php'));
@@ -69,9 +81,13 @@ $stmt = $pdo->prepare(
         booking_request_id,
         customer_name,
         customer_email,
+        email_missing,
         customer_phone,
         stay_period,
+        check_in,
+        check_out,
         room_type,
+        property_code,
         adults,
         children_count,
         notes,
@@ -79,15 +95,20 @@ $stmt = $pdo->prepare(
         source,
         external_reference,
         raw_payload,
+        imported_at,
         created_at,
         updated_at
     ) VALUES (
         NULL,
         :customer_name,
         :customer_email,
+        :email_missing,
         :customer_phone,
         :stay_period,
+        :check_in,
+        :check_out,
         :room_type,
+        :property_code,
         :adults,
         :children_count,
         :notes,
@@ -95,6 +116,7 @@ $stmt = $pdo->prepare(
         :source,
         :external_reference,
         :raw_payload,
+        NOW(),
         NOW(),
         NOW()
     )'
@@ -108,21 +130,27 @@ $rawPayload = json_encode([
 
 $success = $stmt->execute([
     'customer_name' => $customerName,
-    'customer_email' => $customerEmail !== '' ? $customerEmail : null,
-    'customer_phone' => $customerPhone !== '' ? $customerPhone : null,
+    'customer_email' => $normalizedEmail,
+    'email_missing' => $normalizedEmail === null ? 1 : 0,
+    'customer_phone' => $normalizedPhone,
     'stay_period' => $stayPeriod,
+    'check_in' => $dates['check_in'],
+    'check_out' => $dates['check_out'],
     'room_type' => $roomType,
+    'property_code' => $propertyCode,
     'adults' => $adults,
     'children_count' => $children,
     'notes' => $notes !== '' ? $notes : null,
-    'status' => in_array($status, ['confermata', 'in_attesa', 'annullata'], true) ? $status : 'confermata',
+    'status' => $status,
     'source' => $source,
     'external_reference' => $externalReference,
     'raw_payload' => $rawPayload,
 ]);
 
 if ($success) {
-    $_SESSION['interhome_import']['rows'] = array_values(array_filter($import['rows'], static fn(array $r): bool => ($r['import_row_id'] ?? '') !== $rowId));
+    $_SESSION['interhome_import']['rows'] = array_values(array_filter($import['rows'], static function (array $r) use ($rowId): bool {
+        return ($r['import_row_id'] ?? '') !== $rowId;
+    }));
     $_SESSION['interhome_import']['summary']['new_total'] = count($_SESSION['interhome_import']['rows']);
     set_flash('success', 'Prenotazione inserita correttamente tra quelle registrate.');
     header('Location: ' . admin_url('import-interhome-pdf.php'));

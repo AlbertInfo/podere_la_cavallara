@@ -57,27 +57,30 @@ foreach ($xml->reservation as $reservation) {
     }
 
     $guestName = trim((string) ($reservation->customer->name ?? 'Guest Booking.com'));
-    $email = trim((string) ($reservation->customer->email ?? ''));
-    $phone = trim((string) ($reservation->customer->telephone ?? ''));
+    $email = normalize_optional_email((string) ($reservation->customer->email ?? ''));
+    $phone = normalize_optional_phone((string) ($reservation->customer->telephone ?? ''));
     $roomType = trim((string) ($reservation->room->name ?? 'Camera Booking.com'));
-    $checkin = trim((string) ($reservation->checkin ?? ''));
-    $checkout = trim((string) ($reservation->checkout ?? ''));
+    $checkin = parse_booking_date((string) ($reservation->checkin ?? ''));
+    $checkout = parse_booking_date((string) ($reservation->checkout ?? ''));
     $adults = (int) ($reservation->room->numberofguests ?? 1);
     $children = (int) ($reservation->room->children ?? 0);
 
     $stmt = $pdo->prepare('INSERT INTO prenotazioni (
-        customer_name, customer_email, customer_phone, stay_period, room_type,
+        customer_name, customer_email, email_missing, customer_phone, stay_period, check_in, check_out, room_type,
         adults, children_count, notes, status, source, external_reference, raw_payload
     ) VALUES (
-        :customer_name, :customer_email, :customer_phone, :stay_period, :room_type,
+        :customer_name, :customer_email, :email_missing, :customer_phone, :stay_period, :check_in, :check_out, :room_type,
         :adults, :children_count, :notes, :status, :source, :external_reference, :raw_payload
     )');
 
     $stmt->execute([
         'customer_name' => $guestName,
         'customer_email' => $email,
+        'email_missing' => $email === null ? 1 : 0,
         'customer_phone' => $phone,
-        'stay_period' => trim($checkin . ' → ' . $checkout),
+        'stay_period' => trim((string) ($reservation->checkin ?? '') . ' - ' . (string) ($reservation->checkout ?? '')),
+        'check_in' => $checkin,
+        'check_out' => $checkout,
         'room_type' => $roomType,
         'adults' => $adults,
         'children_count' => $children,

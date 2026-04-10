@@ -70,8 +70,8 @@ require_once __DIR__ . '/includes/header.php';
                 </label>
 
                 <label>
-                    Email *
-                    <input type="email" name="customer_email" value="<?= e($prenotazione['customer_email']) ?>" required>
+                    Email
+                    <input type="email" name="customer_email" value="<?= e($prenotazione['customer_email'] ?? '') ?>" placeholder="Non disponibile">
                 </label>
 
                 <label>

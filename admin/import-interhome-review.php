@@ -106,7 +106,6 @@ function language_to_country_code(?string $language): string
     };
 }
 
-$countryCode = language_to_country_code($row['_country_flag'] ?? '', $row['_language'] ?? '');
 $pdfState = (string) ($row['_pdf_state'] ?? 'existing');
 $pdfStateLabel = (string) ($row['_pdf_state_label'] ?? 'Prenotazione esistente');
 ?>
@@ -343,30 +342,12 @@ $pdfStateLabel = (string) ($row['_pdf_state_label'] ?? 'Prenotazione esistente')
 
                 <label>
                     Email
-                    <?php
-// Controllo che l'email non sia vuota e che sia un'email valida
-$email = $row['customer_email'] ?? '';
-
-// Se l'email non è valida, assegna il valore predefinito
-if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-    $email = 'email@email.it';
-}
-?>
-                    <?php
-// Controllo che l'email non sia vuota e che sia un'email valida
-$email = $row['customer_email'] ?? '';
-
-// Se l'email non è valida, assegna il valore predefinito
-if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-    $email = 'email_non_presente@email.it';
-}
-?>
-                    <input type="email" name="customer_email" value="<?= e($email) ?>" placeholder="Non presente nel PDF">
+                    <input type="email" name="customer_email" value="<?= e((string) ($row['customer_email'] ?? '')) ?>" placeholder="Non presente nel PDF">
                 </label>
 
                 <label>
                     Telefono
-                    <input type="text" name="customer_phone" value="<?= e((string) ($row['customer_phone'] ?? 'Non presente nel PDF')) ?>" placeholder="Non presente nel PDF">
+                    <input type="text" name="customer_phone" value="<?= e((string) ($row['customer_phone'] ?? '')) ?>" placeholder="Non presente nel PDF">
                 </label>
 
                 <label>

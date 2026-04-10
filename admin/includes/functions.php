@@ -121,6 +121,87 @@ function validate_password_reset(PDO $pdo, string $email, string $token): ?array
     return null;
 }
 
+
+function normalize_optional_email(string $email): ?string
+{
+    $email = trim($email);
+    if ($email === '') {
+        return null;
+    }
+
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return null;
+    }
+
+    return $email;
+}
+
+function normalize_optional_phone(string $phone): ?string
+{
+    $phone = trim($phone);
+    if ($phone === '' || $phone === 'Non presente nel PDF') {
+        return null;
+    }
+
+    return $phone;
+}
+
+function parse_stay_period_dates(string $stayPeriod): array
+{
+    $stayPeriod = trim($stayPeriod);
+    if ($stayPeriod === '') {
+        return ['check_in' => null, 'check_out' => null];
+    }
+
+    $normalized = preg_replace('/\s+al\s+/iu', ' - ', $stayPeriod);
+    $normalized = preg_replace('/\s*[→-]\s*/u', ' - ', (string) $normalized);
+    $parts = array_values(array_filter(array_map('trim', explode(' - ', (string) $normalized))));
+
+    if (count($parts) < 2) {
+        return ['check_in' => null, 'check_out' => null];
+    }
+
+    $checkIn = parse_booking_date($parts[0]);
+    $checkOut = parse_booking_date($parts[count($parts) - 1]);
+
+    return ['check_in' => $checkIn, 'check_out' => $checkOut];
+}
+
+function parse_booking_date(string $value): ?string
+{
+    $value = trim($value);
+    if ($value === '') {
+        return null;
+    }
+
+    foreach (['d/m/Y', 'Y-m-d'] as $format) {
+        $date = DateTime::createFromFormat($format, $value);
+        if ($date instanceof DateTime) {
+            return $date->format('Y-m-d');
+        }
+    }
+
+    return null;
+}
+
+function extract_property_code(?string $rawProperty): ?string
+{
+    $rawProperty = trim((string) $rawProperty);
+    if ($rawProperty === '') {
+        return null;
+    }
+
+    if (preg_match('/\b([A-Z]{2}\d{4}\.\d+\.\d+)\b/', $rawProperty, $matches)) {
+        return $matches[1];
+    }
+
+    if (preg_match('/\(([A-Z0-9]+)\)/', $rawProperty, $matches)) {
+        return $matches[1];
+    }
+
+    return null;
+}
+
 function json_response(array $payload, int $status = 200): void
 {
     http_response_code($status);

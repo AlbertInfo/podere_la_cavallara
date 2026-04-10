@@ -4,7 +4,7 @@ require_once dirname(__DIR__) . '/includes/db.php';
 require_admin();
 verify_csrf();
 
-$bookingRequestId = (int)($_POST['booking_request_id'] ?? 0);
+$bookingRequestId = (int) ($_POST['booking_request_id'] ?? 0);
 if ($bookingRequestId <= 0) {
     set_flash('error', 'Richiesta non valida.');
     header('Location: ' . admin_url('index.php') . '#booking-requests');
@@ -21,6 +21,9 @@ if (!$request) {
     exit;
 }
 
+$normalizedEmail = normalize_optional_email((string) ($request['email_booking'] ?? ''));
+$dates = parse_stay_period_dates((string) ($request['date_booking'] ?? ''));
+
 try {
     $pdo->beginTransaction();
 
@@ -28,8 +31,11 @@ try {
         booking_request_id,
         customer_name,
         customer_email,
+        email_missing,
         customer_phone,
         stay_period,
+        check_in,
+        check_out,
         room_type,
         adults,
         children_count,
@@ -42,8 +48,11 @@ try {
         :booking_request_id,
         :customer_name,
         :customer_email,
+        :email_missing,
         :customer_phone,
         :stay_period,
+        :check_in,
+        :check_out,
         :room_type,
         :adults,
         :children_count,
@@ -55,17 +64,20 @@ try {
     )');
 
     $insert->execute([
-        'booking_request_id' => (int)$request['id'],
-        'customer_name' => (string)$request['name_booking'],
-        'customer_email' => (string)$request['email_booking'],
+        'booking_request_id' => (int) $request['id'],
+        'customer_name' => (string) $request['name_booking'],
+        'customer_email' => $normalizedEmail,
+        'email_missing' => $normalizedEmail === null ? 1 : 0,
         'customer_phone' => null,
-        'stay_period' => (string)$request['date_booking'],
-        'room_type' => (string)$request['rooms_booking'],
-        'adults' => (int)$request['adults_booking'],
-        'children_count' => (int)$request['childs_booking'],
+        'stay_period' => (string) $request['date_booking'],
+        'check_in' => $dates['check_in'],
+        'check_out' => $dates['check_out'],
+        'room_type' => (string) $request['rooms_booking'],
+        'adults' => (int) $request['adults_booking'],
+        'children_count' => (int) $request['childs_booking'],
         'notes' => null,
         'status' => 'confermata',
-        'source' => (string)($request['source'] ?? 'website_admin'),
+        'source' => (string) ($request['source'] ?? 'website_admin'),
         'external_reference' => null,
         'raw_payload' => json_encode($request, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
     ]);
