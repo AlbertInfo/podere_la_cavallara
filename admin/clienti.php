@@ -54,11 +54,20 @@ if ($clientiTableReady) {
 
     $sql = 'SELECT
                 c.*,
-                COUNT(p.id) AS bookings_count,
-                MAX(p.created_at) AS last_booking_created_at,
-                MAX(COALESCE(p.check_out, p.created_at)) AS last_activity_at
+                COALESCE(ps.bookings_count, 0) AS bookings_count,
+                ps.last_booking_created_at,
+                ps.last_activity_at
             FROM clienti c
-            LEFT JOIN prenotazioni p ON p.cliente_id = c.id';
+            LEFT JOIN (
+                SELECT
+                    cliente_id,
+                    COUNT(id) AS bookings_count,
+                    MAX(created_at) AS last_booking_created_at,
+                    MAX(COALESCE(check_out, created_at)) AS last_activity_at
+                FROM prenotazioni
+                WHERE cliente_id IS NOT NULL
+                GROUP BY cliente_id
+            ) ps ON ps.cliente_id = c.id';
     $params = [];
 
     if ($search !== '') {
@@ -72,7 +81,7 @@ if ($clientiTableReady) {
         $params['search'] = '%' . $search . '%';
     }
 
-    $sql .= ' GROUP BY c.id ORDER BY COALESCE(last_booking_created_at, c.updated_at) DESC, c.updated_at DESC LIMIT 500';
+    $sql .= ' ORDER BY COALESCE(ps.last_booking_created_at, c.updated_at) DESC, c.updated_at DESC LIMIT 500';
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     $clienti = $stmt->fetchAll(PDO::FETCH_ASSOC);

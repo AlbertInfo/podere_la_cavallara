@@ -121,7 +121,7 @@ function validate_password_reset(PDO $pdo, string $email, string $token): ?array
     return null;
 }
 
-function admin_normalize_optional_email(string $email): ?string
+function normalize_optional_email(string $email): ?string
 {
     $email = trim($email);
     if ($email === '') {
@@ -135,23 +135,18 @@ function admin_normalize_optional_email(string $email): ?string
     return $email;
 }
 
-function admin_normalize_optional_phone(string $phone): ?string
+function normalize_optional_phone(string $phone): ?string
 {
     $phone = trim($phone);
     if ($phone === '' || $phone === 'Non presente nel PDF') {
         return null;
     }
 
-    $normalized = preg_replace('/\s+/u', ' ', $phone);
-    if ($normalized === null) {
-        $normalized = $phone;
-    }
-
-    $normalized = trim($normalized);
-    return $normalized === '' ? null : $normalized;
+    $phone = preg_replace('/\s+/u', ' ', $phone);
+    return $phone !== null ? trim($phone) : trim($phone);
 }
 
-function admin_parse_stay_period_dates(string $stayPeriod): array
+function parse_stay_period_dates(string $stayPeriod): array
 {
     $stayPeriod = trim($stayPeriod);
     if ($stayPeriod === '') {
@@ -166,13 +161,13 @@ function admin_parse_stay_period_dates(string $stayPeriod): array
         return ['check_in' => null, 'check_out' => null];
     }
 
-    return [
-        'check_in' => admin_parse_booking_date($parts[0]),
-        'check_out' => admin_parse_booking_date($parts[count($parts) - 1]),
-    ];
+    $checkIn = parse_booking_date($parts[0]);
+    $checkOut = parse_booking_date($parts[count($parts) - 1]);
+
+    return ['check_in' => $checkIn, 'check_out' => $checkOut];
 }
 
-function admin_parse_booking_date(string $value): ?string
+function parse_booking_date(string $value): ?string
 {
     $value = trim($value);
     if ($value === '') {
@@ -189,7 +184,7 @@ function admin_parse_booking_date(string $value): ?string
     return null;
 }
 
-function admin_extract_property_code(?string $rawProperty): ?string
+function extract_property_code(?string $rawProperty): ?string
 {
     $rawProperty = trim((string) $rawProperty);
     if ($rawProperty === '') {
@@ -207,53 +202,27 @@ function admin_extract_property_code(?string $rawProperty): ?string
     return null;
 }
 
-function customer_language_to_country_code(?string $language): ?string
+function language_to_country_code(?string $language): ?string
 {
     $language = trim((string) $language);
     if ($language === '') {
         return null;
     }
 
-    $map = [
-        'Italiano' => 'it',
-        'Italian' => 'it',
-        'IT' => 'it',
-        'it' => 'it',
-        'Inglese' => 'gb',
-        'English' => 'gb',
-        'EN' => 'gb',
-        'en' => 'gb',
-        'Tedesco' => 'de',
-        'Deutsch' => 'de',
-        'German' => 'de',
-        'DE' => 'de',
-        'de' => 'de',
-        'Ceco' => 'cz',
-        'Czech' => 'cz',
-        'CZ' => 'cz',
-        'cz' => 'cz',
-        'Polacco' => 'pl',
-        'Polish' => 'pl',
-        'PL' => 'pl',
-        'pl' => 'pl',
-        'Olandese' => 'nl',
-        'Dutch' => 'nl',
-        'NL' => 'nl',
-        'nl' => 'nl',
-        'Francese' => 'fr',
-        'French' => 'fr',
-        'FR' => 'fr',
-        'fr' => 'fr',
-        'Spagnolo' => 'es',
-        'Spanish' => 'es',
-        'ES' => 'es',
-        'es' => 'es',
-    ];
-
-    return isset($map[$language]) ? $map[$language] : null;
+    return match ($language) {
+        'Italiano', 'Italian', 'IT', 'it' => 'it',
+        'Inglese', 'English', 'EN', 'en' => 'gb',
+        'Tedesco', 'Deutsch', 'German', 'DE', 'de' => 'de',
+        'Ceco', 'Czech', 'CZ', 'cz' => 'cz',
+        'Polacco', 'Polish', 'PL', 'pl' => 'pl',
+        'Olandese', 'Dutch', 'NL', 'nl' => 'nl',
+        'Francese', 'French', 'FR', 'fr' => 'fr',
+        'Spagnolo', 'Spanish', 'ES', 'es' => 'es',
+        default => null,
+    };
 }
 
-function admin_normalize_country_code(?string $countryCode): ?string
+function normalize_country_code(?string $countryCode): ?string
 {
     $countryCode = strtolower(trim((string) $countryCode));
     if ($countryCode === '') {
@@ -270,4 +239,100 @@ function json_response(array $payload, int $status = 200): void
     header('Content-Type: application/json; charset=UTF-8');
     echo json_encode($payload, JSON_UNESCAPED_UNICODE);
     exit;
+}
+
+
+if (!function_exists('admin_normalize_optional_email')) {
+    function admin_normalize_optional_email(string $email): ?string
+    {
+        $email = trim($email);
+        if ($email === '') {
+            return null;
+        }
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return null;
+        }
+
+        return $email;
+    }
+}
+
+if (!function_exists('admin_normalize_optional_phone')) {
+    function admin_normalize_optional_phone(string $phone): ?string
+    {
+        $phone = trim($phone);
+        if ($phone === '' || $phone === 'Non presente nel PDF') {
+            return null;
+        }
+
+        $normalized = preg_replace('/\s+/u', ' ', $phone);
+        if ($normalized === null) {
+            $normalized = $phone;
+        }
+
+        $normalized = trim($normalized);
+        return $normalized === '' ? null : $normalized;
+    }
+}
+
+if (!function_exists('customer_language_to_country_code')) {
+    function customer_language_to_country_code(?string $language): ?string
+    {
+        $language = trim((string) $language);
+        if ($language === '') {
+            return null;
+        }
+
+        $map = [
+            'Italiano' => 'it',
+            'Italian' => 'it',
+            'IT' => 'it',
+            'it' => 'it',
+            'Inglese' => 'gb',
+            'English' => 'gb',
+            'EN' => 'gb',
+            'en' => 'gb',
+            'Tedesco' => 'de',
+            'Deutsch' => 'de',
+            'German' => 'de',
+            'DE' => 'de',
+            'de' => 'de',
+            'Ceco' => 'cz',
+            'Czech' => 'cz',
+            'CZ' => 'cz',
+            'cz' => 'cz',
+            'Polacco' => 'pl',
+            'Polish' => 'pl',
+            'PL' => 'pl',
+            'pl' => 'pl',
+            'Olandese' => 'nl',
+            'Dutch' => 'nl',
+            'NL' => 'nl',
+            'nl' => 'nl',
+            'Francese' => 'fr',
+            'French' => 'fr',
+            'FR' => 'fr',
+            'fr' => 'fr',
+            'Spagnolo' => 'es',
+            'Spanish' => 'es',
+            'ES' => 'es',
+            'es' => 'es',
+        ];
+
+        return isset($map[$language]) ? $map[$language] : null;
+    }
+}
+
+if (!function_exists('admin_normalize_country_code')) {
+    function admin_normalize_country_code(?string $countryCode): ?string
+    {
+        $countryCode = strtolower(trim((string) $countryCode));
+        if ($countryCode === '') {
+            return null;
+        }
+
+        $allowed = ['it', 'gb', 'de', 'cz', 'pl', 'nl', 'fr', 'es'];
+        return in_array($countryCode, $allowed, true) ? $countryCode : null;
+    }
 }
