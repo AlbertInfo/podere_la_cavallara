@@ -89,6 +89,142 @@ if ($clientiTableReady) {
 
 require_once __DIR__ . '/includes/header.php';
 ?>
+
+<div class="mobile-admin-screen mobile-clienti-screen">
+    <section class="mobile-screen-head">
+        <div>
+            <h1>Storico clienti</h1>
+            <p>Anagrafiche, contatti e storico ospiti in una vista ottimizzata per mobile.</p>
+        </div>
+    </section>
+
+    <?php if (!$clientiTableReady): ?>
+        <section class="mobile-panel mobile-panel--warning">
+            <div class="mobile-panel__head"><div><h2>Storico clienti non attivato</h2><p>Esegui prima la migration SQL del pacchetto clienti.</p></div></div>
+            <div class="code">2026-04-10_migration_customer_history.sql</div>
+        </section>
+    <?php else: ?>
+        <section class="mobile-kpi-strip" aria-label="Riepilogo clienti">
+            <article class="mobile-kpi-chip">
+                <span class="mobile-kpi-chip__label">Clienti totali</span>
+                <strong class="mobile-kpi-chip__value"><?= (int) $stats['total'] ?></strong>
+            </article>
+            <article class="mobile-kpi-chip">
+                <span class="mobile-kpi-chip__label">Con email</span>
+                <strong class="mobile-kpi-chip__value"><?= (int) $stats['with_email'] ?></strong>
+            </article>
+            <article class="mobile-kpi-chip">
+                <span class="mobile-kpi-chip__label">Prenotazioni collegate</span>
+                <strong class="mobile-kpi-chip__value"><?= (int) $stats['linked_bookings'] ?></strong>
+            </article>
+        </section>
+
+        <section class="mobile-panel">
+            <div class="mobile-panel__head">
+                <div>
+                    <h2>Archivio clienti</h2>
+                    <p>Cerca, sincronizza o aggiungi un cliente senza perdere spazio verticale.</p>
+                </div>
+                <span class="mobile-panel__badge"><?= count($clienti) ?></span>
+            </div>
+            <div class="mobile-filter-bar mobile-filter-bar--stack">
+                <form method="get" action="<?= e(admin_url('clienti.php')) ?>" class="mobile-search-form">
+                    <input class="search-input" type="search" name="q" value="<?= e($search) ?>" placeholder="Cerca nome, cognome, email o telefono...">
+                </form>
+                <div class="mobile-action-stack">
+                    <button class="btn btn-primary" type="button" data-open-cliente-modal="mobile">Nuovo cliente</button>
+                    <form method="post" action="<?= e(admin_url('actions/sync-clienti-from-prenotazioni.php')) ?>" onsubmit="return confirm('Vuoi sincronizzare lo storico clienti partendo dalle prenotazioni registrate?');">
+                        <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+                        <button class="btn btn-light" type="submit">Sincronizza da prenotazioni</button>
+                    </form>
+                </div>
+            </div>
+            <div class="mobile-list">
+                <?php foreach ($clienti as $cliente): ?>
+                    <?php
+                        $clienteId = (int) $cliente['id'];
+                        $clienteCountry = strtolower(trim((string) ($cliente['guest_country_code'] ?? '')));
+                        $clienteLanguage = trim((string) ($cliente['guest_language'] ?? ''));
+                        $bookingsCount = (int) ($cliente['bookings_count'] ?? 0);
+                        $clienteFullName = trim((string) (($cliente['first_name'] ?? '') . ' ' . ($cliente['last_name'] ?? '')));
+                        $clienteCountry = preg_match('/^[a-z]{2}$/', $clienteCountry) ? $clienteCountry : '';
+                    ?>
+                    <form id="cliente-mobile-update-<?= $clienteId ?>" class="mobile-item-card mobile-client-card" method="post" action="<?= e(admin_url('actions/update-cliente.php')) ?>">
+                        <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+                        <input type="hidden" name="cliente_id" value="<?= $clienteId ?>">
+                        <div class="mobile-item-card__summary">
+                            <div class="mobile-item-card__summary-main">
+                                <div class="mobile-item-card__title-row">
+                                    <strong><?= e($clienteFullName !== '' ? $clienteFullName : ('Cliente #' . $clienteId)) ?></strong>
+                                    <?php if ($clienteCountry !== ''): ?>
+                                        <span class="fi fi-<?= e($clienteCountry) ?> booking-customer-flag" title="<?= e($clienteLanguage !== '' ? $clienteLanguage : strtoupper($clienteCountry)) ?>"></span>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="mobile-item-card__meta-row">
+                                    <span class="badge"><?= $bookingsCount ?> prenotazioni</span>
+                                    <?php if (!empty($cliente['email'])): ?><span class="badge info">Email</span><?php endif; ?>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mobile-item-card__lines">
+                            <div><span>Email</span><strong><?= e((string) ($cliente['email'] ?? 'Email non disponibile')) ?></strong></div>
+                            <div><span>Telefono</span><strong><?= e((string) ($cliente['phone'] ?? 'Telefono non disponibile')) ?></strong></div>
+                        </div>
+                        <button class="mobile-item-card__toggle" type="button" data-mobile-expand="cliente-<?= $clienteId ?>">Dettagli</button>
+                        <div class="mobile-item-card__details" id="cliente-<?= $clienteId ?>" hidden>
+                            <div class="mobile-item-card__detail-grid">
+                                <div><span>Nome</span><strong><input type="text" name="first_name" value="<?= e((string) ($cliente['first_name'] ?? '')) ?>" required></strong></div>
+                                <div><span>Cognome</span><strong><input type="text" name="last_name" value="<?= e((string) ($cliente['last_name'] ?? '')) ?>"></strong></div>
+                                <div><span>Email</span><strong><input type="email" name="email" value="<?= e((string) ($cliente['email'] ?? '')) ?>"></strong></div>
+                                <div><span>Cellulare</span><strong><input type="text" name="phone" value="<?= e((string) ($cliente['phone'] ?? '')) ?>"></strong></div>
+                                <div><span>Nazionalità</span><strong><select name="guest_country_code"><?php foreach ($countryOptions as $value => $label): ?><option value="<?= e($value) ?>" <?= $clienteCountry === $value ? 'selected' : '' ?>><?= e($label) ?></option><?php endforeach; ?></select></strong></div>
+                                <div><span>Lingua</span><strong><select name="guest_language"><?php foreach ($languageOptions as $value => $label): ?><option value="<?= e($value) ?>" <?= $clienteLanguage === $value ? 'selected' : '' ?>><?= e($label) ?></option><?php endforeach; ?></select></strong></div>
+                                <div class="full"><span>Note</span><strong><textarea name="notes" placeholder="Note cliente..."><?= e((string) ($cliente['notes'] ?? '')) ?></textarea></strong></div>
+                            </div>
+                            <div class="mobile-item-card__actions">
+                                <button class="btn btn-primary btn-sm" type="submit">Salva modifiche</button>
+                                <button class="btn btn-danger btn-sm" type="submit" form="cliente-mobile-delete-<?= $clienteId ?>">Cancella</button>
+                            </div>
+                        </div>
+                    </form>
+                    <form id="cliente-mobile-delete-<?= $clienteId ?>" method="post" action="<?= e(admin_url('actions/delete-cliente.php')) ?>" onsubmit="return confirm('Vuoi davvero cancellare questo cliente? Le prenotazioni collegate resteranno in archivio ma saranno scollegate dal cliente.');">
+                        <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+                        <input type="hidden" name="cliente_id" value="<?= $clienteId ?>">
+                    </form>
+                <?php endforeach; ?>
+            </div>
+        </section>
+
+        <div class="mobile-cliente-modal" id="clienteCreateModalMobile" hidden>
+            <div class="mobile-cliente-modal__backdrop" data-close-cliente-modal="mobile"></div>
+            <div class="mobile-cliente-modal__dialog">
+                <div class="mobile-panel__head">
+                    <div><h2>Nuovo cliente</h2><p>Inserisci un’anagrafica manualmente senza uscire dalla vista mobile.</p></div>
+                    <button class="mobile-cliente-modal__close" type="button" data-close-cliente-modal="mobile">×</button>
+                </div>
+                <form class="booking-form" method="post" action="<?= e(admin_url('actions/create-cliente.php')) ?>">
+                    <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+                    <div class="booking-form-grid mobile-cliente-modal__grid">
+                        <label>Nome *<input type="text" name="first_name" required></label>
+                        <label>Cognome<input type="text" name="last_name"></label>
+                        <label>Email<input type="email" name="email"></label>
+                        <label>Cellulare<input type="text" name="phone"></label>
+                        <label>Nazionalità<select name="guest_country_code"><?php foreach ($countryOptions as $value => $label): ?><option value="<?= e($value) ?>"><?= e($label) ?></option><?php endforeach; ?></select></label>
+                        <label>Lingua<select name="guest_language"><?php foreach ($languageOptions as $value => $label): ?><option value="<?= e($value) ?>"><?= e($label) ?></option><?php endforeach; ?></select></label>
+                        <label class="full">Note<textarea name="notes"></textarea></label>
+                    </div>
+                    <div class="mobile-cliente-modal__actions">
+                        <button class="btn btn-light" type="button" data-close-cliente-modal="mobile">Annulla</button>
+                        <button class="btn btn-primary" type="submit">Salva cliente</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    <?php endif; ?>
+</div>
+
+<div class="desktop-admin-view">
+
 <style>
 .clienti-shell{display:grid;gap:20px}
 .clienti-kpi-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px}
@@ -211,7 +347,6 @@ require_once __DIR__ . '/includes/header.php';
             <div class="code">2026-04-10_migration_customer_history.sql</div>
         </section>
     <?php else: ?>
-        <div class="desktop-only-admin">
         <section class="clienti-kpi-grid">
             <article class="clienti-kpi-card">
                 <div class="clienti-kpi-label">Clienti totali</div>
@@ -239,7 +374,6 @@ require_once __DIR__ . '/includes/header.php';
                 <div class="small muted">Prenotazioni ancora senza anagrafica</div>
             </article>
         </section>
-    </div>
 
         <div class="clienti-modal" id="clienteCreateModal" aria-hidden="true">
             <div class="clienti-modal-backdrop" data-close-cliente-modal></div>
@@ -305,152 +439,7 @@ require_once __DIR__ . '/includes/header.php';
             </div>
         </div>
 
-        
-        <div class="mobile-only-admin mobile-app-shell">
-            <section class="mobile-headline">
-                <h1>Clienti</h1>
-                <p>Archivio ospiti ottimizzato per mobile: solo le informazioni essenziali sempre visibili, dettagli e modifica sotto <strong>View more</strong>.</p>
-            </section>
-
-            <section class="mobile-kpi-strip">
-                <article class="mobile-kpi-pill">
-                    <div class="mobile-kpi-pill__label">Clienti</div>
-                    <div class="mobile-kpi-pill__value"><?= (int) $stats['total'] ?></div>
-                </article>
-                <article class="mobile-kpi-pill">
-                    <div class="mobile-kpi-pill__label">Con email</div>
-                    <div class="mobile-kpi-pill__value"><?= (int) $stats['with_email'] ?></div>
-                </article>
-                <article class="mobile-kpi-pill">
-                    <div class="mobile-kpi-pill__label">Collegati</div>
-                    <div class="mobile-kpi-pill__value"><?= (int) $stats['linked_bookings'] ?></div>
-                </article>
-            </section>
-
-            <section class="mobile-module">
-                <div class="mobile-module__head">
-                    <div>
-                        <h2 class="mobile-module__title">Archivio clienti</h2>
-                        <p class="mobile-module__subtitle">Cerca, sincronizza o aggiungi un cliente senza perdere spazio verticale.</p>
-                    </div>
-                    <span class="mobile-module__count"><?= count($clienti) ?></span>
-                </div>
-
-                <div class="mobile-client-toolbar">
-                    <form method="get" action="<?= e(admin_url('clienti.php')) ?>">
-                        <input class="search-input" type="search" name="q" value="<?= e($search) ?>" placeholder="Cerca nome, cognome, email o telefono...">
-                    </form>
-                    <button class="btn btn-primary" type="button" data-open-cliente-modal data-mobile-open-cliente-modal>Nuovo cliente</button>
-                    <form method="post" action="<?= e(admin_url('actions/sync-clienti-from-prenotazioni.php')) ?>" onsubmit="return confirm('Vuoi sincronizzare lo storico clienti partendo dalle prenotazioni registrate?');">
-                        <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
-                        <button class="btn btn-light" type="submit">Sincronizza da prenotazioni</button>
-                    </form>
-                    <?php if ($search !== ''): ?>
-                        <a class="btn btn-light" href="<?= e(admin_url('clienti.php')) ?>">Reset ricerca</a>
-                    <?php endif; ?>
-                </div>
-
-                <?php if (empty($clienti)): ?>
-                    <div class="mobile-empty-state">
-                        Nessun cliente trovato. Prova ad aggiungerne uno manualmente oppure sincronizza lo storico dalle prenotazioni registrate.
-                    </div>
-                <?php else: ?>
-                    <div class="mobile-card-list">
-                        <?php foreach ($clienti as $cliente): ?>
-                            <?php
-                                $clienteId = (int) $cliente['id'];
-                                $clienteCountry = strtolower(trim((string) ($cliente['guest_country_code'] ?? '')));
-                                $clienteLanguage = trim((string) ($cliente['guest_language'] ?? ''));
-                                $bookingsCount = (int) ($cliente['bookings_count'] ?? 0);
-                                $clienteDisplayName = trim((string) ($cliente['first_name'] ?? '') . ' ' . (string) ($cliente['last_name'] ?? ''));
-                                if ($clienteDisplayName === '') {
-                                    $clienteDisplayName = 'Cliente #' . $clienteId;
-                                }
-                            ?>
-                            <article class="mobile-record-card" data-mobile-expand-card>
-                                <div class="mobile-record-card__top">
-                                    <div class="mobile-record-card__identity">
-                                        <div class="mobile-record-card__name-row">
-                                            <h3 class="mobile-record-card__name"><?= e($clienteDisplayName) ?></h3>
-                                            <?php if ($clienteCountry !== ''): ?>
-                                                <span class="fi fi-<?= e($clienteCountry) ?> mobile-record-card__flag" title="<?= e($clienteLanguage !== '' ? $clienteLanguage : strtoupper($clienteCountry)) ?>"></span>
-                                            <?php endif; ?>
-                                        </div>
-                                        <div class="mobile-record-card__meta">
-                                            <?php if (!empty($cliente['email'])): ?><div><?= e((string) $cliente['email']) ?></div><?php endif; ?>
-                                            <?php if (!empty($cliente['phone'])): ?><div><?= e((string) $cliente['phone']) ?></div><?php endif; ?>
-                                            <?php if (empty($cliente['email']) && empty($cliente['phone'])): ?><div>Nessun contatto disponibile</div><?php endif; ?>
-                                        </div>
-                                    </div>
-                                    <span class="mobile-record-card__pill"><?= $bookingsCount ?> prenot.</span>
-                                </div>
-                                <div class="mobile-record-card__summary">
-                                    <span class="mobile-record-card__summary-item">ID #<?= $clienteId ?></span>
-                                    <span class="mobile-record-card__summary-item"><?= e((string) ($cliente['source'] ?? 'manual_admin')) ?></span>
-                                </div>
-                                <button class="mobile-record-card__toggle" type="button" data-mobile-expand-trigger data-toggle-labels="View more|View less" aria-expanded="false">View more</button>
-                                <div class="mobile-record-card__more">
-                                    <form class="mobile-record-card__inline-form" method="post" action="<?= e(admin_url('actions/update-cliente.php')) ?>">
-                                        <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
-                                        <input type="hidden" name="cliente_id" value="<?= $clienteId ?>">
-                                        <div class="mobile-record-card__inline-grid">
-                                            <label>
-                                                <span class="mobile-record-card__more-label">Nome</span>
-                                                <input type="text" name="first_name" value="<?= e((string) ($cliente['first_name'] ?? '')) ?>" required>
-                                            </label>
-                                            <label>
-                                                <span class="mobile-record-card__more-label">Cognome</span>
-                                                <input type="text" name="last_name" value="<?= e((string) ($cliente['last_name'] ?? '')) ?>">
-                                            </label>
-                                            <label>
-                                                <span class="mobile-record-card__more-label">Email</span>
-                                                <input type="email" name="email" value="<?= e((string) ($cliente['email'] ?? '')) ?>">
-                                            </label>
-                                            <label>
-                                                <span class="mobile-record-card__more-label">Cellulare</span>
-                                                <input type="text" name="phone" value="<?= e((string) ($cliente['phone'] ?? '')) ?>">
-                                            </label>
-                                            <label>
-                                                <span class="mobile-record-card__more-label">Nazionalità</span>
-                                                <select name="guest_country_code">
-                                                    <?php foreach ($countryOptions as $value => $label): ?>
-                                                        <option value="<?= e($value) ?>" <?= $clienteCountry === $value ? 'selected' : '' ?>><?= e($label) ?></option>
-                                                    <?php endforeach; ?>
-                                                </select>
-                                            </label>
-                                            <label>
-                                                <span class="mobile-record-card__more-label">Lingua</span>
-                                                <select name="guest_language">
-                                                    <?php foreach ($languageOptions as $value => $label): ?>
-                                                        <option value="<?= e($value) ?>" <?= $clienteLanguage === $value ? 'selected' : '' ?>><?= e($label) ?></option>
-                                                    <?php endforeach; ?>
-                                                </select>
-                                            </label>
-                                            <label class="full">
-                                                <span class="mobile-record-card__more-label">Note</span>
-                                                <textarea name="notes" placeholder="Note cliente..."><?= e((string) ($cliente['notes'] ?? '')) ?></textarea>
-                                            </label>
-                                        </div>
-                                        <div class="mobile-record-card__inline-actions">
-                                            <button class="btn btn-primary btn-sm" type="submit">Salva</button>
-                                            <button class="btn btn-light btn-sm" type="button" data-mobile-expand-trigger data-toggle-labels="View more|View less" aria-expanded="true">View less</button>
-                                        </div>
-                                    </form>
-                                    <form method="post" action="<?= e(admin_url('actions/delete-cliente.php')) ?>" onsubmit="return confirm('Vuoi davvero cancellare questo cliente? Le prenotazioni collegate resteranno in archivio ma saranno scollegate dal cliente.');">
-                                        <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
-                                        <input type="hidden" name="cliente_id" value="<?= $clienteId ?>">
-                                        <button class="btn btn-danger btn-sm" type="submit">Cancella cliente</button>
-                                    </form>
-                                </div>
-                            </article>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
-            </section>
-        </div>
-
-        <div class="desktop-only-admin">
-<section class="card clienti-table-card clienti-table">
+        <section class="card clienti-table-card clienti-table">
             <div class="section-title">
                 <div>
                     <h2>Archivio clienti</h2>
@@ -652,8 +641,9 @@ require_once __DIR__ . '/includes/header.php';
                 </div>
             <?php endif; ?>
         </section>
-        </div>
     <?php endif; ?>
+</div>
+
 </div>
 
 <script>

@@ -1,186 +1,139 @@
 document.addEventListener('DOMContentLoaded', function () {
   var body = document.body;
+  var overlay = document.querySelector('[data-mobile-overlay]');
+  var sidebar = document.getElementById('adminSidebar');
+  var openButtons = document.querySelectorAll('[data-mobile-expand]');
+  var filterToggles = document.querySelectorAll('[data-mobile-filter-toggle]');
+  var mobileModal = document.getElementById('clienteCreateModalMobile');
 
-  function isMobileAdmin() {
-    return window.innerWidth <= 900;
+  function closeSidebarMobile() {
+    body.classList.remove('sidebar-open');
+    if (overlay) overlay.hidden = true;
   }
+  function syncOverlay() {
+    if (!overlay) return;
+    overlay.hidden = !body.classList.contains('sidebar-open');
+  }
+  syncOverlay();
+  if (overlay) overlay.addEventListener('click', closeSidebarMobile);
 
-  function toggleExpand(button) {
-    var card = button.closest('[data-mobile-expand-card]');
-    if (!card) return;
-    var expanded = card.classList.contains('is-expanded');
-    card.classList.toggle('is-expanded', !expanded);
-    button.setAttribute('aria-expanded', expanded ? 'false' : 'true');
-    var labels = button.getAttribute('data-toggle-labels');
-    if (labels) {
-      var parts = labels.split('|');
-      if (parts.length === 2) {
-        button.textContent = expanded ? parts[0] : parts[1];
-      }
+  document.addEventListener('click', function (e) {
+    var toggler = e.target.closest('#mobileMenuToggle,[data-toggle-sidebar]');
+    if (toggler) {
+      setTimeout(syncOverlay, 10);
     }
-  }
+    if (body.classList.contains('sidebar-open') && e.target.closest('.sidebar-link')) {
+      closeSidebarMobile();
+    }
+  }, true);
 
-  document.querySelectorAll('[data-mobile-expand-trigger]').forEach(function (button) {
-    button.addEventListener('click', function () {
-      toggleExpand(button);
+  openButtons.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var targetId = btn.getAttribute('data-mobile-expand');
+      var target = document.getElementById(targetId);
+      if (!target) return;
+      var isHidden = target.hasAttribute('hidden');
+      if (isHidden) {
+        target.removeAttribute('hidden');
+        btn.classList.add('is-open');
+        btn.textContent = 'Nascondi dettagli';
+      } else {
+        target.setAttribute('hidden', 'hidden');
+        btn.classList.remove('is-open');
+        btn.textContent = 'Dettagli';
+      }
     });
   });
 
-  function closeSheet(sheet) {
-    if (!sheet) return;
-    sheet.classList.remove('is-open');
-    sheet.setAttribute('aria-hidden', 'true');
-    body.classList.remove('mobile-sheet-open');
-  }
-
-  function openSheet(sheet) {
-    if (!sheet) return;
-    sheet.classList.add('is-open');
-    sheet.setAttribute('aria-hidden', 'false');
-    body.classList.add('mobile-sheet-open');
-  }
-
-  document.querySelectorAll('[data-mobile-sheet-open]').forEach(function (button) {
-    button.addEventListener('click', function () {
-      var targetId = button.getAttribute('data-mobile-sheet-open');
-      openSheet(document.getElementById(targetId));
+  filterToggles.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var targetId = btn.getAttribute('data-mobile-filter-toggle');
+      var target = document.getElementById(targetId);
+      if (!target) return;
+      var hidden = target.hasAttribute('hidden');
+      if (hidden) {
+        target.removeAttribute('hidden');
+        btn.textContent = 'Chiudi filtri';
+      } else {
+        target.setAttribute('hidden', 'hidden');
+        btn.textContent = 'Filtri';
+      }
     });
   });
 
-  document.querySelectorAll('[data-mobile-sheet-close]').forEach(function (button) {
-    button.addEventListener('click', function () {
-      closeSheet(button.closest('.mobile-sheet'));
-    });
-  });
+  var mobileBookingsList = document.getElementById('mobileBookingsList');
+  if (mobileBookingsList) {
+    var searchInput = document.getElementById('mobileBookingsSearch');
+    var roomFilter = document.getElementById('mobileBookingsRoomFilter');
+    var phaseFilter = document.getElementById('mobileBookingsPhaseFilter');
+    var sortSelect = document.getElementById('mobileBookingsSort');
+    var resetButton = document.getElementById('mobileBookingsReset');
+    var cards = Array.prototype.slice.call(mobileBookingsList.querySelectorAll('.mobile-booking-card'));
 
-  document.addEventListener('keydown', function (event) {
-    if ((event.key === 'Escape' || event.keyCode === 27)) {
-      document.querySelectorAll('.mobile-sheet.is-open').forEach(function (sheet) {
-        closeSheet(sheet);
-      });
+    function parseIso(value) {
+      if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return Number.POSITIVE_INFINITY;
+      return Date.parse(value + 'T00:00:00');
     }
-  });
-
-  /* Mobile dashboard booking filters */
-  var mobileSearch = document.getElementById('mobileBookingsSearch');
-  var mobileRoom = document.getElementById('mobileBookingsRoom');
-  var mobilePhase = document.getElementById('mobileBookingsPhase');
-  var mobileSort = document.getElementById('mobileBookingsSort');
-  var mobileList = document.getElementById('mobileBookingsList');
-  var mobileCount = document.querySelector('[data-mobile-bookings-count]');
-  var mobileSummary = document.querySelector('[data-mobile-bookings-summary]');
-  var mobileEmpty = document.getElementById('mobileBookingsEmpty');
-  var mobileApply = document.getElementById('mobileBookingsApply');
-  var mobileReset = document.getElementById('mobileBookingsReset');
-  var mobileFilterSheet = document.getElementById('mobileBookingsFilterSheet');
-
-  if (mobileSearch && mobileRoom && mobilePhase && mobileSort && mobileList) {
-    var bookingCards = Array.prototype.slice.call(mobileList.querySelectorAll('[data-mobile-booking-card]'));
-
-    function parseMaybeNumber(value, fallbackHigh) {
-      if (!value || !/^\d+$/.test(String(value))) {
-        return fallbackHigh ? Number.POSITIVE_INFINITY : 0;
-      }
-      return Number(value);
+    function parseDateTime(value) {
+      if (!value) return 0;
+      var t = Date.parse(String(value).replace(' ', 'T'));
+      return isNaN(t) ? 0 : t;
     }
-
-    function updateMobileCount(total) {
-      if (mobileCount) {
-        mobileCount.textContent = total;
-      }
-      if (mobileSummary) {
-        var summary = [];
-        if (mobileRoom.value) summary.push(mobileRoom.options[mobileRoom.selectedIndex].text);
-        if (mobilePhase.value) summary.push(mobilePhase.options[mobilePhase.selectedIndex].text);
-        summary.push(total === 1 ? '1 prenotazione' : total + ' prenotazioni');
-        mobileSummary.textContent = summary.join(' · ');
-      }
-      if (mobileEmpty) {
-        mobileEmpty.hidden = total !== 0;
-      }
-    }
-
-    function sortBookingCards(cards, mode) {
-      return cards.sort(function (a, b) {
-        if (mode === 'name_asc') {
-          return (a.getAttribute('data-name') || '').localeCompare((b.getAttribute('data-name') || ''), 'it', {sensitivity:'base'});
-        }
-        if (mode === 'checkin_asc') {
-          return parseMaybeNumber(a.getAttribute('data-check-in-ts'), true) - parseMaybeNumber(b.getAttribute('data-check-in-ts'), true);
-        }
-        if (mode === 'checkin_desc') {
-          return parseMaybeNumber(b.getAttribute('data-check-in-ts'), true) - parseMaybeNumber(a.getAttribute('data-check-in-ts'), true);
-        }
-        return parseMaybeNumber(b.getAttribute('data-created-ts'), false) - parseMaybeNumber(a.getAttribute('data-created-ts'), false);
-      });
-    }
-
-    function applyMobileBookingFilters() {
-      var query = mobileSearch.value.toLowerCase().trim();
-      var room = mobileRoom.value.toLowerCase().trim();
-      var phase = mobilePhase.value.toLowerCase().trim();
-      var visible = [];
-
-      bookingCards.forEach(function (card) {
-        var matchesQuery = !query || (card.getAttribute('data-search-text') || '').toLowerCase().indexOf(query) !== -1;
-        var matchesRoom = !room || (card.getAttribute('data-room-type') || '').toLowerCase() === room;
-        var matchesPhase = !phase || (card.getAttribute('data-phase') || '').toLowerCase() === phase;
-        var show = matchesQuery && matchesRoom && matchesPhase;
-        card.hidden = !show;
-        if (show) visible.push(card);
-      });
-
-      sortBookingCards(visible, mobileSort.value).forEach(function (card) {
-        mobileList.appendChild(card);
-      });
-
-      updateMobileCount(visible.length);
-    }
-
-    mobileSearch.addEventListener('input', applyMobileBookingFilters);
-    [mobileRoom, mobilePhase, mobileSort].forEach(function (field) {
-      field.addEventListener('change', applyMobileBookingFilters);
+    cards.forEach(function (card, i) {
+      card._sortData = {
+        originalIndex: i,
+        search: (card.getAttribute('data-mobile-search') || '').toLowerCase(),
+        room: (card.getAttribute('data-room-type') || '').toLowerCase(),
+        phase: (card.getAttribute('data-booking-phase') || '').toLowerCase(),
+        checkin: parseIso(card.getAttribute('data-check-in') || ''),
+        created: parseDateTime(card.getAttribute('data-created-at') || ''),
+        name: (card.getAttribute('data-customer-name') || '').toLowerCase()
+      };
     });
 
-    if (mobileApply) {
-      mobileApply.addEventListener('click', function () {
-        applyMobileBookingFilters();
-        closeSheet(mobileFilterSheet);
+    function applyFilters() {
+      var query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+      var room = roomFilter ? roomFilter.value.trim().toLowerCase() : '';
+      var phase = phaseFilter ? phaseFilter.value.trim().toLowerCase() : '';
+      var sort = sortSelect ? sortSelect.value : 'created_desc';
+      var visible = cards.filter(function (card) {
+        var d = card._sortData;
+        return (!query || d.search.indexOf(query) !== -1) && (!room || d.room === room) && (!phase || d.phase === phase);
       });
+      visible.sort(function (a,b){
+        var da=a._sortData, db=b._sortData;
+        if (sort==='checkin_asc') return da.checkin - db.checkin || da.originalIndex - db.originalIndex;
+        if (sort==='checkin_desc') return db.checkin - da.checkin || da.originalIndex - db.originalIndex;
+        if (sort==='name_asc') return da.name.localeCompare(db.name, 'it') || da.originalIndex - db.originalIndex;
+        return db.created - da.created || da.originalIndex - db.originalIndex;
+      });
+      cards.forEach(function(card){card.style.display='none';});
+      visible.forEach(function(card){card.style.display=''; mobileBookingsList.appendChild(card);});
     }
-
-    if (mobileReset) {
-      mobileReset.addEventListener('click', function () {
-        mobileSearch.value = '';
-        mobileRoom.value = '';
-        mobilePhase.value = '';
-        mobileSort.value = 'created_desc';
-        applyMobileBookingFilters();
-      });
-    }
-
-    applyMobileBookingFilters();
-  }
-
-  /* Cliente modal trigger on mobile reuses desktop modal */
-  var clienteModal = document.getElementById('clienteCreateModal');
-  if (clienteModal) {
-    document.querySelectorAll('[data-mobile-open-cliente-modal]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        clienteModal.classList.add('is-open');
-        clienteModal.setAttribute('aria-hidden', 'false');
-        body.classList.add('clienti-modal-open-lock');
-        var first = clienteModal.querySelector('[data-cliente-modal-first-field]');
-        if (first) {
-          setTimeout(function(){ first.focus(); }, 120);
-        }
-      });
+    [searchInput, roomFilter, phaseFilter, sortSelect].forEach(function (el) {
+      if (el) el.addEventListener('input', applyFilters);
+      if (el) el.addEventListener('change', applyFilters);
+    });
+    if (resetButton) resetButton.addEventListener('click', function(){
+      if (searchInput) searchInput.value='';
+      if (roomFilter) roomFilter.value='';
+      if (phaseFilter) phaseFilter.value='';
+      if (sortSelect) sortSelect.value='created_desc';
+      applyFilters();
     });
   }
 
-  if (!isMobileAdmin()) {
-    document.querySelectorAll('.mobile-sheet').forEach(function (sheet) {
-      closeSheet(sheet);
-    });
+  function openModal() {
+    if (!mobileModal) return;
+    mobileModal.hidden = false;
+    body.classList.add('clienti-modal-open-lock');
   }
+  function closeModal() {
+    if (!mobileModal) return;
+    mobileModal.hidden = true;
+    body.classList.remove('clienti-modal-open-lock');
+  }
+  document.querySelectorAll('[data-open-cliente-modal="mobile"]').forEach(function(btn){btn.addEventListener('click', openModal);});
+  document.querySelectorAll('[data-close-cliente-modal="mobile"]').forEach(function(btn){btn.addEventListener('click', closeModal);});
+  document.addEventListener('keydown', function(e){ if (e.key==='Escape') closeModal();});
 });

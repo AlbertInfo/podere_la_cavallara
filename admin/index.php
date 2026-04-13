@@ -47,37 +47,6 @@ function dashboard_extract_check_out_iso(array $row): string
     return $date ? $date->format('Y-m-d') : '';
 }
 
-function dashboard_resolve_guest_country_code(array $row): string
-{
-    $countryCode = strtolower(trim((string) ($row['guest_country_code'] ?? '')));
-    if ($countryCode !== '') {
-        return $countryCode;
-    }
-
-    $language = trim((string) ($row['guest_language'] ?? ''));
-    $map = [
-        'Italiano' => 'it',
-        'Italian' => 'it',
-        'Inglese' => 'gb',
-        'English' => 'gb',
-        'Tedesco' => 'de',
-        'Deutsch' => 'de',
-        'German' => 'de',
-        'Ceco' => 'cz',
-        'Czech' => 'cz',
-        'Polacco' => 'pl',
-        'Polish' => 'pl',
-        'Olandese' => 'nl',
-        'Dutch' => 'nl',
-        'Francese' => 'fr',
-        'French' => 'fr',
-        'Spagnolo' => 'es',
-        'Spanish' => 'es',
-    ];
-
-    return isset($map[$language]) ? $map[$language] : '';
-}
-
 $dashboardTodayIso = (new DateTimeImmutable('today'))->format('Y-m-d');
 
 $bookingRequests = $pdo->query('SELECT * FROM booking_requests ORDER BY created_at DESC LIMIT 100')->fetchAll(PDO::FETCH_ASSOC);
@@ -103,7 +72,221 @@ if ($registeredBookingRoomOptions) {
 }$pageTitle = 'Dashboard amministrazione';
 require_once __DIR__ . '/includes/header.php';
 ?>
-<div class="desktop-only-admin">
+
+<div class="mobile-admin-screen mobile-dashboard-screen">
+    <section class="mobile-screen-head">
+        <div>
+            <h1>Dashboard</h1>
+            <p>Prenotazioni registrate, richieste prenotazione e contatti in una vista rapida mobile.</p>
+        </div>
+    </section>
+
+    <section class="mobile-kpi-strip" aria-label="Riepilogo rapido">
+        <article class="mobile-kpi-chip">
+            <span class="mobile-kpi-chip__label">Prenotazioni registrate</span>
+            <strong class="mobile-kpi-chip__value"><?= (int) $stats['registered_bookings'] ?></strong>
+        </article>
+        <article class="mobile-kpi-chip">
+            <span class="mobile-kpi-chip__label">Richieste prenotazione</span>
+            <strong class="mobile-kpi-chip__value"><?= (int) $stats['booking_requests'] ?></strong>
+        </article>
+        <article class="mobile-kpi-chip">
+            <span class="mobile-kpi-chip__label">Richieste contatto</span>
+            <strong class="mobile-kpi-chip__value"><?= (int) $stats['contact_requests'] ?></strong>
+        </article>
+    </section>
+
+    <section class="mobile-action-stack">
+        <a class="btn btn-primary" href="<?= e(admin_url('new-prenotazione.php')) ?>">Nuova prenotazione</a>
+        <a class="btn btn-light" href="<?= e(admin_url('import-interhome-pdf.php')) ?>">Importa PDF Interhome</a>
+    </section>
+
+    <section class="mobile-panel mobile-bookings-panel">
+        <div class="mobile-panel__head">
+            <div>
+                <h2>Prenotazioni confermate</h2>
+                <p>Solo le informazioni essenziali in vista. Tocca <strong>Dettagli</strong> per aprire il resto.</p>
+            </div>
+            <span class="mobile-panel__badge"><?= count($registeredBookings) ?></span>
+        </div>
+
+        <div class="mobile-filter-bar">
+            <input id="mobileBookingsSearch" class="search-input" type="search" placeholder="Cerca cliente, casa o riferimento...">
+            <button class="btn btn-light btn-sm" type="button" data-mobile-filter-toggle="mobileBookingsFilters">Filtri</button>
+        </div>
+        <div class="mobile-filter-drawer" id="mobileBookingsFilters" hidden>
+            <label class="dashboard-filter-field">
+                <span>Tipologia casa</span>
+                <select id="mobileBookingsRoomFilter">
+                    <option value="">Tutte le case</option>
+                    <?php foreach ($registeredBookingRoomOptions as $roomOption): ?>
+                        <option value="<?= e($roomOption) ?>"><?= e($roomOption) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+            <label class="dashboard-filter-field">
+                <span>Stato soggiorno</span>
+                <select id="mobileBookingsPhaseFilter">
+                    <option value="">Tutte</option>
+                    <option value="active">Prenotazioni attive</option>
+                    <option value="past">Prenotazioni passate</option>
+                </select>
+            </label>
+            <label class="dashboard-filter-field">
+                <span>Ordina per</span>
+                <select id="mobileBookingsSort">
+                    <option value="created_desc">Data registrazione</option>
+                    <option value="checkin_asc">Check-in vicino</option>
+                    <option value="checkin_desc">Check-in lontano</option>
+                    <option value="name_asc">Cliente A-Z</option>
+                </select>
+            </label>
+            <button class="btn btn-light btn-sm" type="button" id="mobileBookingsReset">Reset filtri</button>
+        </div>
+
+        <div class="mobile-list" id="mobileBookingsList">
+            <?php foreach ($registeredBookings as $row): ?>
+                <?php
+                    $bookingCheckIn = dashboard_extract_check_in_iso($row);
+                    $bookingCheckOut = dashboard_extract_check_out_iso($row);
+                    $bookingIsPast = $bookingCheckOut !== '' && $bookingCheckOut < $dashboardTodayIso;
+                    $bookingPhase = $bookingIsPast ? 'past' : 'active';
+                    $bookingCountry = strtolower(trim((string) ($row['guest_country_code'] ?? '')));
+                    if ($bookingCountry === '' && !empty($row['guest_language']) && function_exists('language_to_country_code')) {
+                        $bookingCountry = strtolower((string) language_to_country_code((string) $row['guest_language']));
+                    }
+                    $bookingCountry = preg_match('/^[a-z]{2}$/', $bookingCountry) ? $bookingCountry : '';
+                ?>
+                <article class="mobile-item-card mobile-booking-card"
+                    data-mobile-search="<?= e(strtolower(trim((string) ($row['customer_name'] . ' ' . ($row['customer_email'] ?? '') . ' ' . ($row['external_reference'] ?? '') . ' ' . ($row['room_type'] ?? ''))))) ?>"
+                    data-room-type="<?= e(strtolower(trim((string) ($row['room_type'] ?? '')))) ?>"
+                    data-booking-phase="<?= e($bookingPhase) ?>"
+                    data-check-in="<?= e($bookingCheckIn) ?>"
+                    data-created-at="<?= e((string) ($row['created_at'] ?? '')) ?>"
+                    data-customer-name="<?= e(strtolower(trim((string) ($row['customer_name'] ?? '')))) ?>">
+                    <div class="mobile-item-card__summary">
+                        <div class="mobile-item-card__summary-main">
+                            <div class="mobile-item-card__title-row">
+                                <strong><?= e((string) $row['customer_name']) ?></strong>
+                                <?php if ($bookingCountry !== ''): ?>
+                                    <span class="fi fi-<?= e($bookingCountry) ?> booking-customer-flag" title="<?= e((string) ($row['guest_language'] ?? strtoupper($bookingCountry))) ?>"></span>
+                                <?php endif; ?>
+                            </div>
+                            <div class="mobile-item-card__meta-row">
+                                <span class="badge success"><?= e((string) $row['status']) ?></span>
+                                <span class="badge"><?= $bookingIsPast ? 'Passata' : 'Attiva' ?></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mobile-item-card__lines">
+                        <div><span>Soggiorno</span><strong><?= e((string) $row['stay_period']) ?></strong></div>
+                        <div><span>Casa</span><strong><?= e((string) $row['room_type']) ?></strong></div>
+                        <div><span>Persone</span><strong><?= (int) $row['adults'] ?> adulti / <?= (int) $row['children_count'] ?> bambini</strong></div>
+                    </div>
+                    <button class="mobile-item-card__toggle" type="button" data-mobile-expand="booking-<?= (int) $row['id'] ?>">Dettagli</button>
+                    <div class="mobile-item-card__details" id="booking-<?= (int) $row['id'] ?>" hidden>
+                        <div class="mobile-item-card__detail-grid">
+                            <div><span>Email</span><strong><?= e((string) ($row['customer_email'] ?: 'Email non disponibile')) ?></strong></div>
+                            <div><span>Telefono</span><strong><?= e((string) ($row['customer_phone'] ?? '-')) ?></strong></div>
+                            <div><span>Riferimento</span><strong><?= e((string) ($row['external_reference'] ?? '-')) ?></strong></div>
+                            <div><span>Origine</span><strong><?= e((string) $row['source']) ?></strong></div>
+                            <?php if (!empty($row['notes'])): ?>
+                                <div class="full"><span>Note</span><strong><?= nl2br(e((string) $row['notes'])) ?></strong></div>
+                            <?php endif; ?>
+                        </div>
+                        <div class="mobile-item-card__actions">
+                            <a class="btn btn-light btn-sm" href="<?= e(admin_url('edit-prenotazione.php?id=' . (int) $row['id'])) ?>">Modifica</a>
+                            <form method="post" action="<?= e(admin_url('actions/delete-prenotazione.php')) ?>" data-confirm="Vuoi davvero eliminare questa prenotazione?">
+                                <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+                                <input type="hidden" name="prenotazione_id" value="<?= (int) $row['id'] ?>">
+                                <button class="btn btn-danger btn-sm" type="submit">Cancella</button>
+                            </form>
+                        </div>
+                    </div>
+                </article>
+            <?php endforeach; ?>
+        </div>
+    </section>
+
+    <section class="mobile-panel">
+        <div class="mobile-panel__head">
+            <div><h2>Richieste prenotazione</h2><p>Le ultime richieste ricevute dal sito.</p></div>
+            <span class="mobile-panel__badge"><?= count($bookingRequests) ?></span>
+        </div>
+        <div class="mobile-list">
+            <?php foreach ($bookingRequests as $row): ?>
+                <article class="mobile-item-card">
+                    <div class="mobile-item-card__summary-main">
+                        <div class="mobile-item-card__title-row"><strong><?= e((string) $row['name_booking']) ?></strong></div>
+                        <div class="mobile-item-card__meta-row"><span class="badge"><?= e((string) ($row['source'] ?? 'website_form')) ?></span></div>
+                    </div>
+                    <div class="mobile-item-card__lines">
+                        <div><span>Soggiorno</span><strong><?= e((string) $row['date_booking']) ?></strong></div>
+                        <div><span>Casa</span><strong><?= e((string) $row['rooms_booking']) ?></strong></div>
+                    </div>
+                    <button class="mobile-item-card__toggle" type="button" data-mobile-expand="request-<?= (int) $row['id'] ?>">Dettagli</button>
+                    <div class="mobile-item-card__details" id="request-<?= (int) $row['id'] ?>" hidden>
+                        <div class="mobile-item-card__detail-grid">
+                            <div><span>Email</span><strong><?= e((string) $row['email_booking']) ?></strong></div>
+                            <div><span>Telefono</span><strong><?= e((string) ($row['phone_booking'] ?? '-')) ?></strong></div>
+                            <div><span>Persone</span><strong><?= (int) $row['adults_booking'] ?> adulti / <?= (int) $row['childs_booking'] ?> bambini</strong></div>
+                            <?php if (!empty($row['message_booking'])): ?><div class="full"><span>Messaggio</span><strong><?= e((string) $row['message_booking']) ?></strong></div><?php endif; ?>
+                        </div>
+                        <div class="mobile-item-card__actions">
+                            <form method="post" action="<?= e(admin_url('actions/register-booking.php')) ?>" data-confirm="Registrare questa richiesta come prenotazione confermata?">
+                                <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+                                <input type="hidden" name="booking_request_id" value="<?= (int) $row['id'] ?>">
+                                <button class="btn btn-success btn-sm" type="submit">Registra prenotazione</button>
+                            </form>
+                            <form method="post" action="<?= e(admin_url('actions/delete-booking-request.php')) ?>" data-confirm="Vuoi davvero eliminare questa richiesta?">
+                                <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+                                <input type="hidden" name="booking_request_id" value="<?= (int) $row['id'] ?>">
+                                <button class="btn btn-danger btn-sm" type="submit">Cancella</button>
+                            </form>
+                        </div>
+                    </div>
+                </article>
+            <?php endforeach; ?>
+        </div>
+    </section>
+
+    <section class="mobile-panel">
+        <div class="mobile-panel__head">
+            <div><h2>Richieste contatto</h2><p>I messaggi arrivati dal form informazioni.</p></div>
+            <span class="mobile-panel__badge"><?= count($contactRequests) ?></span>
+        </div>
+        <div class="mobile-list">
+            <?php foreach ($contactRequests as $row): ?>
+                <article class="mobile-item-card">
+                    <div class="mobile-item-card__summary-main">
+                        <div class="mobile-item-card__title-row"><strong><?= e(trim((string) (($row['name_contact'] ?? '') . ' ' . ($row['lastname_contact'] ?? '')))) ?></strong></div>
+                        <div class="mobile-item-card__meta-row"><span class="badge"><?= e((string) $row['created_at']) ?></span></div>
+                    </div>
+                    <div class="mobile-item-card__lines">
+                        <div><span>Email</span><strong><?= e((string) $row['email_contact']) ?></strong></div>
+                        <div><span>Telefono</span><strong><?= e((string) $row['phone_contact']) ?></strong></div>
+                    </div>
+                    <button class="mobile-item-card__toggle" type="button" data-mobile-expand="contact-<?= (int) $row['id'] ?>">Dettagli</button>
+                    <div class="mobile-item-card__details" id="contact-<?= (int) $row['id'] ?>" hidden>
+                        <div class="mobile-item-card__detail-grid">
+                            <div class="full"><span>Messaggio</span><strong><?= nl2br(e((string) $row['message_contact'])) ?></strong></div>
+                        </div>
+                        <div class="mobile-item-card__actions">
+                            <form method="post" action="<?= e(admin_url('actions/delete-contact-request.php')) ?>" data-confirm="Vuoi davvero eliminare questa richiesta di contatto?">
+                                <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+                                <input type="hidden" name="contact_request_id" value="<?= (int) $row['id'] ?>">
+                                <button class="btn btn-danger btn-sm" type="submit">Cancella</button>
+                            </form>
+                        </div>
+                    </div>
+                </article>
+            <?php endforeach; ?>
+        </div>
+    </section>
+</div>
+
+<div class="desktop-admin-view">
+
 <section id="overview" class="kpi-row">
     <article class="kpi-card">
         <div class="label">Richieste prenotazione</div>
@@ -791,279 +974,7 @@ require_once __DIR__ . '/includes/header.php';
         </table>
     </div>
 </section>
-
 </div>
-
-
-<div class="mobile-only-admin mobile-app-shell">
-    <section class="mobile-headline">
-        <h1>Dashboard</h1>
-        <p>Panoramica rapida di prenotazioni, richieste e contatti. Usa <strong>View more</strong> per vedere solo quando serve i dettagli operativi.</p>
-    </section>
-
-    <section class="mobile-kpi-strip" id="overview">
-        <article class="mobile-kpi-pill">
-            <div class="mobile-kpi-pill__label">Prenotazioni</div>
-            <div class="mobile-kpi-pill__value"><?= (int) $stats['registered_bookings'] ?></div>
-        </article>
-        <article class="mobile-kpi-pill">
-            <div class="mobile-kpi-pill__label">Richieste</div>
-            <div class="mobile-kpi-pill__value"><?= (int) $stats['booking_requests'] ?></div>
-        </article>
-        <article class="mobile-kpi-pill">
-            <div class="mobile-kpi-pill__label">Contatti</div>
-            <div class="mobile-kpi-pill__value"><?= (int) $stats['contact_requests'] ?></div>
-        </article>
-    </section>
-
-    <section class="mobile-actions-strip">
-        <a class="btn btn-primary" href="<?= e(admin_url('new-prenotazione.php')) ?>">Nuova prenotazione</a>
-        <a class="btn btn-light" href="<?= e(admin_url('import-interhome-pdf.php')) ?>">Importa PDF</a>
-    </section>
-
-    <section class="mobile-module" id="mobile-registered-bookings">
-        <div class="mobile-module__head">
-            <div>
-                <h2 class="mobile-module__title">Prenotazioni confermate</h2>
-                <p class="mobile-module__subtitle">Solo i dati essenziali in vista, dettagli e azioni su richiesta.</p>
-            </div>
-            <span class="mobile-module__count" data-mobile-bookings-count><?= count($registeredBookings) ?></span>
-        </div>
-
-        <div class="mobile-module__toolbar">
-            <input id="mobileBookingsSearch" class="search-input" type="search" placeholder="Cerca cliente, casa o riferimento...">
-            <button class="btn btn-light btn-sm" type="button" data-mobile-sheet-open="mobileBookingsFilterSheet">Filtri</button>
-        </div>
-        <div class="small muted" data-mobile-bookings-summary><?= count($registeredBookings) ?> prenotazioni</div>
-
-        <div class="mobile-card-list" id="mobileBookingsList">
-            <?php foreach ($registeredBookings as $row): ?>
-                <?php
-                    $bookingCheckIn = dashboard_extract_check_in_iso($row);
-                    $bookingCheckOut = dashboard_extract_check_out_iso($row);
-                    $bookingIsPast = $bookingCheckOut !== '' && $bookingCheckOut < $dashboardTodayIso;
-                    $bookingPhase = $bookingIsPast ? 'past' : 'active';
-                    $bookingGuestCountryCode = dashboard_resolve_guest_country_code($row);
-                    $bookingCreatedTs = strtotime((string) ($row['created_at'] ?? '')) ?: 0;
-                    $bookingCheckInTs = $bookingCheckIn !== '' ? (strtotime($bookingCheckIn . ' 00:00:00') ?: 0) : 0;
-                    $bookingDetailId = 'mobile-booking-detail-' . (int) $row['id'];
-                    $statusClass = 'is-success';
-                    if ((string) ($row['status'] ?? '') === 'in_attesa') {
-                        $statusClass = 'is-waiting';
-                    } elseif ((string) ($row['status'] ?? '') === 'annullata') {
-                        $statusClass = 'is-cancelled';
-                    }
-                    $bookingSearchText = strtolower(trim(implode(' ', [
-                        (string) ($row['customer_name'] ?? ''),
-                        (string) ($row['customer_email'] ?? ''),
-                        (string) ($row['room_type'] ?? ''),
-                        (string) ($row['stay_period'] ?? ''),
-                        (string) ($row['external_reference'] ?? ''),
-                        (string) ($row['notes'] ?? ''),
-                    ])));
-                ?>
-                <article class="mobile-record-card<?= $bookingIsPast ? ' is-past' : '' ?>" data-mobile-booking-card data-mobile-expand-card data-search-text="<?= e($bookingSearchText) ?>" data-name="<?= e(strtolower((string) ($row['customer_name'] ?? ''))) ?>" data-room-type="<?= e(strtolower((string) ($row['room_type'] ?? ''))) ?>" data-phase="<?= e($bookingPhase) ?>" data-check-in-ts="<?= (int) $bookingCheckInTs ?>" data-created-ts="<?= (int) $bookingCreatedTs ?>">
-                    <div class="mobile-record-card__top">
-                        <div class="mobile-record-card__identity">
-                            <div class="mobile-record-card__name-row">
-                                <h3 class="mobile-record-card__name"><?= e((string) ($row['customer_name'] ?? 'Cliente')) ?></h3>
-                                <?php if ($bookingGuestCountryCode !== ''): ?>
-                                    <span class="fi fi-<?= e($bookingGuestCountryCode) ?> mobile-record-card__flag" title="<?= e((string) ($row['guest_language'] ?? strtoupper($bookingGuestCountryCode))) ?>"></span>
-                                <?php endif; ?>
-                                <span class="mobile-record-card__status <?= e($statusClass) ?>"><?= e((string) ($row['status'] ?? 'confermata')) ?></span>
-                            </div>
-                            <div class="mobile-record-card__meta">
-                                <div><?= e((string) ($row['stay_period'] ?? '-')) ?></div>
-                                <div class="mobile-record-card__primary-line">
-                                    <strong><?= e((string) ($row['room_type'] ?? '-')) ?></strong>
-                                    <span><?= (int) ($row['adults'] ?? 0) ?> adulti<?php if ((int) ($row['children_count'] ?? 0) > 0): ?> · <?= (int) $row['children_count'] ?> bambini<?php endif; ?></span>
-                                </div>
-                            </div>
-                        </div>
-                        <span class="mobile-record-card__pill"><?= $bookingIsPast ? 'Passata' : 'Attiva' ?></span>
-                    </div>
-                    <div class="mobile-record-card__actions">
-                        <a class="btn btn-light btn-sm" href="<?= e(admin_url('edit-prenotazione.php?id=' . (int) $row['id'])) ?>">Modifica</a>
-                        <button class="mobile-record-card__toggle" type="button" data-mobile-expand-trigger data-toggle-labels="View more|View less" aria-expanded="false">View more</button>
-                    </div>
-                    <div class="mobile-record-card__more" id="<?= e($bookingDetailId) ?>">
-                        <div class="mobile-record-card__more-grid">
-                            <div class="mobile-record-card__more-row">
-                                <span class="mobile-record-card__more-label">Email</span>
-                                <div class="mobile-record-card__more-value"><?= e((string) ($row['customer_email'] ?: 'Email non disponibile')) ?></div>
-                            </div>
-                            <div class="mobile-record-card__more-row">
-                                <span class="mobile-record-card__more-label">Telefono</span>
-                                <div class="mobile-record-card__more-value"><?= e((string) ($row['customer_phone'] ?? '-')) ?></div>
-                            </div>
-                            <div class="mobile-record-card__more-row">
-                                <span class="mobile-record-card__more-label">Origine</span>
-                                <div class="mobile-record-card__more-value"><?= e((string) ($row['source'] ?? '-')) ?></div>
-                            </div>
-                            <?php if (!empty($row['external_reference'])): ?>
-                                <div class="mobile-record-card__more-row">
-                                    <span class="mobile-record-card__more-label">Riferimento esterno</span>
-                                    <div class="mobile-record-card__more-value"><?= e((string) $row['external_reference']) ?></div>
-                                </div>
-                            <?php endif; ?>
-                            <?php if (!empty($row['notes'])): ?>
-                                <div class="mobile-record-card__more-row">
-                                    <span class="mobile-record-card__more-label">Note</span>
-                                    <div class="mobile-record-card__more-value"><?= nl2br(e((string) $row['notes'])) ?></div>
-                                </div>
-                            <?php endif; ?>
-                        </div>
-                        <form method="post" action="<?= e(admin_url('actions/delete-prenotazione.php')) ?>" data-confirm="Vuoi davvero eliminare questa prenotazione?">
-                            <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
-                            <input type="hidden" name="prenotazione_id" value="<?= (int) $row['id'] ?>">
-                            <button class="btn btn-danger btn-sm" type="submit">Cancella</button>
-                        </form>
-                    </div>
-                </article>
-            <?php endforeach; ?>
-        </div>
-        <div class="mobile-empty-state" id="mobileBookingsEmpty" hidden>Nessuna prenotazione trovata con i filtri selezionati.</div>
-    </section>
-
-    <div class="mobile-sheet" id="mobileBookingsFilterSheet" aria-hidden="true">
-        <div class="mobile-sheet__panel">
-            <div class="mobile-sheet__grabber"></div>
-            <div class="mobile-sheet__head">
-                <div>
-                    <h3>Filtri prenotazioni</h3>
-                    <p>Applica filtri e ordinamenti senza perdere la vista compatta delle prenotazioni.</p>
-                </div>
-                <button class="mobile-sheet__close" type="button" data-mobile-sheet-close aria-label="Chiudi">×</button>
-            </div>
-            <div class="mobile-sheet__body">
-                <label>
-                    Tipologia casa
-                    <select id="mobileBookingsRoom">
-                        <option value="">Tutte le case</option>
-                        <?php foreach ($registeredBookingRoomOptions as $roomOption): ?>
-                            <option value="<?= e($roomOption) ?>"><?= e($roomOption) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </label>
-                <label>
-                    Stato soggiorno
-                    <select id="mobileBookingsPhase">
-                        <option value="">Tutte</option>
-                        <option value="active">Prenotazioni attive</option>
-                        <option value="past">Prenotazioni passate</option>
-                    </select>
-                </label>
-                <label>
-                    Ordina per
-                    <select id="mobileBookingsSort">
-                        <option value="created_desc">Data registrazione: più recente</option>
-                        <option value="checkin_asc">Check-in: più vicino → più lontano</option>
-                        <option value="checkin_desc">Check-in: più lontano → più vicino</option>
-                        <option value="name_asc">Cliente: A → Z</option>
-                    </select>
-                </label>
-            </div>
-            <div class="mobile-sheet__actions">
-                <button class="btn btn-light" type="button" id="mobileBookingsReset">Reset</button>
-                <button class="btn btn-primary" type="button" id="mobileBookingsApply">Applica</button>
-            </div>
-        </div>
-    </div>
-
-    <section class="mobile-module" id="mobile-booking-requests">
-        <div class="mobile-module__head">
-            <div>
-                <h2 class="mobile-module__title">Richieste prenotazione</h2>
-                <p class="mobile-module__subtitle">Dalla lista compatta puoi registrare o cancellare una richiesta in pochi tocchi.</p>
-            </div>
-            <span class="mobile-module__count"><?= count($bookingRequests) ?></span>
-        </div>
-        <div class="mobile-card-list">
-            <?php foreach ($bookingRequests as $row): ?>
-                <article class="mobile-record-card" data-mobile-expand-card>
-                    <div class="mobile-record-card__top">
-                        <div class="mobile-record-card__identity">
-                            <div class="mobile-record-card__name-row">
-                                <h3 class="mobile-record-card__name"><?= e((string) ($row['name_booking'] ?? 'Richiesta')) ?></h3>
-                            </div>
-                            <div class="mobile-record-card__meta">
-                                <div><?= e((string) ($row['date_booking'] ?? '-')) ?></div>
-                                <div class="mobile-record-card__primary-line">
-                                    <strong><?= e((string) ($row['rooms_booking'] ?? '-')) ?></strong>
-                                    <span><?= (int) ($row['adults_booking'] ?? 0) ?> adulti<?php if ((int) ($row['childs_booking'] ?? 0) > 0): ?> · <?= (int) $row['childs_booking'] ?> bambini<?php endif; ?></span>
-                                </div>
-                            </div>
-                        </div>
-                        <span class="mobile-record-card__pill"><?= e((string) ($row['source'] ?? 'website_form')) ?></span>
-                    </div>
-                    <div class="mobile-record-card__actions">
-                        <form method="post" action="<?= e(admin_url('actions/register-booking.php')) ?>" data-confirm="Registrare questa richiesta come prenotazione confermata?" style="flex:1 1 auto;">
-                            <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
-                            <input type="hidden" name="booking_request_id" value="<?= (int) $row['id'] ?>">
-                            <button class="btn btn-primary btn-sm" type="submit" style="width:100%;">Registra</button>
-                        </form>
-                        <button class="mobile-record-card__toggle" type="button" data-mobile-expand-trigger data-toggle-labels="View more|View less" aria-expanded="false">View more</button>
-                    </div>
-                    <div class="mobile-record-card__more">
-                        <div class="mobile-record-card__more-grid">
-                            <div class="mobile-record-card__more-row"><span class="mobile-record-card__more-label">Data richiesta</span><div class="mobile-record-card__more-value"><?= e((string) ($row['created_at'] ?? '-')) ?></div></div>
-                            <div class="mobile-record-card__more-row"><span class="mobile-record-card__more-label">Email</span><div class="mobile-record-card__more-value"><?= e((string) ($row['email_booking'] ?? '-')) ?></div></div>
-                            <div class="mobile-record-card__more-row"><span class="mobile-record-card__more-label">Telefono</span><div class="mobile-record-card__more-value"><?= e((string) ($row['phone_booking'] ?? '-')) ?></div></div>
-                            <?php if (!empty($row['message_booking'])): ?>
-                                <div class="mobile-record-card__more-row"><span class="mobile-record-card__more-label">Messaggio</span><div class="mobile-record-card__more-value"><?= nl2br(e((string) $row['message_booking'])) ?></div></div>
-                            <?php endif; ?>
-                        </div>
-                        <form method="post" action="<?= e(admin_url('actions/delete-booking-request.php')) ?>" data-confirm="Vuoi davvero eliminare questa richiesta?">
-                            <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
-                            <input type="hidden" name="booking_request_id" value="<?= (int) $row['id'] ?>">
-                            <button class="btn btn-danger btn-sm" type="submit">Cancella</button>
-                        </form>
-                    </div>
-                </article>
-            <?php endforeach; ?>
-        </div>
-    </section>
-
-    <section class="mobile-module" id="mobile-contact-requests">
-        <div class="mobile-module__head">
-            <div>
-                <h2 class="mobile-module__title">Richieste contatto</h2>
-                <p class="mobile-module__subtitle">Messaggi compatti e leggibili, con dettagli accessibili solo quando servono.</p>
-            </div>
-            <span class="mobile-module__count"><?= count($contactRequests) ?></span>
-        </div>
-        <div class="mobile-card-list">
-            <?php foreach ($contactRequests as $row): ?>
-                <article class="mobile-record-card" data-mobile-expand-card>
-                    <div class="mobile-record-card__top">
-                        <div class="mobile-record-card__identity">
-                            <div class="mobile-record-card__name-row">
-                                <h3 class="mobile-record-card__name"><?= e(trim((string) (($row['name_contact'] ?? '') . ' ' . ($row['lastname_contact'] ?? '')))) ?></h3>
-                            </div>
-                            <div class="mobile-record-card__meta">
-                                <div><?= e((string) ($row['email_contact'] ?? '-')) ?></div>
-                                <div class="mobile-record-card__primary-line"><span><?= e((string) ($row['phone_contact'] ?? '-')) ?></span></div>
-                            </div>
-                        </div>
-                        <span class="mobile-record-card__pill"><?= e((string) ($row['created_at'] ?? '-')) ?></span>
-                    </div>
-                    <button class="mobile-record-card__toggle" type="button" data-mobile-expand-trigger data-toggle-labels="View more|View less" aria-expanded="false">View more</button>
-                    <div class="mobile-record-card__more">
-                        <div class="mobile-record-card__more-grid">
-                            <div class="mobile-record-card__more-row"><span class="mobile-record-card__more-label">Messaggio</span><div class="mobile-record-card__more-value"><?= nl2br(e((string) ($row['message_contact'] ?? ''))) ?></div></div>
-                        </div>
-                        <form method="post" action="<?= e(admin_url('actions/delete-contact-request.php')) ?>" data-confirm="Vuoi davvero eliminare questa richiesta di contatto?">
-                            <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
-                            <input type="hidden" name="contact_request_id" value="<?= (int) $row['id'] ?>">
-                            <button class="btn btn-danger btn-sm" type="submit">Cancella</button>
-                        </form>
-                    </div>
-                </article>
-            <?php endforeach; ?>
-        </div>
-    </section>
-</div>
-
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {

@@ -77,7 +77,7 @@ $mobilePageKicker = admin_mobile_page_kicker($currentPath);
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title><?= e($pageTitle) ?></title>
     <link rel="stylesheet" href="/admin/assets/css/admin-modern.css?v=47">
-    <link rel="stylesheet" href="/admin/assets/css/admin-mobile.css?v=1">
+    <link rel="stylesheet" href="/admin/assets/css/admin-mobile.css?v=2">
     <link rel="stylesheet" href="/admin/assets/css/interhome-import.css?v=95">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -86,12 +86,13 @@ $mobilePageKicker = admin_mobile_page_kicker($currentPath);
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/7.5.0/css/flag-icons.min.css">
     <link rel="shortcut icon" href="<?= e(admin_url('assets/img/favicon.ico')) ?>" type="image/x-icon">
 </head>
-<body data-current-path="<?= e($currentPath) ?>" data-mobile-nav-key="<?= e($mobileNavKey) ?>" data-admin-authenticated="<?= $currentAdmin ? '1' : '0' ?>">
+<body data-current-path="<?= e($currentPath) ?>" data-mobile-nav-key="<?= e($mobileNavKey) ?>">
+    <div class="admin-mobile-overlay" data-mobile-overlay hidden></div>
     <div class="admin-app<?= $currentAdmin ? ' has-sidebar' : ' auth-layout' ?>">
         <?php if ($currentAdmin): ?>
             <aside class="admin-sidebar" id="adminSidebar">
                 <a class="sidebar-brand" href="<?= e(admin_url('index.php')) ?>">
-                    <img class="sidebar-logo sidebar-logo-desktop" src="<?= e(admin_url('assets/img/logo.svg')) ?>" alt="Podere La Cavallara">
+                    <img class="sidebar-logo sidebar-logo-desktop" src="<?= e(admin_url('assets/img/logo_mobile.png')) ?>" alt="Podere La Cavallara">
                     <img class="sidebar-logo sidebar-logo-mobile" src="<?= e(admin_url('assets/img/logo.svg')) ?>" alt="Podere La Cavallara">
                 </a>
 
