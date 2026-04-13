@@ -1,49 +1,39 @@
             </main>
 
-            <?php if (!empty($currentAdmin)): ?>
-                <nav class="mobile-bottom-nav" aria-label="Navigazione mobile rapida">
-                    <a class="mobile-bottom-link<?= admin_nav_active(['index.php'], $currentPath) ?>" href="<?= e(admin_url('index.php#overview')) ?>">
-                        <span class="mobile-bottom-icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5L12 4l9 7.5"/><path d="M5 10.5V20h14v-9.5"/></svg>
-                        </span>
-                        <span>Home</span>
-                    </a>
-                    <a class="mobile-bottom-link<?= admin_nav_active(['index.php'], $currentPath) ?>" href="<?= e(admin_url('index.php#registered-bookings')) ?>">
-                        <span class="mobile-bottom-icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 9h8"/><path d="M8 13h8"/><path d="M8 17h5"/></svg>
-                        </span>
-                        <span>Prenotazioni</span>
-                    </a>
-                    <a class="mobile-bottom-link<?= admin_nav_active(['clienti.php'], $currentPath) ?>" href="<?= e(admin_url('clienti.php')) ?>">
-                        <span class="mobile-bottom-icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M20 8v6"/><path d="M23 11h-6"/></svg>
-                        </span>
-                        <span>Clienti</span>
-                    </a>
-                    <a class="mobile-bottom-link<?= admin_nav_active(['import-interhome-pdf.php','import-interhome-review.php'], $currentPath) ?>" href="<?= e(admin_url('import-interhome-pdf.php')) ?>">
-                        <span class="mobile-bottom-icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
-                        </span>
-                        <span>Import</span>
-                    </a>
-                    <button class="mobile-bottom-link mobile-bottom-link--button" type="button" id="mobileBottomMore">
-                        <span class="mobile-bottom-icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1.2"/><circle cx="5" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>
-                        </span>
-                        <span>Altro</span>
-                    </button>
-                </nav>
-            <?php endif; ?>
-
             <footer class="admin-footer">
                 <div>Podere La Cavallara · Area amministrazione</div>
             </footer>
+
+            <?php if (!empty($currentAdmin)): ?>
+                <nav class="mobile-bottom-nav" aria-label="Navigazione rapida mobile">
+                    <a class="mobile-bottom-nav__link mobile-bottom-nav__link--home" href="<?= e(admin_url('index.php#overview')) ?>" data-mobile-nav-item="home">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11.5L12 4l9 7.5"></path><path d="M5.5 10.5V20h13V10.5"></path></svg>
+                        <span class="mobile-bottom-nav__label">Home</span>
+                    </a>
+                    <a class="mobile-bottom-nav__link" href="<?= e(admin_url('index.php#registered-bookings')) ?>" data-mobile-nav-item="prenotazioni">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3.5" width="16" height="17" rx="2.5"></rect><path d="M8 3.5v17"></path><path d="M16 3.5v17"></path><path d="M4 9.5h16"></path><path d="M4 14.5h16"></path></svg>
+                        <span class="mobile-bottom-nav__label">Prenotazioni</span>
+                    </a>
+                    <a class="mobile-bottom-nav__link" href="<?= e(admin_url('clienti.php')) ?>" data-mobile-nav-item="clienti">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"></path><circle cx="10" cy="7" r="4"></circle><path d="M21 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                        <span class="mobile-bottom-nav__label">Clienti</span>
+                    </a>
+                    <a class="mobile-bottom-nav__link" href="<?= e(admin_url('import-interhome-pdf.php')) ?>" data-mobile-nav-item="importa">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"></path><path d="M7.5 8.5L12 4l4.5 4.5"></path><path d="M4 16.5v2A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5v-2"></path></svg>
+                        <span class="mobile-bottom-nav__label">Importa</span>
+                    </a>
+                    <button class="mobile-bottom-nav__link mobile-bottom-nav__link--menu" type="button" data-mobile-nav-item="menu" data-toggle-sidebar aria-controls="adminSidebar" aria-expanded="false">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"></path><path d="M4 12h16"></path><path d="M4 17h16"></path></svg>
+                        <span class="mobile-bottom-nav__label">Altro</span>
+                    </button>
+                </nav>
+            <?php endif; ?>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/it.js"></script>
-    <script src="<?= e(admin_url('assets/js/admin-ui.js')) ?>?v=41"></script>
+    <script src="<?= e(admin_url('assets/js/admin-ui.js')) ?>?v=44"></script>
     <script src="<?= e(admin_url('assets/js/interhome-import.js')) ?>?v=31"></script>
 
 </body>

@@ -2,63 +2,89 @@ document.addEventListener('DOMContentLoaded', function () {
   var body = document.body;
   var sidebar = document.getElementById('adminSidebar');
   var sidebarToggle = document.getElementById('mobileMenuToggle');
-  var sidebarClose = document.getElementById('mobileSidebarClose');
-  var sidebarBackdrop = document.getElementById('mobileSidebarBackdrop');
-  var bottomMore = document.getElementById('mobileBottomMore');
+  var secondaryToggle = document.querySelector('[data-toggle-sidebar]');
 
-  function isMobileShell() {
-    return window.innerWidth <= 1024;
+  function setSidebarExpanded(expanded) {
+    if (sidebarToggle) sidebarToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    if (secondaryToggle) secondaryToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
   }
 
   function openSidebar() {
-    if (!sidebar || !isMobileShell()) return;
     body.classList.add('sidebar-open');
-    if (sidebarToggle) sidebarToggle.setAttribute('aria-expanded', 'true');
+    setSidebarExpanded(true);
   }
 
   function closeSidebar() {
     body.classList.remove('sidebar-open');
-    if (sidebarToggle) sidebarToggle.setAttribute('aria-expanded', 'false');
+    setSidebarExpanded(false);
   }
 
-  if (sidebarToggle && sidebar) {
-    sidebarToggle.addEventListener('click', function () {
-      body.classList.contains('sidebar-open') ? closeSidebar() : openSidebar();
+  function toggleSidebar() {
+    if (body.classList.contains('sidebar-open')) {
+      closeSidebar();
+    } else {
+      openSidebar();
+    }
+  }
+
+  if (sidebar && (sidebarToggle || secondaryToggle)) {
+    if (sidebarToggle) {
+      sidebarToggle.addEventListener('click', toggleSidebar);
+    }
+
+    if (secondaryToggle) {
+      secondaryToggle.addEventListener('click', toggleSidebar);
+    }
+
+    document.addEventListener('click', function (e) {
+      if (window.innerWidth > 1024) return;
+      if (!body.classList.contains('sidebar-open')) return;
+      var clickedToggle = sidebarToggle && sidebarToggle.contains(e.target);
+      var clickedSecondaryToggle = secondaryToggle && secondaryToggle.contains(e.target);
+      if (sidebar.contains(e.target) || clickedToggle || clickedSecondaryToggle) return;
+      closeSidebar();
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' || e.keyCode === 27) {
+        closeSidebar();
+      }
     });
   }
 
-  if (sidebarClose) {
-    sidebarClose.addEventListener('click', closeSidebar);
+  function updateMobileBottomNavActive() {
+    var navItems = document.querySelectorAll('[data-mobile-nav-item]');
+    if (!navItems.length) return;
+
+    var key = body.getAttribute('data-mobile-nav-key') || 'none';
+    var path = body.getAttribute('data-current-path') || '';
+    var hash = window.location.hash || '';
+
+    if (path === 'index.php') {
+      if (hash === '#registered-bookings' || hash === '#booking-requests' || hash === '#contact-requests') {
+        key = 'prenotazioni';
+      } else {
+        key = 'home';
+      }
+    }
+
+    for (var i = 0; i < navItems.length; i++) {
+      var itemKey = navItems[i].getAttribute('data-mobile-nav-item');
+      if (itemKey === 'menu') {
+        navItems[i].classList.toggle('is-open', body.classList.contains('sidebar-open'));
+      } else {
+        navItems[i].classList.toggle('is-active', itemKey === key);
+      }
+    }
   }
 
-  if (bottomMore) {
-    bottomMore.addEventListener('click', function () {
-      body.classList.contains('sidebar-open') ? closeSidebar() : openSidebar();
-    });
-  }
-
-  if (sidebarBackdrop) {
-    sidebarBackdrop.addEventListener('click', closeSidebar);
-  }
-
-  document.addEventListener('click', function (e) {
-    if (!isMobileShell()) return;
-    if (!body.classList.contains('sidebar-open')) return;
-    if (!sidebar || sidebar.contains(e.target)) return;
-    if (sidebarToggle && sidebarToggle.contains(e.target)) return;
-    if (bottomMore && bottomMore.contains(e.target)) return;
-    if (sidebarClose && sidebarClose.contains(e.target)) return;
-    closeSidebar();
-  });
-
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') closeSidebar();
-  });
-
+  updateMobileBottomNavActive();
+  window.addEventListener('hashchange', updateMobileBottomNavActive);
   window.addEventListener('resize', function () {
-    if (!isMobileShell()) {
+    if (window.innerWidth > 1024) {
       closeSidebar();
     }
+    updateMobileBottomNavActive();
   });
 
   document.querySelectorAll('form[data-confirm]').forEach(function (form) {
@@ -104,22 +130,19 @@ document.addEventListener('DOMContentLoaded', function () {
   document.querySelectorAll('[data-mobile-expand-row]').forEach(function (row) {
     row.addEventListener('click', function (e) {
       if (window.innerWidth > 768) return;
-
-      if (e.target.closest('a, button, form, input, select, textarea, label')) {
-        return;
-      }
+      if (e.target.closest('a, button, form, input, select, textarea, label')) return;
 
       var detailRow = row.nextElementSibling;
       if (!detailRow || !detailRow.classList.contains('mobile-detail-row')) return;
 
       var isOpen = row.classList.contains('is-open');
 
-      document.querySelectorAll('.mobile-summary-row.is-open').forEach(function (r) {
-        r.classList.remove('is-open');
+      document.querySelectorAll('.mobile-summary-row.is-open').forEach(function (summary) {
+        summary.classList.remove('is-open');
       });
 
-      document.querySelectorAll('.mobile-detail-row.is-open').forEach(function (r) {
-        r.classList.remove('is-open');
+      document.querySelectorAll('.mobile-detail-row.is-open').forEach(function (detail) {
+        detail.classList.remove('is-open');
       });
 
       if (!isOpen) {
