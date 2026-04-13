@@ -27,17 +27,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $pageTitle = 'Accesso area amministrazione';
 require_once __DIR__ . '/includes/header.php';
 ?>
-<div class="auth-shell auth-shell--mobile-refined">
-    <div class="auth-brand auth-brand--mobile">
-        <img class="auth-brand__logo" src="<?= e(admin_url('assets/img/logo_sticky.png')) ?>" alt="Podere La Cavallara">
-        <div class="auth-brand__copy">
-            <strong>Area amministrazione</strong>
-            <span>Podere La Cavallara</span>
-        </div>
-    </div>
-    <div class="card auth-card auth-card--mobile-refined">
-        <h2>Accedi</h2>
-        <p class="muted">Inserisci email e password per gestire richieste, clienti e prenotazioni dall’area amministrativa.</p>
+<div class="auth-shell">
+    <div class="card auth-card">
+        <img class="sidebar-logo sidebar-logo-desktop" src="<?= e(admin_url('assets/img/logo_sticky.svg')) ?>" alt="Podere La Cavallara" style="position: relative;">
+        <h2>Accedi all’area admin</h2>
+        <p class="muted">Inserisci email e password per gestire richieste e prenotazioni.</p>
         <form method="post" class="form-grid">
             <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
             <label>Email
@@ -53,7 +47,7 @@ require_once __DIR__ . '/includes/header.php';
                     </button>
                 </span>
             </label>
-            <button class="btn btn-primary" type="submit">Accedi all'admin</button>
+            <button class="btn btn-primary" type="submit">Accedi</button>
             <a class="small muted" href="<?= e(admin_url('forgot-password.php')) ?>">Hai dimenticato la password?</a>
         </form>
     </div>
