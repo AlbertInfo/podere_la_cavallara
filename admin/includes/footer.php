@@ -34,6 +34,7 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/it.js"></script>
     <script src="<?= e(admin_url('assets/js/admin-ui.js')) ?>?v=47"></script>
+    <script src="<?= e(admin_url('assets/js/admin-mobile.js')) ?>?v=1"></script>
     <script src="<?= e(admin_url('assets/js/interhome-import.js')) ?>?v=31"></script>
 
 </body>
