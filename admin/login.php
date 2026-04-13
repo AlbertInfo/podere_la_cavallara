@@ -28,8 +28,12 @@ $pageTitle = 'Accesso area amministrazione';
 require_once __DIR__ . '/includes/header.php';
 ?>
 <div class="auth-shell">
+    <div class="auth-brand">
+        <img src="<?= e(admin_url('assets/img/logo.svg')) ?>" alt="Podere La Cavallara">
+        <span>Area amministrazione</span>
+    </div>
     <div class="card auth-card">
-        <img class="sidebar-logo sidebar-logo-desktop" src="<?= e(admin_url('assets/img/logo_sticky.svg')) ?>" alt="Podere La Cavallara" style="position: relative;">
+        <img class="auth-card-logo" src="<?= e(admin_url('assets/img/logo.svg')) ?>" alt="Podere La Cavallara">
         <h2>Accedi all’area admin</h2>
         <p class="muted">Inserisci email e password per gestire richieste e prenotazioni.</p>
         <form method="post" class="form-grid">

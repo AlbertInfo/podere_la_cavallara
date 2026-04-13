@@ -32,28 +32,11 @@ function format_bytes(?int $bytes): string
 
 function pdf_status_badge_class(string $status): string
 {
-    if ($status === 'parsed') {
-        return 'is-success';
-    }
-
-    if ($status === 'failed') {
-        return 'is-danger';
-    }
-
-    return 'is-neutral';
-}
-
-function pdf_status_label(string $status): string
-{
-    if ($status === 'parsed') {
-        return 'Import riuscito';
-    }
-
-    if ($status === 'failed') {
-        return 'Errore parser';
-    }
-
-    return 'Caricato';
+    return match ($status) {
+        'parsed' => 'is-success',
+        'failed' => 'is-danger',
+        default => 'is-neutral',
+    };
 }
 
 $pageTitle = 'Archivio PDF';
@@ -137,27 +120,11 @@ require_once __DIR__ . '/includes/header.php';
 .pdf-rename-box.is-open{display:block}
 .pdf-rename-form{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .pdf-rename-form input{flex:1;min-width:220px}
-.pdf-mobile-list{display:none}
-.pdf-mobile-card{
-    display:grid;gap:14px;padding:18px;border-radius:24px;border:1px solid rgba(219,228,240,.95);
-    background:linear-gradient(180deg,#fff 0%,#f8fbff 100%);box-shadow:0 16px 34px rgba(15,23,42,.08)
-}
-.pdf-mobile-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
-.pdf-mobile-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.pdf-mobile-block{display:grid;gap:6px;padding:14px;border-radius:18px;background:#f8fbff;border:1px solid #e6edf7}
-.pdf-mobile-block span{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:800}
-.pdf-mobile-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.pdf-mobile-actions .btn,.pdf-mobile-actions form,.pdf-mobile-actions form .btn{width:100%}
 .pdf-alert-card{
     padding:22px;border-radius:22px;border:1px solid #fed7aa;background:linear-gradient(180deg,#fff 0%,#fff7ed 100%);
 }
 @media (max-width:1180px){.pdf-manager-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:760px){
-    .pdf-manager-grid{grid-template-columns:1fr}
-    .pdf-manager-table .table-wrap{display:none}
-    .pdf-mobile-list{display:grid;gap:14px}
-    .pdf-mobile-grid,.pdf-mobile-actions{grid-template-columns:1fr}
-}
+@media (max-width:760px){.pdf-manager-grid{grid-template-columns:1fr}}
 </style>
 
 <div class="booking-page pdf-manager-shell">
@@ -228,64 +195,6 @@ require_once __DIR__ . '/includes/header.php';
                     <p style="margin-top:8px;">Prova con un altro termine oppure importa il primo PDF Interhome.</p>
                 </div>
             <?php else: ?>
-                <div class="pdf-mobile-list">
-                    <?php foreach ($files as $file): ?>
-                        <?php
-                        $displayName = trim((string) ($file['display_name'] ?? ''));
-                        if ($displayName === '') {
-                            $displayName = pathinfo((string) ($file['original_name'] ?? 'PDF Interhome'), PATHINFO_FILENAME);
-                        }
-                        $viewUrl = admin_url((string) ($file['relative_path'] ?? ''));
-                        $parserStatus = (string) ($file['parser_status'] ?? 'uploaded');
-                        ?>
-                        <article class="pdf-mobile-card">
-                            <div class="pdf-mobile-head">
-                                <div class="pdf-file-cell">
-                                    <div class="pdf-file-name"><?= e($displayName) ?></div>
-                                    <div class="small muted">Originale: <?= e((string) ($file['original_name'] ?? '—')) ?></div>
-                                </div>
-                                <span class="pdf-status <?= e(pdf_status_badge_class($parserStatus)) ?>"><?= e(pdf_status_label($parserStatus)) ?></span>
-                            </div>
-                            <div class="pdf-mobile-grid">
-                                <div class="pdf-mobile-block">
-                                    <span>Importato il</span>
-                                    <strong><?= e((string) ($file['created_at'] ?? '—')) ?></strong>
-                                    <div class="small muted">Admin: <?= e((string) ($file['uploaded_by_name'] ?? 'Admin')) ?></div>
-                                </div>
-                                <div class="pdf-mobile-block">
-                                    <span>Dimensione</span>
-                                    <strong><?= e(format_bytes((int) ($file['file_size'] ?? 0))) ?></strong>
-                                    <div class="small muted"><?= e((string) ($file['mime_type'] ?? 'application/pdf')) ?></div>
-                                </div>
-                                <div class="pdf-mobile-block">
-                                    <span>Riepilogo parser</span>
-                                    <div class="small muted">Pagine lette: <?= (int) ($file['pages_read'] ?? 0) ?></div>
-                                    <div class="small muted">Righe lette: <?= (int) ($file['parsed_total'] ?? 0) ?></div>
-                                    <div class="small muted">Nuove: <?= (int) ($file['new_total'] ?? 0) ?></div>
-                                    <div class="small muted">Duplicati: <?= (int) ($file['duplicates_skipped'] ?? 0) ?></div>
-                                </div>
-                                <div class="pdf-mobile-block">
-                                    <span>Nome visualizzato</span>
-                                    <form class="pdf-rename-form" method="post" action="<?= e(admin_url('actions/rename-imported-pdf.php')) ?>">
-                                        <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
-                                        <input type="hidden" name="pdf_id" value="<?= (int) $file['id'] ?>">
-                                        <input type="text" name="display_name" value="<?= e($displayName) ?>" maxlength="180" placeholder="Nuovo nome visualizzato">
-                                        <button class="btn btn-primary btn-sm" type="submit">Salva nome</button>
-                                    </form>
-                                </div>
-                            </div>
-                            <div class="pdf-mobile-actions">
-                                <a class="btn btn-light" href="<?= e($viewUrl) ?>" target="_blank" rel="noopener">Apri PDF</a>
-                                <form method="post" action="<?= e(admin_url('actions/delete-imported-pdf.php')) ?>" onsubmit="return confirm('Vuoi cancellare definitivamente questo PDF dall'archivio?');">
-                                    <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
-                                    <input type="hidden" name="pdf_id" value="<?= (int) $file['id'] ?>">
-                                    <button class="btn btn-danger" type="submit">Cancella</button>
-                                </form>
-                            </div>
-                        </article>
-                    <?php endforeach; ?>
-                </div>
-
                 <div class="table-wrap">
                     <table>
                         <thead>
@@ -328,7 +237,11 @@ require_once __DIR__ . '/includes/header.php';
                                 </td>
                                 <td>
                                     <span class="pdf-status <?= e(pdf_status_badge_class($parserStatus)) ?>">
-                                        <?= e(pdf_status_label($parserStatus)) ?>
+                                        <?= e(match ($parserStatus) {
+                                            'parsed' => 'Import riuscito',
+                                            'failed' => 'Errore parser',
+                                            default => 'Caricato',
+                                        }) ?>
                                     </span>
                                     <?php if (!empty($file['parser_error'])): ?>
                                         <div class="small muted" style="margin-top:8px; max-width:260px;"><?= e((string) $file['parser_error']) ?></div>
