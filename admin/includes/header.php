@@ -3,25 +3,40 @@ $flash = function_exists('get_flash') ? get_flash() : null;
 $currentAdmin = function_exists('current_admin') ? current_admin() : null;
 $pageTitle = $pageTitle ?? ADMIN_APP_NAME;
 $currentPath = basename(parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '');
-$mobileNavSection = isset($mobileNavSection) ? (string) $mobileNavSection : '';
-
-if ($mobileNavSection === '') {
-    if ($currentPath === 'index.php') {
-        $mobileNavSection = 'home';
-    } elseif ($currentPath === 'clienti.php') {
-        $mobileNavSection = 'clienti';
-    } elseif (in_array($currentPath, ['import-interhome-pdf.php', 'import-interhome-review.php'], true)) {
-        $mobileNavSection = 'import';
-    } elseif (in_array($currentPath, ['new-prenotazione.php', 'edit-prenotazione.php'], true)) {
-        $mobileNavSection = 'prenotazioni';
-    } else {
-        $mobileNavSection = 'other';
-    }
-}
 
 function admin_nav_active(array $targets, string $currentPath): string
 {
     return in_array($currentPath, $targets, true) ? ' is-active' : '';
+}
+
+function admin_mobile_nav_key(string $currentPath): string
+{
+    $map = [
+        'index.php' => 'home',
+        'clienti.php' => 'clienti',
+        'new-prenotazione.php' => 'prenotazioni',
+        'edit-prenotazione.php' => 'prenotazioni',
+        'import-interhome-pdf.php' => 'importa',
+        'import-interhome-review.php' => 'importa',
+        'file-manager.php' => 'importa',
+    ];
+
+    return $map[$currentPath] ?? 'none';
+}
+
+function admin_mobile_page_kicker(string $currentPath): string
+{
+    $map = [
+        'index.php' => 'Area amministrazione',
+        'clienti.php' => 'Archivio ospiti',
+        'new-prenotazione.php' => 'Inserimento manuale',
+        'edit-prenotazione.php' => 'Aggiorna prenotazione',
+        'import-interhome-pdf.php' => 'Import Interhome',
+        'import-interhome-review.php' => 'Verifica import',
+        'file-manager.php' => 'Archivio documenti',
+    ];
+
+    return $map[$currentPath] ?? 'Dashboard mobile';
 }
 
 $sidebarCounters = [
@@ -51,14 +66,17 @@ if ($currentAdmin && isset($pdo) && $pdo instanceof PDO) {
         ];
     }
 }
+
+$mobileNavKey = admin_mobile_nav_key($currentPath);
+$mobilePageKicker = admin_mobile_page_kicker($currentPath);
 ?>
 <!DOCTYPE html>
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title><?= e($pageTitle) ?></title>
-    <link rel="stylesheet" href="/admin/assets/css/admin-modern.css?v=34">
+    <link rel="stylesheet" href="/admin/assets/css/admin-modern.css?v=47">
     <link rel="stylesheet" href="/admin/assets/css/interhome-import.css?v=95">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -67,7 +85,7 @@ if ($currentAdmin && isset($pdo) && $pdo instanceof PDO) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/7.5.0/css/flag-icons.min.css">
     <link rel="shortcut icon" href="<?= e(admin_url('assets/img/favicon.ico')) ?>" type="image/x-icon">
 </head>
-<body>
+<body data-current-path="<?= e($currentPath) ?>" data-mobile-nav-key="<?= e($mobileNavKey) ?>">
     <div class="admin-app<?= $currentAdmin ? ' has-sidebar' : ' auth-layout' ?>">
         <?php if ($currentAdmin): ?>
             <aside class="admin-sidebar" id="adminSidebar">
@@ -131,17 +149,20 @@ if ($currentAdmin && isset($pdo) && $pdo instanceof PDO) {
         <div class="admin-main">
             <?php if ($currentAdmin): ?>
                 <header class="admin-topbar">
-                    <button class="mobile-menu-toggle" type="button" id="mobileMenuToggle" aria-controls="adminSidebar" aria-expanded="false" data-open-sidebar>
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </button>
-                    <div class="topbar-brand-group">
-                        <a class="topbar-brand" href="<?= e(admin_url('index.php')) ?>">
-                            <img src="<?= e(admin_url('assets/img/logo.svg')) ?>" alt="Podere La Cavallara">
+                    <div class="topbar-mobile-shell">
+                        <button class="mobile-menu-toggle" type="button" id="mobileMenuToggle" aria-controls="adminSidebar" aria-expanded="false" aria-label="Apri menu">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </button>
+                        <a class="topbar-mobile-brand" href="<?= e(admin_url('index.php')) ?>" aria-label="Torna alla dashboard amministrazione">
+                            <img class="topbar-mobile-logo" src="<?= e(admin_url('assets/img/logo.svg')) ?>" alt="Podere La Cavallara">
+                            <span class="topbar-mobile-label">Area amministrazione</span>
                         </a>
-                        <div class="topbar-admin-label">Area amministrazione</div>
                     </div>
+                    <a class="topbar-brand" href="<?= e(admin_url('index.php')) ?>">
+                        <img src="<?= e(admin_url('assets/img/logo.svg')) ?>" alt="Podere La Cavallara">
+                    </a>
                     <div class="topbar-actions">
                         <a class="btn btn-light btn-sm" href="<?= e(admin_url('clienti.php')) ?>">Clienti</a>
                         <a class="btn btn-light btn-sm" href="<?= e(admin_url('file-manager.php')) ?>">Archivio PDF</a>
