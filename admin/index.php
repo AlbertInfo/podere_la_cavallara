@@ -73,6 +73,10 @@ if ($registeredBookingRoomOptions) {
 require_once __DIR__ . '/includes/header.php';
 ?>
 <section id="overview" class="mobile-admin-screen">
+    <div class="mobile-screen-head">
+        <h1>Area amministrazione</h1>
+    </div>
+
     <div class="mobile-kpi-bar" aria-label="Riepilogo rapido dashboard">
         <article class="mobile-kpi-bar__item">
             <span class="mobile-kpi-bar__label">Richieste prenotazione</span>
@@ -408,10 +412,6 @@ require_once __DIR__ . '/includes/header.php';
                                 <span>Ospiti</span>
                                 <strong><?= (int)$row['adults'] ?> adulti / <?= (int)$row['children_count'] ?> bambini</strong>
                             </div>
-                            <div class="mobile-booking-card__row">
-                                <span>Registrata il</span>
-                                <strong><?= e($row['created_at']) ?></strong>
-                            </div>
                         </div>
                     </div>
 
@@ -419,7 +419,7 @@ require_once __DIR__ . '/includes/header.php';
                         Vedi dettagli
                     </button>
 
-                    <div class="mobile-booking-card__details" data-mobile-booking-details hidden>
+                    <div class="mobile-booking-card__details" data-mobile-booking-details hidden aria-hidden="true" style="display:none;">
                         <div class="mobile-booking-card__detail-grid">
                             <div class="mobile-booking-card__detail-item">
                                 <span>Email</span>
@@ -1270,18 +1270,55 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     document.querySelectorAll('[data-mobile-booking-toggle]').forEach(function (button) {
-        button.addEventListener('click', function () {
-            const card = button.closest('[data-mobile-booking-card]');
-            const details = card ? card.querySelector('[data-mobile-booking-details]') : null;
-            if (!card || !details) {
-                return;
-            }
+        const card = button.closest('[data-mobile-booking-card]');
+        const details = card ? card.querySelector('[data-mobile-booking-details]') : null;
+        if (!card || !details) {
+            return;
+        }
 
-            const isOpen = button.getAttribute('aria-expanded') === 'true';
-            button.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
-            button.classList.toggle('is-open', !isOpen);
-            details.hidden = isOpen;
-            button.textContent = isOpen ? 'Vedi dettagli' : 'Nascondi dettagli';
+        function closeCard() {
+            button.setAttribute('aria-expanded', 'false');
+            button.classList.remove('is-open');
+            button.textContent = 'Vedi dettagli';
+            details.hidden = true;
+            details.setAttribute('aria-hidden', 'true');
+            details.style.display = 'none';
+        }
+
+        function openCard() {
+            button.setAttribute('aria-expanded', 'true');
+            button.classList.add('is-open');
+            button.textContent = 'Nascondi dettagli';
+            details.hidden = false;
+            details.setAttribute('aria-hidden', 'false');
+            details.style.display = 'grid';
+        }
+
+        closeCard();
+
+        button.addEventListener('click', function () {
+            const willOpen = button.getAttribute('aria-expanded') !== 'true';
+
+            document.querySelectorAll('[data-mobile-booking-toggle]').forEach(function (otherButton) {
+                const otherCard = otherButton.closest('[data-mobile-booking-card]');
+                const otherDetails = otherCard ? otherCard.querySelector('[data-mobile-booking-details]') : null;
+                if (!otherCard || !otherDetails) {
+                    return;
+                }
+
+                otherButton.setAttribute('aria-expanded', 'false');
+                otherButton.classList.remove('is-open');
+                otherButton.textContent = 'Vedi dettagli';
+                otherDetails.hidden = true;
+                otherDetails.setAttribute('aria-hidden', 'true');
+                otherDetails.style.display = 'none';
+            });
+
+            if (willOpen) {
+                openCard();
+            } else {
+                closeCard();
+            }
         });
     });
 });

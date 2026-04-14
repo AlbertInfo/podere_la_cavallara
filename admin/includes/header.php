@@ -36,7 +36,7 @@ function admin_mobile_page_kicker(string $currentPath): string
         'file-manager.php' => 'Archivio documenti',
     ];
 
-    return $map[$currentPath] ?? 'Dashboard mobile';
+    return $map[$currentPath] ?? 'Area amministrazione';
 }
 
 $sidebarCounters = [
@@ -77,7 +77,7 @@ $mobilePageKicker = admin_mobile_page_kicker($currentPath);
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title><?= e($pageTitle) ?></title>
     <link rel="stylesheet" href="/admin/assets/css/admin-modern.css?v=47">
-    <link rel="stylesheet" href="/admin/assets/css/admin-mobile.css?v=110">
+    <link rel="stylesheet" href="/admin/assets/css/admin-mobile.css?v=200">
     <link rel="stylesheet" href="/admin/assets/css/interhome-import.css?v=95">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -92,7 +92,7 @@ $mobilePageKicker = admin_mobile_page_kicker($currentPath);
             <aside class="admin-sidebar" id="adminSidebar">
                 <a class="sidebar-brand" href="<?= e(admin_url('index.php')) ?>">
                     <img class="sidebar-logo sidebar-logo-desktop" src="<?= e(admin_url('assets/img/logo.svg')) ?>" alt="Podere La Cavallara">
-                    <img class="sidebar-logo sidebar-logo-mobile" src="<?= e(admin_url('assets/img/logo.svg')) ?>" alt="Podere La Cavallara">
+                    <img class="sidebar-logo sidebar-logo-mobile" src="<?= e(admin_url('assets/img/logo_mobile.svg')) ?>" alt="Podere La Cavallara">
                 </a>
 
                 <nav class="sidebar-nav" aria-label="Menu area admin">
@@ -159,6 +159,7 @@ $mobilePageKicker = admin_mobile_page_kicker($currentPath);
                         <a class="topbar-mobile-brand" href="<?= e(admin_url('index.php')) ?>" aria-label="Torna alla dashboard amministrazione">
                             <img class="topbar-mobile-logo" src="<?= e(admin_url('assets/img/logo_mobile.svg')) ?>" alt="Podere La Cavallara">
                         </a>
+                        <span class="topbar-mobile-spacer" aria-hidden="true"></span>
                     </div>
                     <a class="topbar-brand" href="<?= e(admin_url('index.php')) ?>">
                         <img src="<?= e(admin_url('assets/img/logo.svg')) ?>" alt="Podere La Cavallara">

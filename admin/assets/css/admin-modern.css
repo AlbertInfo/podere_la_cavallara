@@ -666,9 +666,9 @@ label{display:grid;gap:8px;font-weight:600;color:#334155}
 .password-toggle svg{width:18px;height:18px}
 
 /* ===== mobile app restyle ===== */
-.card, .auth-card {
+/* .card, .auth-card {
   align-items: stretch !important;
-}
+} */
 
 .topbar-mobile-shell,
 .topbar-mobile-copy,
