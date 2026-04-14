@@ -75,7 +75,7 @@ require_once __DIR__ . '/includes/header.php';
 <section id="overview" class="mobile-admin-screen">
     <div class="mobile-screen-head">
         <h1>Area amministrazione</h1>
-       
+        <p>Vista rapida dell’operatività con focus su prenotazioni, filtri compatti e consultazione veloce dei dettagli.</p>
     </div>
 
     <div class="mobile-kpi-bar" aria-label="Riepilogo rapido dashboard">
@@ -270,7 +270,7 @@ require_once __DIR__ . '/includes/header.php';
         <div class="mobile-panel__head">
             <div>
                 <h2>Prenotazioni confermate</h2>
-                
+                <p>Consultazione rapida in formato card, pensata per gestire molti record anche da smartphone.</p>
             </div>
             <span class="mobile-panel__badge"><?= count($registeredBookings) ?></span>
         </div>
@@ -295,7 +295,7 @@ require_once __DIR__ . '/includes/header.php';
                 <div class="mobile-filter-drawer__head">
                     <div>
                         <h3>Filtra e ordina</h3>
-                        
+                        <p>Ricerca rapida stile booking: apri il pannello solo quando serve, senza sprecare spazio verticale.</p>
                     </div>
                 </div>
 
@@ -397,7 +397,7 @@ require_once __DIR__ . '/includes/header.php';
                                 </div>
                             </div>
                             <span class="mobile-booking-card__status <?= $bookingIsPast ? 'is-past' : 'is-active' ?>">
-                                <?= e($row['status'] ?: ($bookingIsPast ? 'Passata' : 'Attiva')) ?>
+                                <?= $bookingIsPast ? 'Passata' : 'Attivata' ?>
                             </span>
                         </div>
 
@@ -424,10 +424,6 @@ require_once __DIR__ . '/includes/header.php';
                     <div class="mobile-booking-card__details" data-mobile-booking-details hidden>
                         <div class="mobile-booking-card__detail-grid">
                             <div class="mobile-booking-card__detail-item">
-                                <span>Data registrazione</span>
-                                <strong><?= e($row['created_at']) ?></strong>
-                            </div>
-                            <div class="mobile-booking-card__detail-item">
                                 <span>Email</span>
                                 <strong><?= e($row['customer_email'] ?: 'Email non disponibile') ?></strong>
                             </div>
@@ -451,7 +447,7 @@ require_once __DIR__ . '/includes/header.php';
                             <?php endif; ?>
                             <div class="mobile-booking-card__detail-item">
                                 <span>Stato soggiorno</span>
-                                <strong><?= $bookingIsPast ? 'Prenotazione passata' : 'Prenotazione attiva' ?></strong>
+                                <strong><?= $bookingIsPast ? 'Prenotazione passata' : 'Prenotazione attivata' ?></strong>
                             </div>
                             <?php if (!empty($row['notes'])): ?>
                                 <div class="mobile-booking-card__detail-item full">
@@ -614,7 +610,7 @@ require_once __DIR__ . '/includes/header.php';
                         <td>
                             <?= e($row['stay_period']) ?><br>
                             <span class="booking-time-badge <?= $bookingIsPast ? 'is-past' : 'is-active' ?>">
-                                <?= $bookingIsPast ? 'Prenotazione passata' : 'Prenotazione attiva' ?>
+                                <?= $bookingIsPast ? 'Prenotazione passata' : 'Prenotazione attivata' ?>
                             </span>
                         </td>
                         <td><?= e($row['room_type']) ?></td>
@@ -700,7 +696,7 @@ require_once __DIR__ . '/includes/header.php';
                                 </div>
                                 <div>
                                     <span>Stato soggiorno</span>
-                                    <strong><?= $bookingIsPast ? 'Passata' : 'Attiva' ?></strong>
+                                    <strong><?= $bookingIsPast ? 'Passata' : 'Attivata' ?></strong>
                                 </div>
                                 <?php if (!empty($row['external_reference'])): ?>
                                     <div>
@@ -1284,22 +1280,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             const isOpen = button.getAttribute('aria-expanded') === 'true';
-
-            document.querySelectorAll('[data-mobile-booking-toggle]').forEach(function (otherButton) {
-                if (otherButton === button) {
-                    return;
-                }
-                const otherCard = otherButton.closest('[data-mobile-booking-card]');
-                const otherDetails = otherCard ? otherCard.querySelector('[data-mobile-booking-details]') : null;
-                if (!otherDetails) {
-                    return;
-                }
-                otherButton.setAttribute('aria-expanded', 'false');
-                otherButton.classList.remove('is-open');
-                otherButton.textContent = 'Vedi dettagli';
-                otherDetails.hidden = true;
-            });
-
             button.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
             button.classList.toggle('is-open', !isOpen);
             details.hidden = isOpen;
