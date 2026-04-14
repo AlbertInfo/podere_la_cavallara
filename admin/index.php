@@ -72,7 +72,29 @@ if ($registeredBookingRoomOptions) {
 }$pageTitle = 'Dashboard amministrazione';
 require_once __DIR__ . '/includes/header.php';
 ?>
-<section id="overview" class="kpi-row">
+<section id="overview" class="mobile-admin-screen">
+    <div class="mobile-screen-head">
+        <h1>Dashboard mobile</h1>
+        <p>Vista rapida dell’operatività con focus su prenotazioni, filtri compatti e consultazione veloce dei dettagli.</p>
+    </div>
+
+    <div class="mobile-kpi-bar" aria-label="Riepilogo rapido dashboard">
+        <article class="mobile-kpi-bar__item">
+            <span class="mobile-kpi-bar__label">Richieste prenotazione</span>
+            <strong class="mobile-kpi-bar__value"><?= $stats['booking_requests'] ?></strong>
+        </article>
+        <article class="mobile-kpi-bar__item">
+            <span class="mobile-kpi-bar__label">Richieste contatto</span>
+            <strong class="mobile-kpi-bar__value"><?= $stats['contact_requests'] ?></strong>
+        </article>
+        <article class="mobile-kpi-bar__item">
+            <span class="mobile-kpi-bar__label">Prenotazioni registrate</span>
+            <strong class="mobile-kpi-bar__value"><?= $stats['registered_bookings'] ?></strong>
+        </article>
+    </div>
+</section>
+
+<section id="overview-desktop" class="kpi-row desktop-admin-view">
     <article class="kpi-card">
         <div class="label">Richieste prenotazione</div>
         <div class="value"><?= $stats['booking_requests'] ?></div>
@@ -243,7 +265,222 @@ require_once __DIR__ . '/includes/header.php';
 }
 </style>
 
-<section id="registered-bookings" class="card section-registered" style="margin-top:20px;">
+<section id="registered-bookings-mobile" class="mobile-admin-screen">
+    <div class="mobile-panel mobile-bookings-shell">
+        <div class="mobile-panel__head">
+            <div>
+                <h2>Prenotazioni confermate</h2>
+                <p>Consultazione rapida in formato card, pensata per gestire molti record anche da smartphone.</p>
+            </div>
+            <span class="mobile-panel__badge"><?= count($registeredBookings) ?></span>
+        </div>
+
+        <div class="mobile-action-stack">
+            <a class="btn btn-light" href="<?= e(admin_url('import-interhome-pdf.php')) ?>">Importa PDF Interhome</a>
+            <a class="btn btn-primary" href="<?= e(admin_url('new-prenotazione.php')) ?>">Nuova prenotazione</a>
+        </div>
+
+        <div class="mobile-bookings-toolbar">
+            <div class="mobile-bookings-toolbar__top">
+                <div class="mobile-bookings-count" data-visible-bookings-count-mobile>
+                    <?= count($registeredBookings) ?> prenotazioni visibili
+                </div>
+                <button class="mobile-filter-toggle" type="button" id="mobileBookingsFilterToggle" aria-expanded="false" aria-controls="mobileBookingsFilterDrawer">
+                    Filtri
+                    <span class="mobile-filter-toggle__icon" aria-hidden="true">▾</span>
+                </button>
+            </div>
+
+            <div class="mobile-filter-drawer" id="mobileBookingsFilterDrawer" hidden>
+                <div class="mobile-filter-drawer__head">
+                    <div>
+                        <h3>Filtra e ordina</h3>
+                        <p>Ricerca rapida stile booking: apri il pannello solo quando serve, senza sprecare spazio verticale.</p>
+                    </div>
+                </div>
+
+                <div class="mobile-filter-grid">
+                    <label class="mobile-filter-field" for="registeredBookingsSearchMobile">
+                        <span>Ricerca cliente</span>
+                        <input id="registeredBookingsSearchMobile" class="search-input" type="search" placeholder="Nome, cognome, email o riferimento">
+                    </label>
+
+                    <label class="mobile-filter-field" for="registeredBookingsRoomFilterMobile">
+                        <span>Tipologia casa</span>
+                        <select id="registeredBookingsRoomFilterMobile">
+                            <option value="">Tutte le case</option>
+                            <?php foreach ($registeredBookingRoomOptions as $roomOption): ?>
+                                <option value="<?= e($roomOption) ?>"><?= e($roomOption) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
+
+                    <label class="mobile-filter-field" for="registeredBookingsPhaseFilterMobile">
+                        <span>Stato soggiorno</span>
+                        <select id="registeredBookingsPhaseFilterMobile">
+                            <option value="">Tutte</option>
+                            <option value="active">Prenotazioni attive</option>
+                            <option value="past">Prenotazioni passate</option>
+                        </select>
+                    </label>
+
+                    <label class="mobile-filter-field" for="registeredBookingsSortMobile">
+                        <span>Ordina per</span>
+                        <select id="registeredBookingsSortMobile">
+                            <option value="created_desc">Data registrazione: più recente</option>
+                            <option value="checkin_asc">Check-in: più vicino → più lontano</option>
+                            <option value="checkin_desc">Check-in: più lontano → più vicino</option>
+                            <option value="name_asc">Cliente: A → Z</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div class="mobile-filter-actions">
+                    <button class="btn btn-light btn-sm" type="button" id="registeredBookingsResetMobile">Reset filtri</button>
+                    <button class="btn btn-primary btn-sm" type="button" id="registeredBookingsApplyMobile">Mostra risultati</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="mobileRegisteredBookingsList" class="mobile-booking-list">
+            <?php foreach ($registeredBookings as $row): ?>
+                <?php
+                    $bookingCheckIn = dashboard_extract_check_in_iso($row);
+                    $bookingCheckOut = dashboard_extract_check_out_iso($row);
+                    $bookingIsPast = $bookingCheckOut !== '' && $bookingCheckOut < $dashboardTodayIso;
+                    $bookingPhase = $bookingIsPast ? 'past' : 'active';
+                    $bookingGuestCountryCode = strtolower(trim((string) ($row['guest_country_code'] ?? '')));
+                    if ($bookingGuestCountryCode === '') {
+                        $bookingGuestLanguage = trim((string) ($row['guest_language'] ?? ''));
+                        $bookingLanguageMap = [
+                            'Italiano' => 'it',
+                            'Italian' => 'it',
+                            'Inglese' => 'gb',
+                            'English' => 'gb',
+                            'Tedesco' => 'de',
+                            'Deutsch' => 'de',
+                            'German' => 'de',
+                            'Ceco' => 'cz',
+                            'Czech' => 'cz',
+                            'Polacco' => 'pl',
+                            'Polish' => 'pl',
+                            'Olandese' => 'nl',
+                            'Dutch' => 'nl',
+                            'Francese' => 'fr',
+                            'French' => 'fr',
+                            'Spagnolo' => 'es',
+                            'Spanish' => 'es',
+                        ];
+                        if (isset($bookingLanguageMap[$bookingGuestLanguage])) {
+                            $bookingGuestCountryCode = $bookingLanguageMap[$bookingGuestLanguage];
+                        }
+                    }
+                ?>
+                <article class="mobile-booking-card<?= $bookingIsPast ? ' is-past' : '' ?>"
+                    data-mobile-booking-card
+                    data-booking-id="<?= (int)$row['id'] ?>"
+                    data-customer-name="<?= e((string)$row['customer_name']) ?>"
+                    data-room-type="<?= e((string)$row['room_type']) ?>"
+                    data-check-in="<?= e($bookingCheckIn) ?>"
+                    data-check-out="<?= e($bookingCheckOut) ?>"
+                    data-booking-phase="<?= e($bookingPhase) ?>"
+                    data-created-at="<?= e((string)$row['created_at']) ?>">
+                    <div class="mobile-booking-card__summary">
+                        <div class="mobile-booking-card__head">
+                            <div class="mobile-booking-card__customer">
+                                <?php if ($bookingGuestCountryCode !== ''): ?>
+                                    <span class="fi fi-<?= e($bookingGuestCountryCode) ?> booking-customer-flag" title="<?= e((string) ($row['guest_language'] ?? strtoupper($bookingGuestCountryCode))) ?>"></span>
+                                <?php endif; ?>
+                                <div>
+                                    <strong><?= e($row['customer_name']) ?></strong>
+                                    <div class="mobile-booking-card__sub"><?= e($row['customer_email'] ?: 'Email non disponibile') ?></div>
+                                </div>
+                            </div>
+                            <span class="mobile-booking-card__status <?= $bookingIsPast ? 'is-past' : 'is-active' ?>">
+                                <?= $bookingIsPast ? 'Passata' : 'Attiva' ?>
+                            </span>
+                        </div>
+
+                        <div class="mobile-booking-card__rows">
+                            <div class="mobile-booking-card__row">
+                                <span>Soggiorno</span>
+                                <strong><?= e($row['stay_period']) ?></strong>
+                            </div>
+                            <div class="mobile-booking-card__row">
+                                <span>Casa</span>
+                                <strong><?= e($row['room_type']) ?></strong>
+                            </div>
+                            <div class="mobile-booking-card__row">
+                                <span>Ospiti</span>
+                                <strong><?= (int)$row['adults'] ?> adulti / <?= (int)$row['children_count'] ?> bambini</strong>
+                            </div>
+                            <div class="mobile-booking-card__row">
+                                <span>Registrata il</span>
+                                <strong><?= e($row['created_at']) ?></strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button class="mobile-booking-card__toggle" type="button" data-mobile-booking-toggle aria-expanded="false">
+                        Vedi dettagli
+                    </button>
+
+                    <div class="mobile-booking-card__details" data-mobile-booking-details hidden>
+                        <div class="mobile-booking-card__detail-grid">
+                            <div class="mobile-booking-card__detail-item">
+                                <span>Email</span>
+                                <strong><?= e($row['customer_email'] ?: 'Email non disponibile') ?></strong>
+                            </div>
+                            <div class="mobile-booking-card__detail-item">
+                                <span>Telefono</span>
+                                <strong><?= e($row['customer_phone'] ?? '-') ?></strong>
+                            </div>
+                            <div class="mobile-booking-card__detail-item">
+                                <span>Stato prenotazione</span>
+                                <strong><?= e($row['status']) ?></strong>
+                            </div>
+                            <div class="mobile-booking-card__detail-item">
+                                <span>Origine</span>
+                                <strong><?= e($row['source'] ?: '-') ?></strong>
+                            </div>
+                            <?php if (!empty($row['external_reference'])): ?>
+                                <div class="mobile-booking-card__detail-item">
+                                    <span>Riferimento esterno</span>
+                                    <strong><?= e($row['external_reference']) ?></strong>
+                                </div>
+                            <?php endif; ?>
+                            <div class="mobile-booking-card__detail-item">
+                                <span>Stato soggiorno</span>
+                                <strong><?= $bookingIsPast ? 'Prenotazione passata' : 'Prenotazione attiva' ?></strong>
+                            </div>
+                            <?php if (!empty($row['notes'])): ?>
+                                <div class="mobile-booking-card__detail-item full">
+                                    <span>Note</span>
+                                    <strong><?= nl2br(e($row['notes'])) ?></strong>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+
+                        <div class="mobile-booking-card__actions">
+                            <a class="btn btn-light btn-sm" href="<?= e(admin_url('edit-prenotazione.php?id=' . (int)$row['id'])) ?>">Modifica</a>
+                            <form method="post" action="<?= e(admin_url('actions/delete-prenotazione.php')) ?>" data-confirm="Vuoi davvero eliminare questa prenotazione?">
+                                <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+                                <input type="hidden" name="prenotazione_id" value="<?= (int)$row['id'] ?>">
+                                <button class="btn btn-danger btn-sm" type="submit">Cancella</button>
+                            </form>
+                        </div>
+                    </div>
+                </article>
+            <?php endforeach; ?>
+        </div>
+
+        <div id="registeredBookingsEmptyStateMobile" class="mobile-booking-empty" hidden>
+            Nessuna prenotazione trovata con i filtri selezionati.
+        </div>
+    </div>
+</section>
+
+<section id="registered-bookings" class="card section-registered desktop-admin-view" style="margin-top:20px;">
     <div class="section-title">
         <div>
             <h2>Prenotazioni confermate</h2>
@@ -770,25 +1007,17 @@ document.addEventListener('DOMContentLoaded', function () {
     const countLabel = document.querySelector('[data-visible-bookings-count]');
     const emptyState = document.getElementById('registeredBookingsEmptyState');
 
-    if (!table || !searchInput || !roomFilter || !phaseFilter || !sortSelect || !resetButton) {
-        return;
-    }
-
-    const tbody = table.querySelector('tbody');
-    if (!tbody) {
-        return;
-    }
-
-    const desktopRows = Array.from(tbody.querySelectorAll('tr.desktop-row'));
-    if (!desktopRows.length) {
-        if (countLabel) {
-            countLabel.textContent = '0 prenotazioni visibili';
-        }
-        if (emptyState) {
-            emptyState.hidden = false;
-        }
-        return;
-    }
+    const mobileSearchInput = document.getElementById('registeredBookingsSearchMobile');
+    const mobileRoomFilter = document.getElementById('registeredBookingsRoomFilterMobile');
+    const mobilePhaseFilter = document.getElementById('registeredBookingsPhaseFilterMobile');
+    const mobileSortSelect = document.getElementById('registeredBookingsSortMobile');
+    const mobileResetButton = document.getElementById('registeredBookingsResetMobile');
+    const mobileApplyButton = document.getElementById('registeredBookingsApplyMobile');
+    const mobileCountLabel = document.querySelector('[data-visible-bookings-count-mobile]');
+    const mobileEmptyState = document.getElementById('registeredBookingsEmptyStateMobile');
+    const mobileCardsContainer = document.getElementById('mobileRegisteredBookingsList');
+    const mobileFilterToggle = document.getElementById('mobileBookingsFilterToggle');
+    const mobileFilterDrawer = document.getElementById('mobileBookingsFilterDrawer');
 
     function parseIsoDate(value) {
         if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -807,44 +1036,6 @@ document.addEventListener('DOMContentLoaded', function () {
         const normalized = String(value).replace(' ', 'T');
         const timestamp = Date.parse(normalized);
         return Number.isNaN(timestamp) ? 0 : timestamp;
-    }
-
-    const groups = desktopRows.map(function (desktopRow, index) {
-        const summaryRow = desktopRow.nextElementSibling && desktopRow.nextElementSibling.classList.contains('mobile-summary-row')
-            ? desktopRow.nextElementSibling
-            : null;
-        const detailRow = summaryRow && summaryRow.nextElementSibling && summaryRow.nextElementSibling.classList.contains('mobile-detail-row')
-            ? summaryRow.nextElementSibling
-            : null;
-
-        return {
-            originalIndex: index,
-            desktopRow: desktopRow,
-            summaryRow: summaryRow,
-            detailRow: detailRow,
-            customerName: (desktopRow.dataset.customerName || '').toLowerCase(),
-            roomType: (desktopRow.dataset.roomType || '').toLowerCase(),
-            bookingPhase: (desktopRow.dataset.bookingPhase || 'active').toLowerCase(),
-            checkInValue: desktopRow.dataset.checkIn || '',
-            checkInTimestamp: parseIsoDate(desktopRow.dataset.checkIn || ''),
-            checkOutTimestamp: parseIsoDate(desktopRow.dataset.checkOut || ''),
-            createdAtTimestamp: parseDateTime(desktopRow.dataset.createdAt || ''),
-            searchText: [
-                desktopRow.textContent,
-                summaryRow ? summaryRow.textContent : '',
-                detailRow ? detailRow.textContent : ''
-            ].join(' ').toLowerCase()
-        };
-    });
-
-    function appendGroup(group) {
-        tbody.appendChild(group.desktopRow);
-        if (group.summaryRow) {
-            tbody.appendChild(group.summaryRow);
-        }
-        if (group.detailRow) {
-            tbody.appendChild(group.detailRow);
-        }
     }
 
     function compareWithFallback(first, second, fallbackKey) {
@@ -885,88 +1076,220 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    function syncDetailVisibility() {
-        groups.forEach(function (group) {
-            if (!group.detailRow) {
+    const groups = [];
+
+    if (table) {
+        const tbody = table.querySelector('tbody');
+        if (tbody) {
+            const desktopRows = Array.from(tbody.querySelectorAll('tr.desktop-row'));
+
+            desktopRows.forEach(function (desktopRow, index) {
+                const summaryRow = desktopRow.nextElementSibling && desktopRow.nextElementSibling.classList.contains('mobile-summary-row')
+                    ? desktopRow.nextElementSibling
+                    : null;
+                const detailRow = summaryRow && summaryRow.nextElementSibling && summaryRow.nextElementSibling.classList.contains('mobile-detail-row')
+                    ? summaryRow.nextElementSibling
+                    : null;
+
+                groups.push({
+                    originalIndex: index,
+                    desktopRow: desktopRow,
+                    summaryRow: summaryRow,
+                    detailRow: detailRow,
+                    card: null,
+                    customerName: (desktopRow.dataset.customerName || '').toLowerCase(),
+                    roomType: (desktopRow.dataset.roomType || '').toLowerCase(),
+                    bookingPhase: (desktopRow.dataset.bookingPhase || 'active').toLowerCase(),
+                    checkInTimestamp: parseIsoDate(desktopRow.dataset.checkIn || ''),
+                    createdAtTimestamp: parseDateTime(desktopRow.dataset.createdAt || ''),
+                    searchText: [
+                        desktopRow.textContent,
+                        summaryRow ? summaryRow.textContent : '',
+                        detailRow ? detailRow.textContent : ''
+                    ].join(' ').toLowerCase()
+                });
+            });
+
+            Array.from(document.querySelectorAll('[data-mobile-booking-card]')).forEach(function (card) {
+                const bookingId = card.getAttribute('data-booking-id');
+                const group = groups.find(function (item) {
+                    return item.desktopRow && item.desktopRow.getAttribute('data-booking-id') === bookingId;
+                });
+
+                if (group) {
+                    group.card = card;
+                    group.searchText = (group.searchText + ' ' + card.textContent).toLowerCase();
+                }
+            });
+
+            function appendGroup(group) {
+                tbody.appendChild(group.desktopRow);
+                if (group.summaryRow) {
+                    tbody.appendChild(group.summaryRow);
+                }
+                if (group.detailRow) {
+                    tbody.appendChild(group.detailRow);
+                }
+
+                if (mobileCardsContainer && group.card) {
+                    mobileCardsContainer.appendChild(group.card);
+                }
+            }
+
+            function syncDetailVisibility() {
+                groups.forEach(function (group) {
+                    if (!group.detailRow) {
+                        return;
+                    }
+
+                    const visible = !group.desktopRow.hidden;
+                    const isOpen = group.summaryRow && group.summaryRow.classList.contains('is-open');
+                    group.detailRow.hidden = !visible || !isOpen;
+                });
+            }
+
+            function updateVisibleCount(total) {
+                if (countLabel) {
+                    countLabel.textContent = total === 1 ? '1 prenotazione visibile' : total + ' prenotazioni visibili';
+                }
+                if (mobileCountLabel) {
+                    mobileCountLabel.textContent = total === 1 ? '1 prenotazione visibile' : total + ' prenotazioni visibili';
+                }
+            }
+
+            function getFilterState() {
+                const useMobile = window.innerWidth <= 1024 && mobileSearchInput && mobileRoomFilter && mobilePhaseFilter && mobileSortSelect;
+                return {
+                    query: (useMobile ? mobileSearchInput.value : (searchInput ? searchInput.value : '')).trim().toLowerCase(),
+                    room: (useMobile ? mobileRoomFilter.value : (roomFilter ? roomFilter.value : '')).trim().toLowerCase(),
+                    phase: (useMobile ? mobilePhaseFilter.value : (phaseFilter ? phaseFilter.value : '')).trim().toLowerCase(),
+                    sort: useMobile ? mobileSortSelect.value : (sortSelect ? sortSelect.value : 'created_desc')
+                };
+            }
+
+            function applyRegisteredBookingsFilters() {
+                const state = getFilterState();
+                const orderedGroups = sortGroups(groups, state.sort);
+                let visibleCount = 0;
+
+                orderedGroups.forEach(function (group) {
+                    const matchesQuery = state.query === '' || group.searchText.indexOf(state.query) !== -1;
+                    const matchesRoom = state.room === '' || group.roomType === state.room;
+                    const matchesPhase = state.phase === '' || group.bookingPhase === state.phase;
+                    const isVisible = matchesQuery && matchesRoom && matchesPhase;
+
+                    group.desktopRow.hidden = !isVisible;
+                    if (group.summaryRow) {
+                        group.summaryRow.hidden = !isVisible;
+                    }
+                    if (group.detailRow && !isVisible) {
+                        group.detailRow.hidden = true;
+                    }
+                    if (group.card) {
+                        group.card.hidden = !isVisible;
+                    }
+
+                    if (isVisible) {
+                        visibleCount += 1;
+                    }
+
+                    appendGroup(group);
+                });
+
+                syncDetailVisibility();
+                updateVisibleCount(visibleCount);
+
+                if (emptyState) {
+                    emptyState.hidden = visibleCount !== 0;
+                }
+                if (mobileEmptyState) {
+                    mobileEmptyState.hidden = visibleCount !== 0;
+                }
+            }
+
+            groups.forEach(function (group) {
+                if (!group.summaryRow) {
+                    return;
+                }
+
+                group.summaryRow.addEventListener('click', function () {
+                    window.setTimeout(syncDetailVisibility, 0);
+                });
+            });
+
+            if (searchInput && roomFilter && phaseFilter && sortSelect) {
+                [searchInput, roomFilter, phaseFilter, sortSelect].forEach(function (element) {
+                    element.addEventListener('input', applyRegisteredBookingsFilters);
+                    element.addEventListener('change', applyRegisteredBookingsFilters);
+                });
+            }
+
+            if (mobileSearchInput && mobileRoomFilter && mobilePhaseFilter && mobileSortSelect) {
+                [mobileSearchInput, mobileRoomFilter, mobilePhaseFilter, mobileSortSelect].forEach(function (element) {
+                    element.addEventListener('input', applyRegisteredBookingsFilters);
+                    element.addEventListener('change', applyRegisteredBookingsFilters);
+                });
+            }
+
+            if (resetButton) {
+                resetButton.addEventListener('click', function () {
+                    searchInput.value = '';
+                    roomFilter.value = '';
+                    phaseFilter.value = '';
+                    sortSelect.value = 'created_desc';
+                    applyRegisteredBookingsFilters();
+                });
+            }
+
+            if (mobileResetButton) {
+                mobileResetButton.addEventListener('click', function () {
+                    mobileSearchInput.value = '';
+                    mobileRoomFilter.value = '';
+                    mobilePhaseFilter.value = '';
+                    mobileSortSelect.value = 'created_desc';
+                    applyRegisteredBookingsFilters();
+                });
+            }
+
+            if (mobileApplyButton) {
+                mobileApplyButton.addEventListener('click', function () {
+                    applyRegisteredBookingsFilters();
+                    if (mobileFilterDrawer && window.innerWidth <= 1024) {
+                        mobileFilterDrawer.hidden = true;
+                        if (mobileFilterToggle) {
+                            mobileFilterToggle.setAttribute('aria-expanded', 'false');
+                        }
+                    }
+                });
+            }
+
+            applyRegisteredBookingsFilters();
+        }
+    }
+
+    if (mobileFilterToggle && mobileFilterDrawer) {
+        mobileFilterToggle.addEventListener('click', function () {
+            const isExpanded = mobileFilterToggle.getAttribute('aria-expanded') === 'true';
+            mobileFilterToggle.setAttribute('aria-expanded', isExpanded ? 'false' : 'true');
+            mobileFilterDrawer.hidden = isExpanded;
+        });
+    }
+
+    document.querySelectorAll('[data-mobile-booking-toggle]').forEach(function (button) {
+        button.addEventListener('click', function () {
+            const card = button.closest('[data-mobile-booking-card]');
+            const details = card ? card.querySelector('[data-mobile-booking-details]') : null;
+            if (!card || !details) {
                 return;
             }
 
-            const visible = !group.desktopRow.hidden;
-            const isOpen = group.summaryRow && group.summaryRow.classList.contains('is-open');
-            group.detailRow.hidden = !visible || !isOpen;
-        });
-    }
-
-    function updateVisibleCount(total) {
-        if (!countLabel) {
-            return;
-        }
-        countLabel.textContent = total === 1
-            ? '1 prenotazione visibile'
-            : total + ' prenotazioni visibili';
-    }
-
-    function applyRegisteredBookingsFilters() {
-        const query = searchInput.value.trim().toLowerCase();
-        const selectedRoom = roomFilter.value.trim().toLowerCase();
-        const selectedPhase = phaseFilter.value.trim().toLowerCase();
-        const sortValue = sortSelect.value;
-        const orderedGroups = sortGroups(groups, sortValue);
-        let visibleCount = 0;
-
-        orderedGroups.forEach(function (group) {
-            const matchesQuery = query === '' || group.searchText.indexOf(query) !== -1;
-            const matchesRoom = selectedRoom === '' || group.roomType === selectedRoom;
-            const matchesPhase = selectedPhase === '' || group.bookingPhase === selectedPhase;
-            const isVisible = matchesQuery && matchesRoom && matchesPhase;
-
-            group.desktopRow.hidden = !isVisible;
-            if (group.summaryRow) {
-                group.summaryRow.hidden = !isVisible;
-            }
-            if (group.detailRow && !isVisible) {
-                group.detailRow.hidden = true;
-            }
-
-            if (isVisible) {
-                visibleCount += 1;
-            }
-
-            appendGroup(group);
-        });
-
-        syncDetailVisibility();
-        updateVisibleCount(visibleCount);
-
-        if (emptyState) {
-            emptyState.hidden = visibleCount !== 0;
-        }
-    }
-
-    groups.forEach(function (group) {
-        if (!group.summaryRow) {
-            return;
-        }
-
-        group.summaryRow.addEventListener('click', function () {
-            window.setTimeout(syncDetailVisibility, 0);
+            const isOpen = button.getAttribute('aria-expanded') === 'true';
+            button.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
+            button.classList.toggle('is-open', !isOpen);
+            details.hidden = isOpen;
+            button.textContent = isOpen ? 'Vedi dettagli' : 'Nascondi dettagli';
         });
     });
-
-    [searchInput, roomFilter, phaseFilter, sortSelect].forEach(function (element) {
-        element.addEventListener('input', applyRegisteredBookingsFilters);
-        element.addEventListener('change', applyRegisteredBookingsFilters);
-    });
-
-    resetButton.addEventListener('click', function () {
-        searchInput.value = '';
-        roomFilter.value = '';
-        phaseFilter.value = '';
-        sortSelect.value = 'created_desc';
-        applyRegisteredBookingsFilters();
-    });
-
-    applyRegisteredBookingsFilters();
 });
 </script>
 
