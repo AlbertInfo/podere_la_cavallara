@@ -74,8 +74,8 @@ require_once __DIR__ . '/includes/header.php';
 ?>
 <section id="overview" class="mobile-admin-screen">
     <div class="mobile-screen-head">
-        <h1>Dashboard mobile</h1>
-        <p>Vista rapida dell’operatività con focus su prenotazioni, filtri compatti e consultazione veloce dei dettagli.</p>
+        <h1>Area amministrazione</h1>
+        <p>Vista ottimizzata per smartphone, con accesso rapido ai dati principali e consultazione efficiente delle prenotazioni.</p>
     </div>
 
     <div class="mobile-kpi-bar" aria-label="Riepilogo rapido dashboard">
@@ -397,7 +397,7 @@ require_once __DIR__ . '/includes/header.php';
                                 </div>
                             </div>
                             <span class="mobile-booking-card__status <?= $bookingIsPast ? 'is-past' : 'is-active' ?>">
-                                <?= $bookingIsPast ? 'Passata' : 'Attiva' ?>
+                                <?= e($row['status'] ?: ($bookingIsPast ? 'Passata' : 'Attiva')) ?>
                             </span>
                         </div>
 
@@ -414,10 +414,6 @@ require_once __DIR__ . '/includes/header.php';
                                 <span>Ospiti</span>
                                 <strong><?= (int)$row['adults'] ?> adulti / <?= (int)$row['children_count'] ?> bambini</strong>
                             </div>
-                            <div class="mobile-booking-card__row">
-                                <span>Registrata il</span>
-                                <strong><?= e($row['created_at']) ?></strong>
-                            </div>
                         </div>
                     </div>
 
@@ -427,6 +423,10 @@ require_once __DIR__ . '/includes/header.php';
 
                     <div class="mobile-booking-card__details" data-mobile-booking-details hidden>
                         <div class="mobile-booking-card__detail-grid">
+                            <div class="mobile-booking-card__detail-item">
+                                <span>Data registrazione</span>
+                                <strong><?= e($row['created_at']) ?></strong>
+                            </div>
                             <div class="mobile-booking-card__detail-item">
                                 <span>Email</span>
                                 <strong><?= e($row['customer_email'] ?: 'Email non disponibile') ?></strong>
@@ -1284,6 +1284,22 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             const isOpen = button.getAttribute('aria-expanded') === 'true';
+
+            document.querySelectorAll('[data-mobile-booking-toggle]').forEach(function (otherButton) {
+                if (otherButton === button) {
+                    return;
+                }
+                const otherCard = otherButton.closest('[data-mobile-booking-card]');
+                const otherDetails = otherCard ? otherCard.querySelector('[data-mobile-booking-details]') : null;
+                if (!otherDetails) {
+                    return;
+                }
+                otherButton.setAttribute('aria-expanded', 'false');
+                otherButton.classList.remove('is-open');
+                otherButton.textContent = 'Vedi dettagli';
+                otherDetails.hidden = true;
+            });
+
             button.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
             button.classList.toggle('is-open', !isOpen);
             details.hidden = isOpen;
