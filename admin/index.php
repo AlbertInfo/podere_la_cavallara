@@ -73,10 +73,6 @@ if ($registeredBookingRoomOptions) {
 require_once __DIR__ . '/includes/header.php';
 ?>
 <section id="overview" class="mobile-admin-screen">
-    <div class="mobile-screen-head">
-        <h1>Area amministrazione</h1>
-    </div>
-
     <div class="mobile-kpi-bar" aria-label="Riepilogo rapido dashboard">
         <article class="mobile-kpi-bar__item">
             <span class="mobile-kpi-bar__label">Richieste prenotazione</span>
@@ -411,6 +407,10 @@ require_once __DIR__ . '/includes/header.php';
                             <div class="mobile-booking-card__row">
                                 <span>Ospiti</span>
                                 <strong><?= (int)$row['adults'] ?> adulti / <?= (int)$row['children_count'] ?> bambini</strong>
+                            </div>
+                            <div class="mobile-booking-card__row">
+                                <span>Registrata il</span>
+                                <strong><?= e($row['created_at']) ?></strong>
                             </div>
                         </div>
                     </div>
