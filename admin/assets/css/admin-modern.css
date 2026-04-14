@@ -240,7 +240,7 @@ label{display:grid;gap:8px;font-weight:600;color:#334155}
   .toolbar,.actions,.form-actions,.topbar-actions{width:100%}
   .toolbar > *, .actions > *, .form-actions > *, .topbar-actions > *{width:100%}
   .toolbar .btn,.actions .btn,.form-actions .btn,.topbar-actions .btn{width:100%}
-  .sidebar-logo-desktop{display:none}
+  /* .sidebar-logo-desktop{display:none} */
   .sidebar-logo-mobile{display:block}
 }
 
@@ -680,11 +680,11 @@ label{display:grid;gap:8px;font-weight:600;color:#334155}
 }
 
 @media (max-width: 1024px) {
-  body {
+  /* body {
     background:
       radial-gradient(circle at top left, rgba(29, 78, 216, 0.22), transparent 32%),
       linear-gradient(180deg, #0f1f45 0, #132b5c 220px, #f5f8ff 220px, #f5f8ff 100%);
-  }
+  } */
 
   body.sidebar-open {
     overflow: hidden;
