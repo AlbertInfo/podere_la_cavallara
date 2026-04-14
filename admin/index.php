@@ -75,7 +75,7 @@ require_once __DIR__ . '/includes/header.php';
 <section id="overview" class="mobile-admin-screen">
     <div class="mobile-screen-head">
         <h1>Area amministrazione</h1>
-        <p>Vista ottimizzata per smartphone, con accesso rapido ai dati principali e consultazione efficiente delle prenotazioni.</p>
+       
     </div>
 
     <div class="mobile-kpi-bar" aria-label="Riepilogo rapido dashboard">
@@ -270,7 +270,7 @@ require_once __DIR__ . '/includes/header.php';
         <div class="mobile-panel__head">
             <div>
                 <h2>Prenotazioni confermate</h2>
-                <p>Consultazione rapida in formato card, pensata per gestire molti record anche da smartphone.</p>
+                
             </div>
             <span class="mobile-panel__badge"><?= count($registeredBookings) ?></span>
         </div>
@@ -295,7 +295,7 @@ require_once __DIR__ . '/includes/header.php';
                 <div class="mobile-filter-drawer__head">
                     <div>
                         <h3>Filtra e ordina</h3>
-                        <p>Ricerca rapida stile booking: apri il pannello solo quando serve, senza sprecare spazio verticale.</p>
+                        
                     </div>
                 </div>
 
