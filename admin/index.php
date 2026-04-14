@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/includes/ical.php';
 require_admin();
 
 function dashboard_extract_check_in_iso(array $row): string
@@ -60,6 +61,10 @@ $stats = [
     'today_requests' => (int) $pdo->query('SELECT COUNT(*) FROM booking_requests WHERE DATE(created_at) = CURDATE()')->fetchColumn(),
 ];
 
+$icalEvents = [];
+if (defined('ICAL_ENABLED') && ICAL_ENABLED && defined('ICAL_FEEDS') && is_array(ICAL_FEEDS)) {
+    $icalEvents = admin_ical_load_events(ICAL_FEEDS);
+}
 $registeredBookingRoomOptions = [];
 foreach ($registeredBookings as $bookingRow) {
     $roomName = trim((string) ($bookingRow['room_type'] ?? ''));
@@ -485,6 +490,60 @@ require_once __DIR__ . '/includes/header.php';
             <a class="btn btn-primary" href="<?= e(admin_url('new-prenotazione.php')) ?>">Nuova prenotazione</a>
         </div>
     </div>
+
+    <section id="ical-bookings" class="card section-registered desktop-admin-view" style="margin-top:20px;">
+    <div class="section-title">
+        <div>
+            <h2>Prenotazioni da feed iCal</h2>
+            <p class="muted">Lettura esterna in sola visualizzazione. Nessun salvataggio a database.</p>
+        </div>
+        <div class="toolbar">
+            <span class="badge"><?= count($icalEvents) ?> eventi</span>
+        </div>
+    </div>
+
+    <?php if (!$icalEvents): ?>
+        <div class="empty-note">Nessun evento iCal disponibile oppure feed non ancora configurati.</div>
+    <?php else: ?>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Check-in</th>
+                        <th>Check-out</th>
+                        <th>Ospite</th>
+                        <th>Alloggio</th>
+                        <th>Origine</th>
+                        <th>Dettagli</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($icalEvents as $event): ?>
+                        <tr>
+                            <td><?= e((string) ($event['check_in'] ?? '-')) ?></td>
+                            <td><?= e((string) ($event['check_out'] ?? '-')) ?></td>
+                            <td>
+                                <strong><?= e((string) ($event['guest_name'] ?? 'Ospite iCal')) ?></strong>
+                                <?php if (!empty($event['summary'])): ?>
+                                    <div class="small muted"><?= e((string) $event['summary']) ?></div>
+                                <?php endif; ?>
+                            </td>
+                            <td><?= e((string) ($event['feed_label'] ?? '-')) ?></td>
+                            <td><?= e((string) ($event['feed_source'] ?? 'ical')) ?></td>
+                            <td>
+                                <?php if (!empty($event['description'])): ?>
+                                    <div class="small"><?= nl2br(e((string) $event['description'])) ?></div>
+                                <?php else: ?>
+                                    <span class="small muted">Nessuna nota</span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    <?php endif; ?>
+</section>
 
     <div class="dashboard-filters-panel" aria-label="Filtri prenotazioni confermate">
         <div class="dashboard-filters-header">

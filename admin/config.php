@@ -72,3 +72,39 @@ function wants_json_response(): bool
     }
     return false;
 }
+
+
+const ICAL_ENABLED = true;
+
+const ICAL_FEEDS = [
+    [
+        'label' => 'Casa Domenico 1',
+        'url' => 'https://ws.interhome.com/ih/b2p/v0100/partners/IT04151/objects/IT5606.621.2/ical?hmac=5Zvs/F8EYG2uS1O8+D+Fz3aIQF/ExyIk4zQkcn3L6Lg=&ob=true',
+        'source' => 'ical',
+    ],
+    [
+        'label' => 'Casa Domenico 2',
+        'url' => 'https://ws.interhome.com/ih/b2p/v0100/partners/IT04151/objects/IT5606.621.1/ical?hmac=UgL+alpyj4Vr0f6dOrquzY2TefJH/qyFQXJAD+t3eaI=&ob=true',
+        'source' => 'ical',
+    ],
+    [
+        'label' => 'Casa Riccardo 3',
+        'url' => 'https://ws.interhome.com/ih/b2p/v0100/partners/IT04151/objects/IT5606.621.4/ical?hmac=BT6gsYgmHUpfvoxMfaswCL8Uy79VV4iYHlvY36dvrKw=&ob=true',
+        'source' => 'ical',
+    ],
+    [
+        'label' => 'Casa Riccardo 4',
+        'url' => 'https://ws.interhome.com/ih/b2p/v0100/partners/IT04151/objects/IT5606.621.3/ical?hmac=cEKMJ10FjqpQjC7XPI/bwU24kr6MqIZTpYb9uI2E7JU=&ob=true',
+        'source' => 'ical',
+    ],
+    [
+        'label' => 'Casa Alessandro 5',
+        'url' => 'https://ws.interhome.com/ih/b2p/v0100/partners/IT04151/objects/IT5606.621.6/ical?hmac=iltEPAReu/VYfMKH0j+MoTxoRSk1kTqMX48fF/hBbTg=&ob=true',
+        'source' => 'ical',
+    ],
+    [
+        'label' => 'Casa Alessandro 6',
+        'url' => 'https://ws.interhome.com/ih/b2p/v0100/partners/IT04151/objects/IT5606.621.6/ical?hmac=iltEPAReu/VYfMKH0j+MoTxoRSk1kTqMX48fF/hBbTg=&ob=true',
+        'source' => 'ical',
+    ],
+];
