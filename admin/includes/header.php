@@ -157,8 +157,9 @@ $mobilePageKicker = admin_mobile_page_kicker($currentPath);
                             <span></span>
                         </button>
                         <a class="topbar-mobile-brand" href="<?= e(admin_url('index.php')) ?>" aria-label="Torna alla dashboard amministrazione">
-                            <img class="topbar-mobile-logo" src="<?= e(admin_url('assets/img/logo.svg')) ?>" alt="Podere La Cavallara">
+                            <img class="topbar-mobile-logo" src="<?= e(admin_url('assets/img/logo_mobile.svg')) ?>" alt="Podere La Cavallara">
                         </a>
+                        <span class="topbar-mobile-spacer" aria-hidden="true"></span>
                     </div>
                     <a class="topbar-brand" href="<?= e(admin_url('index.php')) ?>">
                         <img src="<?= e(admin_url('assets/img/logo.svg')) ?>" alt="Podere La Cavallara">

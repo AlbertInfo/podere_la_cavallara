@@ -75,7 +75,6 @@ require_once __DIR__ . '/includes/header.php';
 <section id="overview" class="mobile-admin-screen">
     <div class="mobile-screen-head">
         <h1>Area amministrazione</h1>
-        <p>Vista rapida dell’operatività con focus su prenotazioni, filtri compatti e consultazione veloce dei dettagli.</p>
     </div>
 
     <div class="mobile-kpi-bar" aria-label="Riepilogo rapido dashboard">
@@ -270,7 +269,6 @@ require_once __DIR__ . '/includes/header.php';
         <div class="mobile-panel__head">
             <div>
                 <h2>Prenotazioni confermate</h2>
-                <p>Consultazione rapida in formato card, pensata per gestire molti record anche da smartphone.</p>
             </div>
             <span class="mobile-panel__badge"><?= count($registeredBookings) ?></span>
         </div>
@@ -397,7 +395,7 @@ require_once __DIR__ . '/includes/header.php';
                                 </div>
                             </div>
                             <span class="mobile-booking-card__status <?= $bookingIsPast ? 'is-past' : 'is-active' ?>">
-                                <?= $bookingIsPast ? 'Passata' : 'Attivata' ?>
+                                <?= $bookingIsPast ? 'Passata' : 'Attiva' ?>
                             </span>
                         </div>
 
@@ -447,7 +445,7 @@ require_once __DIR__ . '/includes/header.php';
                             <?php endif; ?>
                             <div class="mobile-booking-card__detail-item">
                                 <span>Stato soggiorno</span>
-                                <strong><?= $bookingIsPast ? 'Prenotazione passata' : 'Prenotazione attivata' ?></strong>
+                                <strong><?= $bookingIsPast ? 'Prenotazione passata' : 'Prenotazione attiva' ?></strong>
                             </div>
                             <?php if (!empty($row['notes'])): ?>
                                 <div class="mobile-booking-card__detail-item full">
@@ -610,7 +608,7 @@ require_once __DIR__ . '/includes/header.php';
                         <td>
                             <?= e($row['stay_period']) ?><br>
                             <span class="booking-time-badge <?= $bookingIsPast ? 'is-past' : 'is-active' ?>">
-                                <?= $bookingIsPast ? 'Prenotazione passata' : 'Prenotazione attivata' ?>
+                                <?= $bookingIsPast ? 'Prenotazione passata' : 'Prenotazione attiva' ?>
                             </span>
                         </td>
                         <td><?= e($row['room_type']) ?></td>
@@ -696,7 +694,7 @@ require_once __DIR__ . '/includes/header.php';
                                 </div>
                                 <div>
                                     <span>Stato soggiorno</span>
-                                    <strong><?= $bookingIsPast ? 'Passata' : 'Attivata' ?></strong>
+                                    <strong><?= $bookingIsPast ? 'Passata' : 'Attiva' ?></strong>
                                 </div>
                                 <?php if (!empty($row['external_reference'])): ?>
                                     <div>
