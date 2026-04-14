@@ -1,5 +1,5 @@
 .mobile-admin-screen{display:none}
-.desktop-admin-view{display:block}
+
 
 @media (max-width:1024px){
   :root{
@@ -20,6 +20,9 @@
     opacity:0;
     transition:opacity .24s ease;
   }
+
+  .desktop-admin-view{display:block}
+  
   body.sidebar-open .admin-mobile-overlay{
     display:block !important;
     opacity:1;

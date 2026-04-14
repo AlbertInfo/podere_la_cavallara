@@ -77,7 +77,7 @@ $mobilePageKicker = admin_mobile_page_kicker($currentPath);
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title><?= e($pageTitle) ?></title>
     <link rel="stylesheet" href="/admin/assets/css/admin-modern.css?v=47">
-    <link rel="stylesheet" href="/admin/assets/css/admin-mobile.css?v=110">
+    <link rel="stylesheet" href="/admin/assets/css/admin-mobile.css?v=112">
     <link rel="stylesheet" href="/admin/assets/css/interhome-import.css?v=95">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -157,7 +157,7 @@ $mobilePageKicker = admin_mobile_page_kicker($currentPath);
                             <span></span>
                         </button>
                         <a class="topbar-mobile-brand" href="<?= e(admin_url('index.php')) ?>" aria-label="Torna alla dashboard amministrazione">
-                            <img class="topbar-mobile-logo" src="<?= e(admin_url('assets/img/logo_mobile.svg')) ?>" alt="Podere La Cavallara">
+                            <img class="topbar-mobile-logo" src="<?= e(admin_url('assets/img/logo_sticky.svg')) ?>" alt="Podere La Cavallara">
                         </a>
                         <span class="topbar-mobile-spacer" aria-hidden="true"></span>
                     </div>
