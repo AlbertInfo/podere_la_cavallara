@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/db.php';
-require_once __DIR__ . '/includes/ical.php';
+
 require_admin();
 
 function dashboard_extract_check_in_iso(array $row): string
@@ -61,10 +61,7 @@ $stats = [
     'today_requests' => (int) $pdo->query('SELECT COUNT(*) FROM booking_requests WHERE DATE(created_at) = CURDATE()')->fetchColumn(),
 ];
 
-$icalEvents = [];
-if (defined('ICAL_ENABLED') && ICAL_ENABLED && defined('ICAL_FEEDS') && is_array(ICAL_FEEDS)) {
-    $icalEvents = admin_ical_load_events(ICAL_FEEDS);
-}
+
 $registeredBookingRoomOptions = [];
 foreach ($registeredBookings as $bookingRow) {
     $roomName = trim((string) ($bookingRow['room_type'] ?? ''));
