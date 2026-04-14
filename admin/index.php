@@ -590,7 +590,12 @@ require_once __DIR__ . '/includes/header.php';
                     <tr class="desktop-row<?= $bookingIsPast ? ' is-past' : '' ?>"
                         data-booking-id="<?= (int)$row['id'] ?>"
                         data-customer-name="<?= e((string)$row['customer_name']) ?>"
+                        data-customer-email="<?= e((string)($row['customer_email'] ?? '')) ?>"
+                        data-customer-phone="<?= e((string)($row['customer_phone'] ?? '')) ?>"
+                        data-external-reference="<?= e((string)($row['external_reference'] ?? '')) ?>"
                         data-room-type="<?= e((string)$row['room_type']) ?>"
+                        data-stay-period="<?= e((string)$row['stay_period']) ?>"
+                        data-notes="<?= e((string)($row['notes'] ?? '')) ?>"
                         data-check-in="<?= e($bookingCheckIn) ?>"
                         data-check-out="<?= e($bookingCheckOut) ?>"
                         data-booking-phase="<?= e($bookingPhase) ?>"
@@ -1076,6 +1081,15 @@ document.addEventListener('DOMContentLoaded', function () {
         const tbody = table.querySelector('tbody');
         if (tbody) {
             const desktopRows = Array.from(tbody.querySelectorAll('tr.desktop-row'));
+            function normalizeSearchValue(value) {
+                return (value || '')
+                    .toString()
+                    .toLowerCase()
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+            }
 
             desktopRows.forEach(function (desktopRow, index) {
                 const summaryRow = desktopRow.nextElementSibling && desktopRow.nextElementSibling.classList.contains('mobile-summary-row')
@@ -1086,22 +1100,26 @@ document.addEventListener('DOMContentLoaded', function () {
                     : null;
 
                 groups.push({
-                    originalIndex: index,
-                    desktopRow: desktopRow,
-                    summaryRow: summaryRow,
-                    detailRow: detailRow,
-                    card: null,
-                    customerName: (desktopRow.dataset.customerName || '').toLowerCase(),
-                    roomType: (desktopRow.dataset.roomType || '').toLowerCase(),
-                    bookingPhase: (desktopRow.dataset.bookingPhase || 'active').toLowerCase(),
-                    checkInTimestamp: parseIsoDate(desktopRow.dataset.checkIn || ''),
-                    createdAtTimestamp: parseDateTime(desktopRow.dataset.createdAt || ''),
-                    searchText: [
-                        desktopRow.textContent,
-                        summaryRow ? summaryRow.textContent : '',
-                        detailRow ? detailRow.textContent : ''
-                    ].join(' ').toLowerCase()
-                });
+                        originalIndex: index,
+                        desktopRow: desktopRow,
+                        summaryRow: summaryRow,
+                        detailRow: detailRow,
+                        card: null,
+                        customerName: normalizeSearchValue(desktopRow.dataset.customerName || ''),
+                        roomType: normalizeSearchValue(desktopRow.dataset.roomType || ''),
+                        bookingPhase: normalizeSearchValue(desktopRow.dataset.bookingPhase || 'active'),
+                        checkInTimestamp: parseIsoDate(desktopRow.dataset.checkIn || ''),
+                        createdAtTimestamp: parseDateTime(desktopRow.dataset.createdAt || ''),
+                        searchText: normalizeSearchValue([
+                            desktopRow.dataset.customerName || '',
+                            desktopRow.dataset.customerEmail || '',
+                            desktopRow.dataset.customerPhone || '',
+                            desktopRow.dataset.externalReference || '',
+                            desktopRow.dataset.roomType || '',
+                            desktopRow.dataset.stayPeriod || '',
+                            desktopRow.dataset.notes || ''
+                        ].join(' '))
+                    });
             });
 
             Array.from(document.querySelectorAll('[data-mobile-booking-card]')).forEach(function (card) {
@@ -1154,9 +1172,9 @@ document.addEventListener('DOMContentLoaded', function () {
             function getFilterState() {
                 const useMobile = window.innerWidth <= 1024 && mobileSearchInput && mobileRoomFilter && mobilePhaseFilter && mobileSortSelect;
                 return {
-                    query: (useMobile ? mobileSearchInput.value : (searchInput ? searchInput.value : '')).trim().toLowerCase(),
-                    room: (useMobile ? mobileRoomFilter.value : (roomFilter ? roomFilter.value : '')).trim().toLowerCase(),
-                    phase: (useMobile ? mobilePhaseFilter.value : (phaseFilter ? phaseFilter.value : '')).trim().toLowerCase(),
+                    query: normalizeSearchValue(useMobile ? mobileSearchInput.value : (searchInput ? searchInput.value : '')),
+                    room: normalizeSearchValue(useMobile ? mobileRoomFilter.value : (roomFilter ? roomFilter.value : '')),
+                    phase: normalizeSearchValue(useMobile ? mobilePhaseFilter.value : (phaseFilter ? phaseFilter.value : '')),
                     sort: useMobile ? mobileSortSelect.value : (sortSelect ? sortSelect.value : 'created_desc')
                 };
             }
