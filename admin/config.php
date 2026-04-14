@@ -14,7 +14,7 @@ require_once dirname(__DIR__) . '/phpmailer/src/PHPMailer.php';
 require_once dirname(__DIR__) . '/phpmailer/src/SMTP.php';
 
 const ADMIN_APP_NAME = 'Podere La Cavallara | Admin';
-const ADMIN_BASE_URL = 'https://palevioletred-fly-568261.hostingersite.com/admin';
+const ADMIN_BASE_URL = 'https://poderelacavallara.it/admin';
 const ADMIN_SESSION_KEY = 'admin_user';
 
 const BOOKINGCOM_ENABLED = false;
