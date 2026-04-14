@@ -156,10 +156,10 @@ $mobilePageKicker = admin_mobile_page_kicker($currentPath);
                             <span></span>
                             <span></span>
                         </button>
-                        <a class="topbar-mobile-brand" href="<?= e(admin_url('index.php')) ?>" aria-label="Torna alla dashboard amministrazione">
-                            <img class="topbar-mobile-logo" src="<?= e(admin_url('assets/img/logo.svg')) ?>" alt="Podere La Cavallara">
-                            <span class="topbar-mobile-label">Area amministrazione</span>
-                        </a>
+                        <div class="topbar-mobile-brand" href="<?= e(admin_url('index.php')) ?>" aria-label="Torna alla dashboard amministrazione">
+                            <img class="topbar-mobile-logo" src="<?= e(admin_url('assets/img/logo_sticky.svg')) ?>" alt="Podere La Cavallara">
+                            <!-- <span class="topbar-mobile-label">Area amministrazione</span> -->
+                        </div>
                     </div>
                     <a class="topbar-brand" href="<?= e(admin_url('index.php')) ?>">
                         <img src="<?= e(admin_url('assets/img/logo.svg')) ?>" alt="Podere La Cavallara">
