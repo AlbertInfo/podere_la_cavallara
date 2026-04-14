@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/includes/auth.php';
@@ -59,23 +60,26 @@ if (!in_array($data['status'], ['confermata', 'in_attesa', 'annullata'], true)) 
 $dates = admin_parse_stay_period_dates($data['stay_period']);
 
 try {
-    $stmt = $pdo->prepare('UPDATE prenotazioni SET
-        customer_name = :customer_name,
-        customer_email = :customer_email,
-        email_missing = :email_missing,
-        customer_phone = :customer_phone,
-        stay_period = :stay_period,
-        check_in = :check_in,
-        check_out = :check_out,
-        room_type = :room_type,
-        adults = :adults,
-        children_count = :children_count,
-        notes = :notes,
-        status = :status,
-        source = :source,
-        external_reference = :external_reference,
-        updated_at = NOW()
-    WHERE id = :id LIMIT 1');
+    $stmt = $pdo->prepare('
+        UPDATE prenotazioni SET
+            customer_name = :customer_name,
+            customer_email = :customer_email,
+            email_missing = :email_missing,
+            customer_phone = :customer_phone,
+            stay_period = :stay_period,
+            check_in = :check_in,
+            check_out = :check_out,
+            room_type = :room_type,
+            adults = :adults,
+            children_count = :children_count,
+            notes = :notes,
+            status = :status,
+            source = :source,
+            external_reference = :external_reference,
+            updated_at = NOW()
+        WHERE id = :id
+        LIMIT 1
+    ');
 
     $stmt->execute([
         'customer_name' => $data['customer_name'],
@@ -95,7 +99,10 @@ try {
         'id' => $id,
     ]);
 
-    // Sync cliente non bloccante
+    /*
+     * Rileggo la prenotazione aggiornata e provo la sync cliente.
+     * La sync NON deve bloccare il salvataggio della prenotazione.
+     */
     try {
         $bookingStmt = $pdo->prepare('SELECT * FROM prenotazioni WHERE id = :id LIMIT 1');
         $bookingStmt->execute(['id' => $id]);
@@ -105,16 +112,17 @@ try {
             customer_sync_booking_row($pdo, $booking, 'prenotazione_update');
         }
     } catch (Throwable $syncError) {
-        error_log('customer_sync_booking_row failed for booking #' . $id . ': ' . $syncError->getMessage());
+        error_log(
+            'customer_sync_booking_row failed for booking #' . $id . ': ' . $syncError->getMessage()
+        );
     }
 
     set_flash('success', 'Prenotazione aggiornata correttamente.');
+    header('Location: ' . admin_url('index.php#registered-bookings'));
+    exit;
 } catch (Throwable $e) {
     error_log('update-prenotazione failed for booking #' . $id . ': ' . $e->getMessage());
     set_flash('error', 'Errore durante il salvataggio della prenotazione.');
     header('Location: ' . admin_url('edit-prenotazione.php?id=' . $id));
     exit;
 }
-
-header('Location: ' . admin_url('index.php#registered-bookings'));
-exit;
