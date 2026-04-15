@@ -240,7 +240,7 @@ def main() -> None:
     warnings: List[str] = []
     fields: Dict[str, Dict[str, Any]] = {}
 
-    mrz_found = extract_with_passporteye(paths, fields, warnings, diagnostics)
+    mrz_found = False
 
     if not mrz_found:
         warnings.append("MRZ non rilevata: provo con OCR generico sui campi visivi.")
