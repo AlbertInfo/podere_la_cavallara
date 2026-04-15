@@ -1,9 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
-  const form = document.getElementById('anagraficaForm');
-  if (!form) return;
-
   const panel = document.querySelector('[data-anagrafica-form-panel]');
-  const openButton = document.querySelector('[data-anagrafica-toggle]');
+  const form = document.getElementById('anagraficaForm');
+  if (!panel || !form) return;
+
   const closeButton = document.querySelector('[data-anagrafica-close]');
   const recordType = document.getElementById('recordType');
   const expectedGuests = document.getElementById('expectedGuests');
@@ -12,16 +11,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const template = document.getElementById('guestTemplate');
   const arrivalField = form.querySelector('[data-date-role="arrival"]');
   const departureField = form.querySelector('[data-date-role="departure"]');
+  const baseUrl = panel.dataset.baseUrl || window.location.pathname;
 
-  let cloneIndex = 1;
+  let cloneIndex = repeater ? repeater.querySelectorAll('[data-guest-card]').length + 1 : 1;
 
   function setPanelState(isOpen) {
-    if (!panel) return;
     panel.classList.toggle('is-open', isOpen);
-    if (openButton) {
-      openButton.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-      openButton.textContent = isOpen ? 'Modulo aperto' : 'Nuova anagrafica';
-    }
   }
 
   function createDatePicker(element, options = {}) {
@@ -45,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const issueFields = scope.querySelectorAll('[data-date-role="document-issue"]');
 
     issueFields.forEach((issueField) => {
-      const container = issueField.closest('.anagrafica-grid, [data-guest-card], .anagrafica-guest-card') || scope;
+      const container = issueField.closest('[data-guest-card], .anagrafica-guest-card') || scope;
       const expiryField = container.querySelector('[data-date-role="document-expiry"]');
       if (!expiryField || !issueField._flatpickr || !expiryField._flatpickr) return;
 
@@ -64,8 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function initDates(scope = document) {
-    const fields = scope.querySelectorAll('.js-date');
-    fields.forEach((field) => {
+    scope.querySelectorAll('.js-date').forEach((field) => {
       const role = field.dataset.dateRole || '';
       const options = {};
 
@@ -84,26 +78,55 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function updateGroupState() {
-    const isGroup = recordType.value === 'group';
-    addButton.disabled = !isGroup;
-    addButton.classList.toggle('is-disabled', !isGroup);
-    repeater.style.display = isGroup ? 'grid' : 'none';
-
-    if (!isGroup) {
-      repeater.innerHTML = '';
-      cloneIndex = 1;
-      expectedGuests.value = 1;
-      return;
+    const isGroup = recordType && recordType.value === 'group';
+    if (addButton) {
+      addButton.disabled = !isGroup;
+      addButton.classList.toggle('is-disabled', !isGroup);
     }
-
-    if (Number(expectedGuests.value || 0) < 2) {
-      expectedGuests.value = 2;
+    if (repeater) {
+      repeater.style.display = isGroup ? 'grid' : 'none';
+      if (!isGroup) {
+        repeater.querySelectorAll('[data-guest-card]').forEach((card) => card.remove());
+        cloneIndex = 1;
+        if (expectedGuests) expectedGuests.value = '1';
+      } else if (expectedGuests && Number(expectedGuests.value || 0) < 2) {
+        expectedGuests.value = String(Math.max(2, 1 + repeater.querySelectorAll('[data-guest-card]').length));
+      }
     }
   }
 
+  function refreshGuestCounters() {
+    if (!repeater) return;
+    repeater.querySelectorAll('[data-guest-card]').forEach((card, index) => {
+      const numberNode = card.querySelector('[data-guest-number]');
+      if (numberNode) numberNode.textContent = String(index + 2);
+    });
+    if (expectedGuests && recordType?.value === 'group') {
+      expectedGuests.value = String(1 + repeater.querySelectorAll('[data-guest-card]').length);
+    }
+  }
+
+  function bindGuestRemoveButtons(scope = repeater) {
+    if (!scope) return;
+    scope.querySelectorAll('[data-remove-guest]').forEach((button) => {
+      if (button.dataset.bound === '1') return;
+      button.dataset.bound = '1';
+      button.addEventListener('click', () => {
+        const card = button.closest('[data-guest-card]');
+        if (card) {
+          card.remove();
+          refreshGuestCounters();
+        }
+      });
+    });
+  }
+
   function addGuestCard() {
+    if (!template || !repeater) return;
+
     const fragment = template.content.cloneNode(true);
     const card = fragment.querySelector('[data-guest-card]');
+    if (!card) return;
 
     card.querySelectorAll('[data-name]').forEach((field) => {
       field.name = `guests[${cloneIndex}][${field.dataset.name}]`;
@@ -124,36 +147,51 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    const numberNode = card.querySelector('[data-guest-number]');
-    if (numberNode) numberNode.textContent = String(cloneIndex + 1);
-
-    const removeBtn = card.querySelector('[data-remove-guest]');
-    removeBtn.addEventListener('click', () => {
-      card.remove();
-      expectedGuests.value = 1 + repeater.querySelectorAll('[data-guest-card]').length;
-    });
-
     repeater.appendChild(card);
+    bindGuestRemoveButtons(card);
     initDates(card);
     cloneIndex += 1;
-    expectedGuests.value = 1 + repeater.querySelectorAll('[data-guest-card]').length;
+    refreshGuestCounters();
   }
 
-  openButton?.addEventListener('click', () => {
-    const nextState = !panel.classList.contains('is-open');
-    setPanelState(nextState);
-    if (nextState) {
-      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.querySelectorAll('[data-record-row]').forEach((row) => {
+    const editUrl = row.dataset.editUrl;
+    if (!editUrl) return;
+
+    row.addEventListener('click', (event) => {
+      if (event.target.closest('[data-row-ignore]')) return;
+      window.location.href = editUrl;
+    });
+
+    row.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      if (event.target.closest('[data-row-ignore]')) return;
+      event.preventDefault();
+      window.location.href = editUrl;
+    });
+  });
+
+  document.querySelectorAll('[data-delete-form]').forEach((deleteForm) => {
+    deleteForm.addEventListener('submit', (event) => {
+      const ok = window.confirm('Eliminare definitivamente questa anagrafica?');
+      if (!ok) event.preventDefault();
+    });
+  });
+
+  closeButton?.addEventListener('click', () => {
+    setPanelState(false);
+    if (window.history && typeof window.history.replaceState === 'function') {
+      window.history.replaceState({}, document.title, baseUrl);
     }
   });
 
-  closeButton?.addEventListener('click', () => setPanelState(false));
+  addButton?.addEventListener('click', addGuestCard);
+  recordType?.addEventListener('change', updateGroupState);
 
   initDates(form);
-  recordType.addEventListener('change', updateGroupState);
-  addButton.addEventListener('click', addGuestCard);
+  bindGuestRemoveButtons();
+  refreshGuestCounters();
   updateGroupState();
-  setPanelState(panel.classList.contains('is-open'));
 
   const highlightedRow = document.querySelector('[data-record-row].is-highlighted');
   if (highlightedRow) {

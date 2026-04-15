@@ -1,5 +1,5 @@
 .anagrafica-shell {
-  gap: 1.5rem;
+  gap: 1.2rem;
 }
 
 .anagrafica-hero {
@@ -8,45 +8,46 @@
 
 .anagrafica-hero__actions {
   display: flex;
-  gap: .75rem;
+  gap: .7rem;
   flex-wrap: wrap;
 }
 
 .anagrafica-summary-card,
 .anagrafica-form-card,
 .anagrafica-alert-card {
-  border-radius: 28px;
-  box-shadow: 0 22px 55px rgba(15, 23, 42, 0.07);
+  border-radius: 24px;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.06);
 }
 
 .section-title--split {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 1rem;
+  gap: .9rem;
 }
 
 .anagrafica-summary-meta {
   min-width: fit-content;
-  padding: .65rem .9rem;
+  padding: .5rem .75rem;
   border-radius: 999px;
   background: rgba(15, 23, 42, 0.06);
   color: #0f172a;
   font-weight: 700;
+  font-size: .9rem;
 }
 
 .anagrafica-list {
   display: grid;
-  gap: .85rem;
+  gap: .45rem;
 }
 
 .anagrafica-list__row {
   display: grid;
-  grid-template-columns: minmax(220px, 2.1fr) 130px 130px 120px minmax(220px, 1.4fr);
-  gap: 1rem;
+  grid-template-columns: minmax(220px, 2.2fr) 110px 110px minmax(230px, 1fr);
+  gap: .8rem;
   align-items: center;
-  padding: 1rem 1.1rem;
-  border-radius: 22px;
+  padding: .72rem .9rem;
+  border-radius: 16px;
   background: #fff;
   border: 1px solid rgba(148, 163, 184, 0.18);
 }
@@ -54,7 +55,7 @@
 .anagrafica-list__row--head {
   background: rgba(15, 23, 42, 0.04);
   border-style: dashed;
-  font-size: .85rem;
+  font-size: .78rem;
   font-weight: 800;
   color: #475569;
   text-transform: uppercase;
@@ -62,71 +63,72 @@
 }
 
 .anagrafica-list__body .anagrafica-list__row {
-  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  cursor: pointer;
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
 }
 
-.anagrafica-list__body .anagrafica-list__row:hover {
+.anagrafica-list__body .anagrafica-list__row:hover,
+.anagrafica-list__body .anagrafica-list__row:focus-visible {
   transform: translateY(-1px);
-  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.08);
-  border-color: rgba(37, 99, 235, 0.20);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+  border-color: rgba(37, 99, 235, 0.24);
+  outline: none;
 }
 
 .anagrafica-list__row.is-highlighted {
-  border-color: rgba(37, 99, 235, 0.45);
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.42);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
 }
 
 .anagrafica-list__main strong {
   display: block;
   color: #0f172a;
-  font-size: 1rem;
+  font-size: .98rem;
+  line-height: 1.2;
 }
 
 .anagrafica-list__subline {
   display: flex;
-  gap: .6rem;
+  gap: .45rem;
   flex-wrap: wrap;
-  margin-top: .35rem;
-  font-size: .86rem;
+  margin-top: .2rem;
+  font-size: .8rem;
   color: #64748b;
+}
+
+.anagrafica-list__subline span {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
 }
 
 .anagrafica-list__date {
   font-weight: 700;
   color: #0f172a;
-}
-
-.anagrafica-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 36px;
-  padding: 0 .85rem;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.07);
-  color: #0f172a;
-  font-weight: 700;
-  font-size: .9rem;
+  font-size: .92rem;
 }
 
 .anagrafica-list__actions {
   display: flex;
-  gap: .65rem;
-  flex-wrap: wrap;
+  gap: .45rem;
   justify-content: flex-start;
+  align-items: center;
+  flex-wrap: nowrap;
 }
 
 .anagrafica-icon-btn {
   display: inline-flex;
   align-items: center;
-  gap: .55rem;
-  min-height: 42px;
-  padding: 0 .9rem;
-  border-radius: 14px;
+  justify-content: center;
+  gap: .4rem;
+  min-height: 36px;
+  padding: 0 .72rem;
+  border-radius: 12px;
   border: 1px solid rgba(22, 163, 74, 0.18);
   background: rgba(22, 163, 74, 0.08);
   color: #166534;
   font-weight: 700;
+  font-size: .82rem;
 }
 
 .anagrafica-icon-btn--secondary {
@@ -135,19 +137,32 @@
   color: #1d4ed8;
 }
 
+.anagrafica-icon-btn--danger {
+  min-width: 36px;
+  padding: 0;
+  border-color: rgba(220, 38, 38, 0.16);
+  background: rgba(220, 38, 38, 0.08);
+  color: #b91c1c;
+}
+
 .anagrafica-icon-btn svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
 }
 
 .anagrafica-icon-btn:disabled {
-  opacity: .78;
+  opacity: .72;
   cursor: not-allowed;
 }
 
+.anagrafica-delete-form {
+  margin: 0;
+}
+
 .anagrafica-empty-state {
-  padding: 1.4rem;
-  border-radius: 20px;
+  padding: 1.15rem;
+  border-radius: 18px;
   border: 1px dashed rgba(148, 163, 184, 0.45);
   background: rgba(248, 250, 252, 0.9);
 }
@@ -162,34 +177,34 @@
 
 .anagrafica-form {
   display: grid;
-  gap: 1.35rem;
+  gap: 1.1rem;
 }
 
 .anagrafica-section {
   display: grid;
-  gap: 1rem;
+  gap: .85rem;
 }
 
 .anagrafica-section__header {
   display: flex;
   justify-content: space-between;
-  gap: 1rem;
+  gap: .8rem;
   align-items: flex-start;
 }
 
 .anagrafica-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1rem;
+  gap: .8rem;
 }
 
 .anagrafica-grid label {
   display: grid;
-  gap: .5rem;
+  gap: .4rem;
 }
 
 .anagrafica-grid label span {
-  font-size: .88rem;
+  font-size: .83rem;
   font-weight: 700;
   color: #334155;
 }
@@ -198,10 +213,10 @@
 .anagrafica-grid select,
 .anagrafica-grid .flatpickr-input {
   width: 100%;
-  min-height: 48px;
-  padding: .8rem .95rem;
-  border-radius: 14px;
-  border: 1px solid rgba(148, 163, 184, 0.35);
+  min-height: 44px;
+  padding: .7rem .85rem;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.34);
   background: #fff;
   color: #0f172a;
   box-sizing: border-box;
@@ -216,8 +231,8 @@
 }
 
 .anagrafica-guest-card {
-  padding: 1.15rem;
-  border-radius: 22px;
+  padding: .95rem;
+  border-radius: 18px;
   border: 1px solid rgba(148, 163, 184, 0.22);
   background: linear-gradient(180deg, rgba(255,255,255,1), rgba(248,250,252,0.98));
 }
@@ -226,13 +241,13 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 1rem;
+  gap: .8rem;
+  margin-bottom: .8rem;
 }
 
 .anagrafica-repeater {
   display: grid;
-  gap: 1rem;
+  gap: .8rem;
 }
 
 .anagrafica-actions {
@@ -240,68 +255,59 @@
   justify-content: flex-end;
 }
 
-#addGuestButton.is-disabled {
-  opacity: .6;
+.code {
+  margin-top: .7rem;
+  display: inline-flex;
+  padding: .5rem .7rem;
+  border-radius: 12px;
+  background: #0f172a;
+  color: #f8fafc;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: .82rem;
 }
 
-.flatpickr-calendar {
-  border-radius: 18px;
-  box-shadow: 0 22px 44px rgba(15, 23, 42, 0.15);
-  border: 1px solid rgba(148, 163, 184, 0.18);
-}
-
-.flatpickr-day.selected,
-.flatpickr-day.startRange,
-.flatpickr-day.endRange,
-.flatpickr-day.selected:hover,
-.flatpickr-day.startRange:hover,
-.flatpickr-day.endRange:hover {
-  background: #2563eb;
-  border-color: #2563eb;
-}
-
-@media (max-width: 1180px) {
-  .anagrafica-list__row,
-  .anagrafica-list__row--head {
-    grid-template-columns: minmax(220px, 2fr) repeat(3, minmax(90px, 1fr));
-  }
-
-  .anagrafica-list__actions {
-    grid-column: 1 / -1;
-  }
-
+@media (max-width: 1100px) {
   .anagrafica-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .anagrafica-list__row {
+    grid-template-columns: minmax(180px, 1.5fr) 100px 100px minmax(180px, 1fr);
+  }
+
+  .anagrafica-icon-btn__label {
+    display: none;
+  }
+
+  .anagrafica-icon-btn {
+    min-width: 36px;
+    padding: 0 .55rem;
+  }
 }
 
-@media (max-width: 760px) {
-  .anagrafica-hero__actions,
+@media (max-width: 820px) {
+  .section-title--split,
   .anagrafica-section__header,
-  .section-title--split {
+  .anagrafica-hero__actions {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .anagrafica-list__head {
+  .anagrafica-list__row,
+  .anagrafica-list__row--head {
+    grid-template-columns: 1fr;
+  }
+
+  .anagrafica-list__row--head {
     display: none;
   }
 
-  .anagrafica-list__row {
-    grid-template-columns: 1fr;
-    gap: .8rem;
+  .anagrafica-list__actions {
+    margin-top: .3rem;
+    flex-wrap: wrap;
   }
 
   .anagrafica-grid {
     grid-template-columns: 1fr;
-  }
-
-  .anagrafica-list__actions {
-    justify-content: stretch;
-  }
-
-  .anagrafica-icon-btn {
-    width: 100%;
-    justify-content: center;
   }
 }
