@@ -32,27 +32,29 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function syncDateConstraints(scope = form) {
-    const issueFields = scope.querySelectorAll('[data-date-role="document-issue"]');
-    const expiryFields = scope.querySelectorAll('[data-date-role="document-expiry"]');
+  const issueFields = scope.querySelectorAll('[data-date-role="document-issue"]');
+  const expiryFields = scope.querySelectorAll('[data-date-role="document-expiry"]');
 
-    issueFields.forEach((issueField) => {
-      const container = issueField.closest('[data-guest-card]') || scope;
-      const expiryField = container.querySelector('[data-date-role="document-expiry"]');
-      if (!expiryField || !issueField._flatpickr || !expiryField._flatpickr) return;
+  issueFields.forEach((issueField) => {
+    const container = issueField.closest('[data-guest-card]') || scope;
+    const expiryField = container.querySelector('[data-date-role="document-expiry"]');
+    if (!expiryField || !issueField._flatpickr || !expiryField._flatpickr) return;
 
-      const selectedIssue = issueField._flatpickr.selectedDates[0] || null;
-      const selectedExpiry = expiryField._flatpickr.selectedDates[0] || null;
-      expiryField._flatpickr.set('minDate', selectedIssue);
-      issueField._flatpickr.set('maxDate', selectedExpiry || null);
-    });
+    const selectedIssue = issueField._flatpickr.selectedDates[0] || null;
+    const selectedExpiry = expiryField._flatpickr.selectedDates[0] || null;
 
-    if (arrivalField?._flatpickr && departureField?._flatpickr) {
-      const arrivalDate = arrivalField._flatpickr.selectedDates[0] || null;
-      const departureDate = departureField._flatpickr.selectedDates[0] || null;
-      departureField._flatpickr.set('minDate', arrivalDate);
-      arrivalField._flatpickr.set('maxDate', departureDate || null);
-    }
+    expiryField._flatpickr.config.minDate = selectedIssue;
+    issueField._flatpickr.config.maxDate = selectedExpiry || null;
+  });
+
+  if (arrivalField?._flatpickr && departureField?._flatpickr) {
+    const arrivalDate = arrivalField._flatpickr.selectedDates[0] || null;
+    const departureDate = departureField._flatpickr.selectedDates[0] || null;
+
+    departureField._flatpickr.config.minDate = arrivalDate;
+    arrivalField._flatpickr.config.maxDate = departureDate || null;
   }
+}
 
   function initDates(scope = document) {
     scope.querySelectorAll('.js-date').forEach((field) => {
