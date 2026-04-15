@@ -1,5 +1,6 @@
 <?php
-require_once __DIR__ . '/includes/auth.php';
+require_once dirname(__DIR__) . '/includes/auth.php';
+require_once dirname(__DIR__) . '/includes/db.php';
 require_admin();
 verify_csrf();
 
