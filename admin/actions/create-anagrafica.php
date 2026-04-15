@@ -7,10 +7,10 @@ require_once __DIR__ . '/../includes/db.php';
 require_admin();
 verify_csrf();
 
-function redirect_back(string $type, string $message): never
+function redirect_to(string $url, string $type, string $message): never
 {
     set_flash($type, $message);
-    header('Location: ' . admin_url('anagrafica.php'));
+    header('Location: ' . $url);
     exit;
 }
 
@@ -33,7 +33,7 @@ function parse_date_input(?string $value): ?string
 try {
     $tableReady = (bool) $pdo->query("SHOW TABLES LIKE 'anagrafica_records'")->fetchColumn();
     if (!$tableReady) {
-        redirect_back('error', 'Esegui prima la migration SQL della sezione anagrafica.');
+        redirect_to(admin_url('anagrafica.php?new=1'), 'error', 'Esegui prima la migration SQL della sezione anagrafica.');
     }
 
     $recordType = $_POST['record_type'] ?? 'single';
@@ -47,10 +47,10 @@ try {
     $guests = $_POST['guests'] ?? [];
 
     if (!$arrivalDate || !$departureDate) {
-        redirect_back('error', 'Inserisci date di arrivo e partenza valide.');
+        redirect_to(admin_url('anagrafica.php?new=1'), 'error', 'Inserisci date di arrivo e partenza valide.');
     }
     if (!is_array($guests) || count($guests) === 0) {
-        redirect_back('error', 'Inserisci almeno un ospite.');
+        redirect_to(admin_url('anagrafica.php?new=1'), 'error', 'Inserisci almeno un ospite.');
     }
 
     $pdo->beginTransaction();
@@ -97,7 +97,7 @@ try {
             'leader_idswh' => $index === 0 ? null : $leaderIdswh,
             'first_name' => $firstName,
             'last_name' => $lastName,
-            'gender' => in_array(($guest['gender'] ?? 'M'), ['M','F'], true) ? $guest['gender'] : 'M',
+            'gender' => in_array(($guest['gender'] ?? 'M'), ['M', 'F'], true) ? $guest['gender'] : 'M',
             'birth_date' => parse_date_input($guest['birth_date'] ?? null),
             'citizenship_label' => trim((string) ($guest['citizenship_label'] ?? '')),
             'residence_province' => trim((string) ($guest['residence_province'] ?? '')),
@@ -117,14 +117,14 @@ try {
 
     if ($index === 0) {
         $pdo->rollBack();
-        redirect_back('error', 'Inserisci almeno un ospite valido.');
+        redirect_to(admin_url('anagrafica.php?new=1'), 'error', 'Inserisci almeno un ospite valido.');
     }
 
     $pdo->commit();
-    redirect_back('success', 'Nuova anagrafica salvata correttamente.');
+    redirect_to(admin_url('anagrafica.php?created=' . $recordId), 'success', 'Nuova anagrafica salvata correttamente.');
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    redirect_back('error', "Errore durante il salvataggio dell'anagrafica: " . $e->getMessage());
+    redirect_to(admin_url('anagrafica.php?new=1'), 'error', "Errore durante il salvataggio dell'anagrafica: " . $e->getMessage());
 }

@@ -2,6 +2,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('anagraficaForm');
   if (!form) return;
 
+  const panel = document.querySelector('[data-anagrafica-form-panel]');
+  const openButton = document.querySelector('[data-anagrafica-toggle]');
+  const closeButton = document.querySelector('[data-anagrafica-close]');
   const recordType = document.getElementById('recordType');
   const expectedGuests = document.getElementById('expectedGuests');
   const repeater = document.getElementById('guestRepeater');
@@ -11,6 +14,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const departureField = form.querySelector('[data-date-role="departure"]');
 
   let cloneIndex = 1;
+
+  function setPanelState(isOpen) {
+    if (!panel) return;
+    panel.classList.toggle('is-open', isOpen);
+    if (openButton) {
+      openButton.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      openButton.textContent = isOpen ? 'Modulo aperto' : 'Nuova anagrafica';
+    }
+  }
 
   function createDatePicker(element, options = {}) {
     if (typeof flatpickr !== 'function' || !element || element._flatpickr) return null;
@@ -31,7 +43,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function syncDateConstraints(scope = form) {
     const issueFields = scope.querySelectorAll('[data-date-role="document-issue"]');
-    const expiryFields = scope.querySelectorAll('[data-date-role="document-expiry"]');
 
     issueFields.forEach((issueField) => {
       const container = issueField.closest('.anagrafica-grid, [data-guest-card], .anagrafica-guest-card') || scope;
@@ -128,8 +139,24 @@ document.addEventListener('DOMContentLoaded', () => {
     expectedGuests.value = 1 + repeater.querySelectorAll('[data-guest-card]').length;
   }
 
+  openButton?.addEventListener('click', () => {
+    const nextState = !panel.classList.contains('is-open');
+    setPanelState(nextState);
+    if (nextState) {
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+
+  closeButton?.addEventListener('click', () => setPanelState(false));
+
   initDates(form);
   recordType.addEventListener('change', updateGroupState);
   addButton.addEventListener('click', addGuestCard);
   updateGroupState();
+  setPanelState(panel.classList.contains('is-open'));
+
+  const highlightedRow = document.querySelector('[data-record-row].is-highlighted');
+  if (highlightedRow) {
+    highlightedRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
 });
