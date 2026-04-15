@@ -126,5 +126,5 @@ try {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    redirect_back('error', 'Errore durante il salvataggio dell'anagrafica: ' . $e->getMessage());
+    redirect_back('error', "Errore durante il salvataggio dell'anagrafica: " . $e->getMessage());
 }
