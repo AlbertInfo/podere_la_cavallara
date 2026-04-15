@@ -192,14 +192,15 @@ if ($pythonBin === null) {
     json_error('Python 3 non disponibile sul server.', 500);
 }
 
-$command = [$pythonBin, $parserScript];
+$envPrefix = 'OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1';
+
+$command = $envPrefix . ' ' . escapeshellarg($pythonBin) . ' ' . escapeshellarg($parserScript);
+
 if (isset($stored['front'])) {
-    $command[] = '--front';
-    $command[] = $stored['front']['absolute'];
+    $command .= ' --front ' . escapeshellarg($stored['front']['absolute']);
 }
 if (isset($stored['back'])) {
-    $command[] = '--back';
-    $command[] = $stored['back']['absolute'];
+    $command .= ' --back ' . escapeshellarg($stored['back']['absolute']);
 }
 
 $descriptorspec = [
