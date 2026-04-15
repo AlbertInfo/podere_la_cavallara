@@ -83,7 +83,7 @@ $formRecord = [
 $leaderGuest = $editingGuests[0] ?? [];
 $additionalGuests = $editingGuests ? array_slice($editingGuests, 1) : [];
 
-$forceOpenForm = !$recordTableReady || isset($_GET['new']) || $formIsEdit;
+$forceOpenForm = isset($_GET['new']) || $formIsEdit;
 $basePageUrl = admin_url('anagrafica.php');
 $newPageUrl = admin_url('anagrafica.php?new=1');
 
@@ -196,7 +196,7 @@ require_once __DIR__ . '/includes/header.php';
         <?php endif; ?>
     </section>
 
-    <section class="card anagrafica-form-card<?= $forceOpenForm ? ' is-open' : '' ?>" id="anagraficaFormPanel" data-anagrafica-form-panel data-base-url="<?= e($basePageUrl) ?>">
+    <section class="card anagrafica-form-card<?= $forceOpenForm ? ' is-open' : '' ?>" id="anagraficaFormPanel"<?= $forceOpenForm ? '' : ' hidden' ?> data-anagrafica-form-panel data-base-url="<?= e($basePageUrl) ?>" data-force-open="<?= $forceOpenForm ? '1' : '0' ?>">
         <div class="section-title section-title--split anagrafica-form-head">
             <div>
                 <h2><?= $formIsEdit ? 'Modifica anagrafica' : 'Nuova anagrafica' ?></h2>

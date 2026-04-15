@@ -167,6 +167,11 @@
   background: rgba(248, 250, 252, 0.9);
 }
 
+
+.anagrafica-form-card[hidden] {
+  display: none !important;
+}
+
 .anagrafica-form-card {
   display: none;
 }

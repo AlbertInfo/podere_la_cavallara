@@ -15,8 +15,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let cloneIndex = repeater ? repeater.querySelectorAll('[data-guest-card]').length + 1 : 1;
 
+  const openLinks = document.querySelectorAll('[data-anagrafica-open-link]');
+  const forceOpen = panel.dataset.forceOpen === '1';
+
   function setPanelState(isOpen) {
     panel.classList.toggle('is-open', isOpen);
+    panel.hidden = !isOpen;
+  }
+
+  function resetCreateMode() {
+    if (form.dataset.mode !== 'create') return;
+    form.reset();
+    repeater?.querySelectorAll('[data-guest-card]').forEach((card) => card.remove());
+    cloneIndex = 1;
+    refreshGuestCounters();
+    updateGroupState();
+    syncDateConstraints(form);
+  }
+
+  function openPanel() {
+    setPanelState(true);
+  }
+
+  function closePanel() {
+    setPanelState(false);
+    resetCreateMode();
+    if (window.history && typeof window.history.replaceState === 'function') {
+      window.history.replaceState({}, document.title, baseUrl);
+    }
   }
 
   function createDatePicker(element, options = {}) {
@@ -178,11 +204,19 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  closeButton?.addEventListener('click', () => {
-    setPanelState(false);
-    if (window.history && typeof window.history.replaceState === 'function') {
-      window.history.replaceState({}, document.title, baseUrl);
-    }
+  closeButton?.addEventListener('click', (event) => {
+    event.preventDefault();
+    closePanel();
+  });
+
+  openLinks.forEach((link) => {
+    link.addEventListener('click', (event) => {
+      event.preventDefault();
+      openPanel();
+      if (window.history && typeof window.history.replaceState === 'function') {
+        window.history.replaceState({}, document.title, link.getAttribute('href') || baseUrl);
+      }
+    });
   });
 
   addButton?.addEventListener('click', addGuestCard);
@@ -192,6 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
   bindGuestRemoveButtons();
   refreshGuestCounters();
   updateGroupState();
+  setPanelState(forceOpen);
 
   const highlightedRow = document.querySelector('[data-record-row].is-highlighted');
   if (highlightedRow) {
