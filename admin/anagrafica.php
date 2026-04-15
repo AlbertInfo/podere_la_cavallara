@@ -31,7 +31,7 @@ require_once __DIR__ . '/includes/header.php';
         <div class="booking-hero-copy">
             <span class="eyebrow">Sezione anagrafica</span>
             <h1>Nuova anagrafica</h1>
-            <p class="muted">Crea un record singolo o gruppo/famiglia già predisposto per i futuri export ROSS1000 e Alloggiati Web.</p>
+            <p class="muted">Crea un record singolo o gruppo/famiglia già predisposto per i futuri export ROSS1000 e Alloggiati Web. Il modulo include anche l'acquisizione da foto del documento per precompilare i campi disponibili.</p>
         </div>
         <div class="toolbar">
             <a class="btn btn-light" href="<?= e(admin_url('index.php#registered-bookings')) ?>">Torna alle prenotazioni</a>
@@ -56,6 +56,7 @@ require_once __DIR__ . '/includes/header.php';
 
         <form method="post" action="<?= e(admin_url('actions/create-anagrafica.php')) ?>" class="anagrafica-form" id="anagraficaForm">
             <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+            <input type="hidden" id="documentExtractEndpoint" value="<?= e(admin_url('api/anagrafica-document-extract.php')) ?>">
 
             <div class="anagrafica-section">
                 <div class="anagrafica-grid anagrafica-grid--top">
@@ -105,7 +106,7 @@ require_once __DIR__ . '/includes/header.php';
                 <div class="anagrafica-section__header">
                     <div>
                         <h3>Capogruppo / primo ospite</h3>
-                        <p class="muted">Questi dati costituiscono il primo componente del record. Nel caso gruppo sarà il capogruppo.</p>
+                        <p class="muted">Prima carica o scatta il documento: il sistema proverà a leggere i campi più affidabili e precompilerà il form. Il resto resta modificabile a mano.</p>
                     </div>
                 </div>
 
@@ -125,30 +126,54 @@ require_once __DIR__ . '/includes/header.php';
             </div>
 
             <template id="guestTemplate">
-                <div class="anagrafica-guest-card is-clone" data-guest-card>
+                <div class="anagrafica-guest-card is-clone" data-guest-card data-guest-index="">
                     <div class="anagrafica-guest-card__top">
                         <strong>Componente <span data-guest-number></span></strong>
                         <button type="button" class="btn btn-light btn-sm" data-remove-guest>Rimuovi</button>
                     </div>
+
+                    <div class="doc-scan-panel" data-doc-scan>
+                        <div class="doc-scan-panel__header">
+                            <div>
+                                <h4>Acquisizione documento</h4>
+                                <p class="muted">Per le carte d'identità europee conviene caricare il retro se contiene la MRZ. Il sistema compila solo i campi riconosciuti con buona affidabilità.</p>
+                            </div>
+                            <button type="button" class="btn btn-light btn-sm" data-doc-extract>Leggi documento</button>
+                        </div>
+                        <div class="doc-scan-panel__grid">
+                            <label class="doc-upload-field">
+                                <span>Fronte documento</span>
+                                <input type="file" accept="image/*" capture="environment" data-doc-file="front">
+                            </label>
+                            <label class="doc-upload-field">
+                                <span>Retro documento</span>
+                                <input type="file" accept="image/*" capture="environment" data-doc-file="back">
+                            </label>
+                        </div>
+                        <div class="doc-scan-panel__meta">
+                            <span class="doc-scan-status" data-doc-status>Nessun file analizzato.</span>
+                        </div>
+                        <div class="doc-file-list" data-doc-preview></div>
+                        <div class="doc-result-box" data-doc-result hidden></div>
+                    </div>
+
                     <div class="anagrafica-grid">
-                        <label><span>Nome</span><input type="text" data-name="first_name" maxlength="100"></label>
-                        <label><span>Cognome</span><input type="text" data-name="last_name" maxlength="100"></label>
-                        <label><span>Sesso</span><select data-name="gender"><option value="M">Maschio</option><option value="F">Femmina</option></select></label>
-                        <label><span>Data di nascita</span><input type="text" class="js-date" data-date-role="birth" data-name="birth_date" placeholder="Seleziona la data" autocomplete="off"></label>
-                        <label><span>Cittadinanza</span><input list="citizenship-options" data-name="citizenship_label" placeholder="Seleziona o digita"></label>
-                        <label><span>Provincia di residenza</span><input list="province-options" data-name="residence_province" placeholder="Seleziona o digita"></label>
-                        <label><span>Luogo di residenza</span><input type="text" data-name="residence_place" maxlength="120"></label>
-                        <label><span>Tipologia documento</span><select data-name="document_type">
-                            <?php foreach ($documentTypes as $value => $label): ?><option value="<?= e($value) ?>"><?= e($label) ?></option><?php endforeach; ?>
-                        </select></label>
-                        <label><span>N. documento</span><input type="text" data-name="document_number" maxlength="50"></label>
-                        <label><span>Data documento</span><input type="text" class="js-date" data-date-role="document-issue" data-name="document_issue_date" placeholder="Seleziona la data" autocomplete="off"></label>
-                        <label><span>Scadenza documento</span><input type="text" class="js-date" data-date-role="document-expiry" data-name="document_expiry_date" placeholder="Seleziona la data" autocomplete="off"></label>
-                        <label><span>Luogo di emissione</span><input list="city-options" data-name="document_issue_place" placeholder="Seleziona o digita"></label>
-                        <label><span>Email</span><input type="email" data-name="email" maxlength="190"></label>
-                        <label><span>Telefono</span><input type="text" data-name="phone" maxlength="40"></label>
-                        <label><span>Tipo turismo</span><select data-name="tourism_type"><?php foreach ($tourismTypes as $value): ?><option value="<?= e($value) ?>"><?= e($value) ?></option><?php endforeach; ?></select></label>
-                        <label><span>Mezzo di trasporto</span><select data-name="transport_type"><?php foreach ($transportTypes as $value): ?><option value="<?= e($value) ?>"><?= e($value) ?></option><?php endforeach; ?></select></label>
+                        <label><span>Nome</span><input type="text" data-field="first_name" data-name="first_name" maxlength="100"></label>
+                        <label><span>Cognome</span><input type="text" data-field="last_name" data-name="last_name" maxlength="100"></label>
+                        <label><span>Sesso</span><select data-field="gender" data-name="gender"><option value="M">Maschio</option><option value="F">Femmina</option></select></label>
+                        <label><span>Data di nascita</span><input type="text" class="js-date" data-field="birth_date" data-name="birth_date" data-date-role="birth" placeholder="Seleziona la data" autocomplete="off"></label>
+                        <label><span>Cittadinanza</span><input list="citizenship-options" data-field="citizenship_label" data-name="citizenship_label" placeholder="Seleziona o digita"></label>
+                        <label><span>Provincia di residenza</span><input list="province-options" data-field="residence_province" data-name="residence_province" placeholder="Seleziona o digita"></label>
+                        <label><span>Luogo di residenza</span><input type="text" data-field="residence_place" data-name="residence_place" maxlength="120"></label>
+                        <label><span>Tipologia documento</span><select data-field="document_type" data-name="document_type"><?php foreach ($documentTypes as $value => $label): ?><option value="<?= e($value) ?>"><?= e($label) ?></option><?php endforeach; ?></select></label>
+                        <label><span>N. documento</span><input type="text" data-field="document_number" data-name="document_number" maxlength="50"></label>
+                        <label><span>Data documento</span><input type="text" class="js-date" data-field="document_issue_date" data-name="document_issue_date" data-date-role="document-issue" placeholder="Seleziona la data" autocomplete="off"></label>
+                        <label><span>Scadenza documento</span><input type="text" class="js-date" data-field="document_expiry_date" data-name="document_expiry_date" data-date-role="document-expiry" placeholder="Seleziona la data" autocomplete="off"></label>
+                        <label><span>Luogo di emissione</span><input list="city-options" data-field="document_issue_place" data-name="document_issue_place" placeholder="Seleziona o digita"></label>
+                        <label><span>Email</span><input type="email" data-field="email" data-name="email" maxlength="190"></label>
+                        <label><span>Telefono</span><input type="text" data-field="phone" data-name="phone" maxlength="40"></label>
+                        <label><span>Tipo turismo</span><select data-field="tourism_type" data-name="tourism_type"><?php foreach ($tourismTypes as $value): ?><option value="<?= e($value) ?>"><?= e($value) ?></option><?php endforeach; ?></select></label>
+                        <label><span>Mezzo di trasporto</span><select data-field="transport_type" data-name="transport_type"><?php foreach ($transportTypes as $value): ?><option value="<?= e($value) ?>"><?= e($value) ?></option><?php endforeach; ?></select></label>
                     </div>
                 </div>
             </template>
@@ -164,7 +189,7 @@ require_once __DIR__ . '/includes/header.php';
     <?php foreach ($cittadinanze as $citizenship): ?><option value="<?= e($citizenship) ?>"><?php endforeach; ?>
 </datalist>
 <datalist id="province-options">
-    <?php foreach ($province as $code => $province): ?><option value="<?= e($province) ?>"><?php endforeach; ?>
+    <?php foreach ($province as $province): ?><option value="<?= e($province) ?>"><?php endforeach; ?>
 </datalist>
 <datalist id="city-options">
     <?php foreach ($citta as $city): ?><option value="<?= e($city) ?>"><?php endforeach; ?>
