@@ -109,7 +109,7 @@ def load_image_for_cv(path: str, max_size: Tuple[int, int] = (1400, 1400)):
     with Image.open(path) as img:
         img = ImageOps.exif_transpose(img)
         img = img.convert("RGB")
-        img.thumbnail(max_size, resampling)
+        img.thumbnail((2200, 2200), resampling)
         return cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
 
 
