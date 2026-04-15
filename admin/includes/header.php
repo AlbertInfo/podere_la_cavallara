@@ -19,6 +19,7 @@ function admin_mobile_nav_key(string $currentPath): string
         'import-interhome-pdf.php' => 'importa',
         'import-interhome-review.php' => 'importa',
         'file-manager.php' => 'importa',
+        'anagrafica.php' => 'anagrafica',
     ];
 
     return $map[$currentPath] ?? 'none';
@@ -34,6 +35,7 @@ function admin_mobile_page_kicker(string $currentPath): string
         'import-interhome-pdf.php' => 'Import Interhome',
         'import-interhome-review.php' => 'Verifica import',
         'file-manager.php' => 'Archivio documenti',
+        'anagrafica.php' => 'Sezione anagrafica',
     ];
 
     return $map[$currentPath] ?? 'Area amministrazione';
@@ -44,6 +46,7 @@ $sidebarCounters = [
     'booking_requests' => 0,
     'contact_requests' => 0,
     'clienti' => 0,
+    'anagrafica' => 0,
 ];
 
 if ($currentAdmin && isset($pdo) && $pdo instanceof PDO) {
@@ -54,8 +57,10 @@ if ($currentAdmin && isset($pdo) && $pdo instanceof PDO) {
 
         try {
             $sidebarCounters['clienti'] = (int) $pdo->query('SELECT COUNT(*) FROM clienti')->fetchColumn();
+            $sidebarCounters['anagrafica'] = $sidebarCounters['clienti'];
         } catch (Throwable $e) {
             $sidebarCounters['clienti'] = 0;
+            $sidebarCounters['anagrafica'] = 0;
         }
     } catch (Throwable $e) {
         $sidebarCounters = [
@@ -63,6 +68,7 @@ if ($currentAdmin && isset($pdo) && $pdo instanceof PDO) {
             'booking_requests' => 0,
             'contact_requests' => 0,
             'clienti' => 0,
+            'anagrafica' => 0,
         ];
     }
 }
@@ -79,6 +85,7 @@ $mobilePageKicker = admin_mobile_page_kicker($currentPath);
     <link rel="stylesheet" href="/admin/assets/css/admin-modern.css?v=47">
     <link rel="stylesheet" href="/admin/assets/css/admin-mobile.css?v=200">
     <link rel="stylesheet" href="/admin/assets/css/interhome-import.css?v=95">
+    <link rel="stylesheet" href="/admin/assets/css/anagrafica.css?v=1">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -108,6 +115,11 @@ $mobilePageKicker = admin_mobile_page_kicker($currentPath);
                     <a class="sidebar-link<?= admin_nav_active(['clienti.php'], $currentPath) ?>" href="<?= e(admin_url('clienti.php')) ?>">
                         <span class="sidebar-link__content">Storico clienti</span>
                         <span class="sidebar-counter"><?= (int) $sidebarCounters['clienti'] ?></span>
+                    </a>
+
+                    <a class="sidebar-link<?= admin_nav_active(['anagrafica.php'], $currentPath) ?>" href="<?= e(admin_url('anagrafica.php')) ?>">
+                        <span class="sidebar-link__content">Sezione anagrafica</span>
+                        <span class="sidebar-counter"><?= (int) $sidebarCounters['anagrafica'] ?></span>
                     </a>
 
                     <a class="sidebar-link<?= admin_nav_active(['new-prenotazione.php'], $currentPath) ?>" href="<?= e(admin_url('new-prenotazione.php')) ?>">
@@ -166,6 +178,7 @@ $mobilePageKicker = admin_mobile_page_kicker($currentPath);
                     </a>
                     <div class="topbar-actions">
                         <a class="btn btn-light btn-sm" href="<?= e(admin_url('clienti.php')) ?>">Clienti</a>
+                        <a class="btn btn-light btn-sm" href="<?= e(admin_url('anagrafica.php')) ?>">Anagrafica</a>
                         <a class="btn btn-light btn-sm" href="<?= e(admin_url('file-manager.php')) ?>">Archivio PDF</a>
                         <a class="btn btn-light btn-sm" href="<?= e(admin_url('import-interhome-pdf.php')) ?>">Importa PDF</a>
                         <a class="btn btn-primary btn-sm" href="<?= e(admin_url('new-prenotazione.php')) ?>">Nuova prenotazione</a>
