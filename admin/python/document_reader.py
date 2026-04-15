@@ -20,8 +20,13 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def result(success: bool, message: str, fields: Optional[Dict[str, Dict[str, Any]]] = None,
-           warnings: Optional[List[str]] = None, diagnostics: Optional[Dict[str, Any]] = None) -> None:
+def result(
+    success: bool,
+    message: str,
+    fields: Optional[Dict[str, Dict[str, Any]]] = None,
+    warnings: Optional[List[str]] = None,
+    diagnostics: Optional[Dict[str, Any]] = None,
+) -> None:
     payload = {
         "success": success,
         "message": message,
@@ -66,44 +71,59 @@ def add_field(fields: Dict[str, Dict[str, Any]], key: str, value: Any, source: s
     }
 
 
+def load_image_for_cv(path: str, max_size=(1600, 1600)):
+    try:
+        from PIL import Image, ImageOps  # type: ignore
+        import numpy as np  # type: ignore
+        import cv2  # type: ignore
+    except Exception as exc:
+        raise RuntimeError(f"Librerie immagine non disponibili: {exc}")
+
+    try:
+        resampling = Image.Resampling.LANCZOS
+    except AttributeError:
+        resampling = Image.LANCZOS
+
+    with Image.open(path) as img:
+        img = ImageOps.exif_transpose(img)
+        img = img.convert("RGB")
+        img.thumbnail(max_size, resampling)
+        return cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+
+
 def preprocess_with_opencv(path: str) -> str:
     try:
         import cv2  # type: ignore
     except Exception:
         return path
 
-    image = cv2.imread(path)
+    image = load_image_for_cv(path)
 
     if image is None:
         raise RuntimeError(f"Impossibile leggere l'immagine: {path}")
 
-    height, width = image.shape[:2]
-    max_width = 1600
-    max_height = 1600
-
-    if width > max_width:
-        scale = max_width / float(width)
-        new_width = int(width * scale)
-        new_height = int(height * scale)
-        image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)
-
-    if height > max_height:
-        scale = max_height / float(height)
-        new_width = int(width * scale)
-        new_height = int(height * scale)
-        image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)    
-
-
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     filtered = cv2.bilateralFilter(gray, 9, 75, 75)
-    thresh = cv2.adaptiveThreshold(filtered, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 11)
+    thresh = cv2.adaptiveThreshold(
+        filtered,
+        255,
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY,
+        31,
+        11,
+    )
 
     out_path = path + ".preprocessed.png"
     cv2.imwrite(out_path, thresh)
     return out_path if os.path.exists(out_path) else path
 
 
-def extract_with_passporteye(paths: List[str], fields: Dict[str, Dict[str, Any]], warnings: List[str], diagnostics: Dict[str, Any]) -> bool:
+def extract_with_passporteye(
+    paths: List[str],
+    fields: Dict[str, Dict[str, Any]],
+    warnings: List[str],
+    diagnostics: Dict[str, Any],
+) -> bool:
     try:
         from passporteye import read_mrz  # type: ignore
     except Exception as exc:
@@ -133,9 +153,11 @@ def extract_with_passporteye(paths: List[str], fields: Dict[str, Dict[str, Any]]
 
         add_field(fields, "document_type", getattr(mrz, "type", None), "mrz", 0.98)
         add_field(fields, "last_name", getattr(mrz, "surname", None), "mrz", 0.99)
+
         names = getattr(mrz, "names", None)
         if names:
             add_field(fields, "first_name", " ".join(str(names).split()), "mrz", 0.99)
+
         add_field(fields, "document_number", getattr(mrz, "number", None), "mrz", 0.98)
         add_field(fields, "citizenship_label", getattr(mrz, "nationality", None), "mrz", 0.97)
         add_field(fields, "gender", getattr(mrz, "sex", None), "mrz", 0.97)
@@ -148,7 +170,12 @@ def extract_with_passporteye(paths: List[str], fields: Dict[str, Dict[str, Any]]
     return found
 
 
-def extract_with_tesseract(paths: List[str], fields: Dict[str, Dict[str, Any]], warnings: List[str], diagnostics: Dict[str, Any]) -> bool:
+def extract_with_tesseract(
+    paths: List[str],
+    fields: Dict[str, Dict[str, Any]],
+    warnings: List[str],
+    diagnostics: Dict[str, Any],
+) -> bool:
     try:
         import pytesseract  # type: ignore
         from PIL import Image  # type: ignore
@@ -157,6 +184,7 @@ def extract_with_tesseract(paths: List[str], fields: Dict[str, Dict[str, Any]], 
         return False
 
     any_text = False
+
     for original_path in paths:
         if not original_path:
             continue
@@ -175,6 +203,7 @@ def extract_with_tesseract(paths: List[str], fields: Dict[str, Dict[str, Any]], 
         diagnostics.setdefault("engines", []).append("pytesseract")
 
         normalized = re.sub(r"\s+", " ", text.upper())
+
         if "CARTA" in normalized or "IDENTIT" in normalized:
             add_field(fields, "document_type", "carta_identita", "ocr", 0.70)
         elif "PASSPORT" in normalized or "PASSAPORTO" in normalized:
