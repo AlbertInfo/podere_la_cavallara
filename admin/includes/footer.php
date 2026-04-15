@@ -14,9 +14,9 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3.5" width="16" height="17" rx="2.5"></rect><path d="M8 3.5v17"></path><path d="M16 3.5v17"></path><path d="M4 9.5h16"></path><path d="M4 14.5h16"></path></svg>
                         <span class="mobile-bottom-nav__label">Prenotazioni</span>
                     </a>
-                    <a class="mobile-bottom-nav__link" href="<?= e(admin_url('anagrafica.php')) ?>" data-mobile-nav-item="anagrafica">
+                    <a class="mobile-bottom-nav__link" href="<?= e(admin_url('clienti.php')) ?>" data-mobile-nav-item="clienti">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"></path><circle cx="10" cy="7" r="4"></circle><path d="M21 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                        <span class="mobile-bottom-nav__label">Anagrafica</span>
+                        <span class="mobile-bottom-nav__label">Clienti</span>
                     </a>
                     <a class="mobile-bottom-nav__link" href="<?= e(admin_url('import-interhome-pdf.php')) ?>" data-mobile-nav-item="importa">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"></path><path d="M7.5 8.5L12 4l4.5 4.5"></path><path d="M4 16.5v2A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5v-2"></path></svg>
@@ -35,7 +35,9 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/it.js"></script>
     <script src="<?= e(admin_url('assets/js/admin-ui.js')) ?>?v=47"></script>
     <script src="<?= e(admin_url('assets/js/interhome-import.js')) ?>?v=31"></script>
-    <script src="<?= e(admin_url('assets/js/anagrafica.js')) ?>?v=1"></script>
+    <?php if ($currentPath === 'anagrafica.php'): ?>
+        <script src="<?= e(admin_url('assets/js/anagrafica.js')) ?>?v=1"></script>
+    <?php endif; ?>
 
 </body>
 </html>

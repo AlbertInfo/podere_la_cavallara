@@ -46,7 +46,6 @@ $sidebarCounters = [
     'booking_requests' => 0,
     'contact_requests' => 0,
     'clienti' => 0,
-    'anagrafica' => 0,
 ];
 
 if ($currentAdmin && isset($pdo) && $pdo instanceof PDO) {
@@ -57,10 +56,8 @@ if ($currentAdmin && isset($pdo) && $pdo instanceof PDO) {
 
         try {
             $sidebarCounters['clienti'] = (int) $pdo->query('SELECT COUNT(*) FROM clienti')->fetchColumn();
-            $sidebarCounters['anagrafica'] = $sidebarCounters['clienti'];
         } catch (Throwable $e) {
             $sidebarCounters['clienti'] = 0;
-            $sidebarCounters['anagrafica'] = 0;
         }
     } catch (Throwable $e) {
         $sidebarCounters = [
@@ -68,7 +65,6 @@ if ($currentAdmin && isset($pdo) && $pdo instanceof PDO) {
             'booking_requests' => 0,
             'contact_requests' => 0,
             'clienti' => 0,
-            'anagrafica' => 0,
         ];
     }
 }
@@ -85,7 +81,9 @@ $mobilePageKicker = admin_mobile_page_kicker($currentPath);
     <link rel="stylesheet" href="/admin/assets/css/admin-modern.css?v=47">
     <link rel="stylesheet" href="/admin/assets/css/admin-mobile.css?v=200">
     <link rel="stylesheet" href="/admin/assets/css/interhome-import.css?v=95">
-    <link rel="stylesheet" href="/admin/assets/css/anagrafica.css?v=1">
+    <?php if ($currentPath === 'anagrafica.php'): ?>
+        <link rel="stylesheet" href="<?= e(admin_url('assets/css/anagrafica.css')) ?>?v=1">
+    <?php endif; ?>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -119,7 +117,6 @@ $mobilePageKicker = admin_mobile_page_kicker($currentPath);
 
                     <a class="sidebar-link<?= admin_nav_active(['anagrafica.php'], $currentPath) ?>" href="<?= e(admin_url('anagrafica.php')) ?>">
                         <span class="sidebar-link__content">Sezione anagrafica</span>
-                        <span class="sidebar-counter"><?= (int) $sidebarCounters['anagrafica'] ?></span>
                     </a>
 
                     <a class="sidebar-link<?= admin_nav_active(['new-prenotazione.php'], $currentPath) ?>" href="<?= e(admin_url('new-prenotazione.php')) ?>">
