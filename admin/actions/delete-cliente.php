@@ -26,11 +26,11 @@ if ($clienteId <= 0) {
     exit;
 }
 
-try {
-    $pdo->beginTransaction();
+// try {
+    // $pdo->beginTransaction();
 
-    $stmt = $pdo->prepare('UPDATE prenotazioni SET cliente_id = NULL WHERE cliente_id = :cliente_id');
-    $stmt->execute(['cliente_id' => $clienteId]);
+    // $stmt = $pdo->prepare('UPDATE prenotazioni SET cliente_id = NULL WHERE cliente_id = :cliente_id');
+    // $stmt->execute(['cliente_id' => $clienteId]);
 
     $stmt = $pdo->prepare('DELETE FROM clienti WHERE id = :id LIMIT 1');
     $stmt->execute(['id' => $clienteId]);
@@ -38,13 +38,13 @@ try {
     $pdo->commit();
 
     set_flash('success', 'Cliente eliminato correttamente.');
-} catch (Throwable $e) {
-    if ($pdo->inTransaction()) {
-        $pdo->rollBack();
-    }
+// } catch (Throwable $e) {
+//     if ($pdo->inTransaction()) {
+//         $pdo->rollBack();
+//     }
 
-    set_flash('error', 'Impossibile eliminare il cliente.');
-}
+    // set_flash('error', 'Impossibile eliminare il cliente.');
+// }
 
 header('Location: ' . admin_url('clienti.php'));
 exit;
