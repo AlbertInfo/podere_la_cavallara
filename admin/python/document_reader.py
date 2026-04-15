@@ -73,8 +73,18 @@ def preprocess_with_opencv(path: str) -> str:
         return path
 
     image = cv2.imread(path)
+
     if image is None:
-        return path
+        raise RuntimeError(f"Impossibile leggere l'immagine: {path}")
+
+    height, width = image.shape[:2]
+    max_width = 1600
+
+    if width > max_width:
+        scale = max_width / float(width)
+        new_width = int(width * scale)
+        new_height = int(height * scale)
+        image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)
 
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     filtered = cv2.bilateralFilter(gray, 9, 75, 75)
