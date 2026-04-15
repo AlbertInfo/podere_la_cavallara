@@ -7,16 +7,16 @@ require_once __DIR__ . '/includes/db.php';
 require_admin();
 verify_csrf();
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    exit('Metodo non consentito.');
-}
+// if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+//     http_response_code(405);
+//     exit('Metodo non consentito.');
+// }
 
-if (!verify_csrf_token($_POST['_csrf'] ?? '')) {
-    set_flash('error', 'Sessione scaduta. Riprova.');
-    header('Location: ' . admin_url('clienti.php'));
-    exit;
-}
+// if (!verify_csrf_token($_POST['_csrf'] ?? '')) {
+//     set_flash('error', 'Sessione scaduta. Riprova.');
+//     header('Location: ' . admin_url('clienti.php'));
+//     exit;
+// }
 
 $clienteId = (int) ($_POST['cliente_id'] ?? 0);
 
