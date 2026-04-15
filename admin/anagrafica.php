@@ -72,11 +72,11 @@ require_once __DIR__ . '/includes/header.php';
                     </label>
                     <label>
                         <span>Data arrivo prevista</span>
-                        <input type="text" name="arrival_date" class="js-date" placeholder="gg/mm/aaaa" required>
+                        <input type="text" name="arrival_date" class="js-date" data-date-role="arrival" placeholder="Seleziona la data" autocomplete="off" required>
                     </label>
                     <label>
                         <span>Data partenza prevista</span>
-                        <input type="text" name="departure_date" class="js-date" placeholder="gg/mm/aaaa" required>
+                        <input type="text" name="departure_date" class="js-date" data-date-role="departure" placeholder="Seleziona la data" autocomplete="off" required>
                     </label>
                     <label>
                         <span>Numero ospiti attesi</span>
@@ -134,7 +134,7 @@ require_once __DIR__ . '/includes/header.php';
                         <label><span>Nome</span><input type="text" data-name="first_name" maxlength="100"></label>
                         <label><span>Cognome</span><input type="text" data-name="last_name" maxlength="100"></label>
                         <label><span>Sesso</span><select data-name="gender"><option value="M">Maschio</option><option value="F">Femmina</option></select></label>
-                        <label><span>Data di nascita</span><input type="text" class="js-date" data-name="birth_date" placeholder="gg/mm/aaaa"></label>
+                        <label><span>Data di nascita</span><input type="text" class="js-date" data-date-role="birth" data-name="birth_date" placeholder="Seleziona la data" autocomplete="off"></label>
                         <label><span>Cittadinanza</span><input list="citizenship-options" data-name="citizenship_label" placeholder="Seleziona o digita"></label>
                         <label><span>Provincia di residenza</span><input list="province-options" data-name="residence_province" placeholder="Seleziona o digita"></label>
                         <label><span>Luogo di residenza</span><input type="text" data-name="residence_place" maxlength="120"></label>
@@ -142,8 +142,8 @@ require_once __DIR__ . '/includes/header.php';
                             <?php foreach ($documentTypes as $value => $label): ?><option value="<?= e($value) ?>"><?= e($label) ?></option><?php endforeach; ?>
                         </select></label>
                         <label><span>N. documento</span><input type="text" data-name="document_number" maxlength="50"></label>
-                        <label><span>Data documento</span><input type="text" class="js-date" data-name="document_issue_date" placeholder="gg/mm/aaaa"></label>
-                        <label><span>Scadenza documento</span><input type="text" class="js-date" data-name="document_expiry_date" placeholder="gg/mm/aaaa"></label>
+                        <label><span>Data documento</span><input type="text" class="js-date" data-date-role="document-issue" data-name="document_issue_date" placeholder="Seleziona la data" autocomplete="off"></label>
+                        <label><span>Scadenza documento</span><input type="text" class="js-date" data-date-role="document-expiry" data-name="document_expiry_date" placeholder="Seleziona la data" autocomplete="off"></label>
                         <label><span>Luogo di emissione</span><input list="city-options" data-name="document_issue_place" placeholder="Seleziona o digita"></label>
                         <label><span>Email</span><input type="email" data-name="email" maxlength="190"></label>
                         <label><span>Telefono</span><input type="text" data-name="phone" maxlength="40"></label>

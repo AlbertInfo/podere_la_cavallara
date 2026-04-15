@@ -18,7 +18,7 @@
         </label>
         <label>
             <span>Data di nascita</span>
-            <input type="text" name="<?= e($prefix) ?>[birth_date]" class="js-date" placeholder="gg/mm/aaaa" required>
+            <input type="text" name="<?= e($prefix) ?>[birth_date]" class="js-date" data-date-role="birth" placeholder="Seleziona la data" autocomplete="off" required>
         </label>
         <label>
             <span>Cittadinanza</span>
@@ -46,11 +46,11 @@
         </label>
         <label>
             <span>Data documento</span>
-            <input type="text" name="<?= e($prefix) ?>[document_issue_date]" class="js-date" placeholder="gg/mm/aaaa">
+            <input type="text" name="<?= e($prefix) ?>[document_issue_date]" class="js-date" data-date-role="document-issue" placeholder="Seleziona la data" autocomplete="off">
         </label>
         <label>
             <span>Scadenza documento</span>
-            <input type="text" name="<?= e($prefix) ?>[document_expiry_date]" class="js-date" placeholder="gg/mm/aaaa" required>
+            <input type="text" name="<?= e($prefix) ?>[document_expiry_date]" class="js-date" data-date-role="birth" placeholder="Seleziona la data" autocomplete="off" required>
         </label>
         <label>
             <span>Luogo di emissione</span>
