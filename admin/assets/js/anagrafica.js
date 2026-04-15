@@ -66,11 +66,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       createDatePicker(field, {
-        ...options,
-        onReady: [() => syncDateConstraints(scope)],
-        onChange: [() => syncDateConstraints(scope)],
-        onValueUpdate: [() => syncDateConstraints(scope)],
-      });
+      ...options,
+      onReady: [() => syncDateConstraints(scope)],
+      onChange: [() => syncDateConstraints(scope)],
+    });
     });
 
     syncDateConstraints(scope);
