@@ -79,12 +79,20 @@ def preprocess_with_opencv(path: str) -> str:
 
     height, width = image.shape[:2]
     max_width = 1600
+    max_height = 1600
 
     if width > max_width:
         scale = max_width / float(width)
         new_width = int(width * scale)
         new_height = int(height * scale)
         image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)
+
+    if height > max_height:
+        scale = max_height / float(height)
+        new_width = int(width * scale)
+        new_height = int(height * scale)
+        image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)    
+
 
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     filtered = cv2.bilateralFilter(gray, 9, 75, 75)
