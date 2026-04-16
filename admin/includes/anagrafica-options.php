@@ -99,3 +99,9 @@ function ross1000_property_config_ready(array $config): bool
         && (int) ($config['camere_disponibili'] ?? 0) > 0
         && (int) ($config['letti_disponibili'] ?? 0) > 0;
 }
+
+
+function anagrafica_default_italy_state_code(): string
+{
+    return '100000100';
+}
