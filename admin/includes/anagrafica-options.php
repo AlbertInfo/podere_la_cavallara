@@ -50,7 +50,9 @@ function anagrafica_csv_rows(string $relative): array
         return $cache[$relative] = [];
     }
 
-    $headers = array_map(static function ($value) { return trim((string) $value); }, $headers);
+    $headers = array_map(static function ($value) {
+        return trim((string) $value);
+    }, $headers);
 
     while (($data = fgetcsv($handle)) !== false) {
         if ($data === [null] || $data === false) {
