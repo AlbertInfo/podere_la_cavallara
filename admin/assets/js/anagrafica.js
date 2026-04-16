@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const arrivalField = form.querySelector('[data-date-role="arrival"]');
   const departureField = form.querySelector('[data-date-role="departure"]');
   const baseUrl = panel.dataset.baseUrl || window.location.pathname;
+  const leaderTypeField = form.querySelector('[data-leader-type]');
 
   let cloneIndex = repeater ? repeater.querySelectorAll('[data-guest-card]').length + 1 : 1;
 
@@ -31,18 +32,6 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshGuestCounters();
     updateGroupState();
     syncDateConstraints(form);
-  }
-
-  function openPanel() {
-    setPanelState(true);
-  }
-
-  function closePanel() {
-    setPanelState(false);
-    resetCreateMode();
-    if (window.history && typeof window.history.replaceState === 'function') {
-      window.history.replaceState({}, document.title, baseUrl);
-    }
   }
 
   function createDatePicker(element, options = {}) {
@@ -103,6 +92,11 @@ document.addEventListener('DOMContentLoaded', () => {
     syncDateConstraints(scope);
   }
 
+  function syncLeaderTypeDefault() {
+    if (!leaderTypeField || form.dataset.mode !== 'create') return;
+    leaderTypeField.value = recordType?.value === 'group' ? '18' : '16';
+  }
+
   function updateGroupState() {
     const isGroup = recordType && recordType.value === 'group';
     if (addButton) {
@@ -119,6 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
         expectedGuests.value = String(Math.max(2, 1 + repeater.querySelectorAll('[data-guest-card]').length));
       }
     }
+    syncLeaderTypeDefault();
   }
 
   function refreshGuestCounters() {
@@ -161,11 +156,14 @@ document.addEventListener('DOMContentLoaded', () => {
         'last_name',
         'birth_date',
         'citizenship_label',
-        'residence_province',
-        'residence_place',
         'document_number',
         'document_expiry_date',
         'document_issue_place',
+        'tipoalloggiato_code',
+        'citizenship_code',
+        'residence_state_code',
+        'residence_place_code',
+        'birth_state_code',
         'tourism_type',
         'transport_type',
       ].includes(field.dataset.name)) {
@@ -206,13 +204,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   closeButton?.addEventListener('click', (event) => {
     event.preventDefault();
-    closePanel();
+    setPanelState(false);
+    if (window.history && typeof window.history.replaceState === 'function') {
+      window.history.replaceState({}, document.title, baseUrl);
+    }
   });
 
   openLinks.forEach((link) => {
     link.addEventListener('click', (event) => {
       event.preventDefault();
-      openPanel();
+      setPanelState(true);
       if (window.history && typeof window.history.replaceState === 'function') {
         window.history.replaceState({}, document.title, link.getAttribute('href') || baseUrl);
       }

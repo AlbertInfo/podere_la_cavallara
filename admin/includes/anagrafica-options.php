@@ -61,3 +61,24 @@ function anagrafica_transport_types(): array
 {
     return ['Auto', 'Aereo', 'Aereo+Pullman', 'Aereo+Navetta/Taxi/Auto', 'Aereo+Treno', 'Treno', 'Pullman', 'Caravan/Autocaravan', 'Barca/Nave/Traghetto', 'Moto', 'Bicicletta', 'A piedi', 'Altro mezzo', 'Non specificato'];
 }
+
+function anagrafica_tipo_alloggiato_options(): array
+{
+    return [
+        '16' => '16 · Ospite singolo',
+        '17' => '17 · Capo famiglia',
+        '18' => '18 · Capo gruppo',
+        '19' => '19 · Familiare',
+        '20' => '20 · Membro gruppo',
+    ];
+}
+
+function anagrafica_titoli_studio(): array
+{
+    return ['Licenza elementare', 'Diploma', 'Laurea', 'Altro titolo', 'Non specificato'];
+}
+
+function anagrafica_default_italy_state_code(): string
+{
+    return '100000100';
+}
