@@ -15,7 +15,7 @@ function ross1000_format_date(?string $value): string
     return $timestamp ? date('Ymd', $timestamp) : '';
 }
 
-function ross1000_normalize_decimal(mixed $value): string
+function ross1000_normalize_decimal($value): string
 {
     if ($value === null || trim((string) $value) === '') {
         return '';
@@ -32,8 +32,11 @@ function ross1000_normalize_decimal(mixed $value): string
 function ross1000_is_open_on_date(array $config, string $date): bool
 {
     if (!empty($config['aperto_tutto_anno'])) {
-        $dayIsClosed = in_array($date, (array) ($config['giorni_chiusura'] ?? []), true);
-        if ($dayIsClosed) {
+        return true;
+    }
+
+    foreach ((array) ($config['giorni_chiusura'] ?? []) as $closedDate) {
+        if ($closedDate === $date) {
             return false;
         }
     }
@@ -49,9 +52,7 @@ function ross1000_is_open_on_date(array $config, string $date): bool
         }
     }
 
-    return !empty($config['aperto_tutto_anno']) || !empty($config['giorni_chiusura']) || !empty($config['periodi_chiusura'])
-        ? true
-        : true;
+    return true;
 }
 
 function ross1000_fetch_record(PDO $pdo, int $recordId): array
@@ -86,11 +87,11 @@ function ross1000_validate_required_data(array $config, array $record, array $gu
     if (trim((string) ($record['ross_prenotazione_idswh'] ?? '')) === '') {
         $errors[] = 'Manca l\'idswh della prenotazione.';
     }
-    if (trim((string) ($record['arrival_date'] ?? '')) === '' || trim((string) ($record['departure_date'] ?? '')) === '') {
-        $errors[] = 'Date di arrivo e partenza obbligatorie.';
-    }
     if (trim((string) ($record['booking_received_date'] ?? '')) === '') {
         $errors[] = 'Compila la data registrazione prenotazione.';
+    }
+    if (trim((string) ($record['arrival_date'] ?? '')) === '' || trim((string) ($record['departure_date'] ?? '')) === '') {
+        $errors[] = 'Date di arrivo e partenza obbligatorie.';
     }
     if ((int) ($record['reserved_rooms'] ?? 0) <= 0) {
         $errors[] = 'Numero camere non valido.';
@@ -98,7 +99,6 @@ function ross1000_validate_required_data(array $config, array $record, array $gu
 
     foreach ($guests as $index => $guest) {
         $prefix = 'Ospite #' . ($index + 1) . ' (' . trim((string) (($guest['first_name'] ?? '') . ' ' . ($guest['last_name'] ?? ''))) . ')';
-
         $requiredFields = [
             'guest_idswh' => 'idswh ospite',
             'tipoalloggiato_code' => 'tipo alloggiato',
@@ -108,8 +108,7 @@ function ross1000_validate_required_data(array $config, array $record, array $gu
             'birth_date' => 'data di nascita',
             'citizenship_code' => 'codice cittadinanza',
             'residence_state_code' => 'codice stato residenza',
-            'residence_place_code' => 'codice luogo residenza',
-            'birth_state_code' => 'codice stato nascita',
+            'residence_place_code' => 'luogo residenza',
             'tourism_type' => 'tipo turismo',
             'transport_type' => 'mezzo di trasporto',
         ];
@@ -120,12 +119,8 @@ function ross1000_validate_required_data(array $config, array $record, array $gu
             }
         }
 
-        if ((string) ($guest['birth_state_code'] ?? '') === anagrafica_default_italy_state_code() && trim((string) ($guest['birth_city_code'] ?? '')) === '') {
-            $errors[] = $prefix . ': se stato nascita è Italia serve il codice comune nascita.';
-        }
-
         if (in_array((string) ($guest['tipoalloggiato_code'] ?? ''), ['19', '20'], true) && trim((string) ($guest['leader_idswh'] ?? '')) === '') {
-            $errors[] = $prefix . ': i familiari/componenti devono avere idcapo valorizzato.';
+            $errors[] = $prefix . ': i componenti gruppo/famiglia devono avere idcapo valorizzato.';
         }
     }
 
@@ -153,9 +148,8 @@ function ross1000_compute_occupied_rooms(PDO $pdo, string $date): int
     return (int) $stmt->fetchColumn();
 }
 
-function ross1000_build_guest_arrivo(array $guest, array $record, ?string $leaderIdswh): array
+function ross1000_build_guest_arrivo(array $guest, array $record): array
 {
-    $isLeader = (int) ($guest['is_group_leader'] ?? 0) === 1;
     $bookingChannel = trim((string) ($guest['guest_booking_channel'] ?? '')) !== ''
         ? (string) $guest['guest_booking_channel']
         : (string) ($record['booking_channel'] ?? '');
@@ -163,7 +157,7 @@ function ross1000_build_guest_arrivo(array $guest, array $record, ?string $leade
     return [
         'idswh' => (string) ($guest['guest_idswh'] ?? ''),
         'tipoalloggiato' => (string) ($guest['tipoalloggiato_code'] ?? ''),
-        'idcapo' => $isLeader ? '' : (string) ($guest['leader_idswh'] ?? $leaderIdswh ?? ''),
+        'idcapo' => (int) ($guest['is_group_leader'] ?? 0) === 1 ? '' : (string) ($guest['leader_idswh'] ?? ''),
         'cognome' => (string) ($guest['last_name'] ?? ''),
         'nome' => (string) ($guest['first_name'] ?? ''),
         'sesso' => (string) ($guest['gender'] ?? ''),
@@ -208,7 +202,7 @@ function ross1000_build_prenotazione(array $record): array
 
 function ross1000_build_intermediate_array(PDO $pdo, int $recordId): array
 {
-    [$record, $guests] = ross1000_fetch_record($pdo, $recordId);
+    list($record, $guests) = ross1000_fetch_record($pdo, $recordId);
     $config = ross1000_property_config();
 
     $errors = ross1000_validate_required_data($config, $record, $guests);
@@ -236,14 +230,6 @@ function ross1000_build_intermediate_array(PDO $pdo, int $recordId): array
         ];
     }
 
-    $leaderIdswh = null;
-    foreach ($guests as $guest) {
-        if ((int) ($guest['is_group_leader'] ?? 0) === 1) {
-            $leaderIdswh = (string) ($guest['guest_idswh'] ?? '');
-            break;
-        }
-    }
-
     $bookingReceivedDate = substr((string) ($record['booking_received_date'] ?? ''), 0, 10);
     $arrivalDate = substr((string) ($record['arrival_date'] ?? ''), 0, 10);
     $departureDate = substr((string) ($record['departure_date'] ?? ''), 0, 10);
@@ -251,13 +237,11 @@ function ross1000_build_intermediate_array(PDO $pdo, int $recordId): array
     if (isset($movements[$bookingReceivedDate])) {
         $movements[$bookingReceivedDate]['prenotazioni'][] = ross1000_build_prenotazione($record);
     }
-
     if (isset($movements[$arrivalDate])) {
         foreach ($guests as $guest) {
-            $movements[$arrivalDate]['arrivi'][] = ross1000_build_guest_arrivo($guest, $record, $leaderIdswh);
+            $movements[$arrivalDate]['arrivi'][] = ross1000_build_guest_arrivo($guest, $record);
         }
     }
-
     if (isset($movements[$departureDate])) {
         foreach ($guests as $guest) {
             $movements[$departureDate]['partenze'][] = ross1000_build_guest_partenza($guest, $record);
@@ -266,7 +250,7 @@ function ross1000_build_intermediate_array(PDO $pdo, int $recordId): array
 
     return [
         'codice' => (string) ($config['codice_struttura'] ?? ''),
-        'prodotto' => (string) ($config['prodotto'] ?? ADMIN_APP_NAME),
+        'prodotto' => (string) ($config['prodotto'] ?? (defined('ADMIN_APP_NAME') ? ADMIN_APP_NAME : 'Admin')),
         'record' => $record,
         'guests' => $guests,
         'movimenti' => array_values($movements),

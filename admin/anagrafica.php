@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/anagrafica-options.php';
+require_once __DIR__ . '/includes/ross1000-config.php';
 require_admin();
 
 $pageTitle = 'Sezione anagrafica';
@@ -59,25 +60,35 @@ try {
     $editingGuests = [];
 }
 
-$cittadinanze = anagrafica_eu_citizenships();
+$stateOptions = anagrafica_state_options();
 $province = anagrafica_province_italiane();
 $documentTypes = anagrafica_document_types();
-$citta = anagrafica_citta_italiane_principali();
+$cityOptions = anagrafica_comune_option_labels();
+$placeOptions = anagrafica_place_option_labels();
 $channels = anagrafica_booking_channels();
 $tourismTypes = anagrafica_tourism_types();
 $transportTypes = anagrafica_transport_types();
+$educationLevels = anagrafica_titoli_studio();
+$recordTypeOptions = anagrafica_record_type_options();
+$rossConfigReady = function_exists('ross1000_property_config_ready') && function_exists('ross1000_property_config')
+    ? ross1000_property_config_ready(ross1000_property_config())
+    : false;
 
 $formIsEdit = $editingRecord !== null;
 $formRecord = [
     'id' => $editingRecord['id'] ?? 0,
     'record_type' => $editingRecord['record_type'] ?? 'single',
     'booking_reference' => $editingRecord['booking_reference'] ?? '',
+    'booking_received_date' => anagrafica_form_date($editingRecord['booking_received_date'] ?? date('Y-m-d')),
     'arrival_date' => anagrafica_form_date($editingRecord['arrival_date'] ?? ''),
     'departure_date' => anagrafica_form_date($editingRecord['departure_date'] ?? ''),
     'expected_guests' => (string) ($editingRecord['expected_guests'] ?? 1),
     'reserved_rooms' => (string) ($editingRecord['reserved_rooms'] ?? 1),
     'booking_channel' => $editingRecord['booking_channel'] ?? '',
     'daily_price' => $editingRecord['daily_price'] ?? '',
+    'booking_provenience_state_label' => $editingRecord['booking_provenience_state_label'] ?? '',
+    'booking_provenience_province' => $editingRecord['booking_provenience_province'] ?? '',
+    'booking_provenience_place_label' => $editingRecord['booking_provenience_place_label'] ?? '',
 ];
 
 $leaderGuest = $editingGuests[0] ?? [];
@@ -94,7 +105,7 @@ require_once __DIR__ . '/includes/header.php';
         <div class="booking-hero-copy">
             <span class="eyebrow">Sezione anagrafica</span>
             <h1>Anagrafiche / prenotazioni</h1>
-            <p class="muted">Gestisci le anagrafiche create, riaprile per modificarle e prepara il terreno ai futuri export.</p>
+            <p class="muted">Gestisci le anagrafiche create, riaprile per modificarle e prepara gli export ROSS1000.</p>
         </div>
         <div class="toolbar anagrafica-hero__actions">
             <a class="btn btn-primary" href="<?= e($newPageUrl) ?>" data-anagrafica-open-link>Nuova anagrafica</a>
@@ -105,8 +116,9 @@ require_once __DIR__ . '/includes/header.php';
     <?php if (!$recordTableReady): ?>
         <section class="anagrafica-alert-card">
             <h2>Attivazione database richiesta</h2>
-            <p class="muted">Prima di usare il salvataggio esegui la migration SQL della sezione anagrafica.</p>
+            <p class="muted">Prima di usare il salvataggio esegui le migration SQL della sezione anagrafica.</p>
             <div class="code">admin/database/2026-04-15_anagrafica_records.sql</div>
+            <div class="code">admin/database/2026-04-16_anagrafica_ross1000_mapping.sql</div>
         </section>
     <?php endif; ?>
 
@@ -119,12 +131,7 @@ require_once __DIR__ . '/includes/header.php';
             <div class="anagrafica-summary-meta"><?= count($records) ?> record</div>
         </div>
 
-        <?php if (!$recordTableReady): ?>
-            <div class="anagrafica-empty-state">
-                <strong>Tabella non attiva</strong>
-                <p class="muted">Completa prima la migration, poi qui vedrai le anagrafiche salvate.</p>
-            </div>
-        <?php elseif (empty($records)): ?>
+        <?php if (!$records): ?>
             <div class="anagrafica-empty-state">
                 <strong>Nessuna anagrafica presente</strong>
                 <p class="muted">Clicca su “Nuova anagrafica” per creare il primo record.</p>
@@ -151,6 +158,7 @@ require_once __DIR__ . '/includes/header.php';
                         if ((int) $record['id'] === $deletedRecordId) {
                             $rowClass[] = 'is-deleted';
                         }
+                        $recordTypeLabel = $recordTypeOptions[$record['record_type'] ?? 'single'] ?? 'Ospite singolo';
                         ?>
                         <article
                             class="anagrafica-list__row <?= e(implode(' ', $rowClass)) ?>"
@@ -166,17 +174,17 @@ require_once __DIR__ . '/includes/header.php';
                                     <?php if (!empty($record['booking_reference'])): ?>
                                         <span>Rif. <?= e((string) $record['booking_reference']) ?></span>
                                     <?php endif; ?>
-                                    <span><?= ($record['record_type'] ?? 'single') === 'group' ? 'Gruppo / famiglia' : 'Singolo' ?></span>
+                                    <span><?= e($recordTypeLabel) ?></span>
                                     <span><?= (int) ($record['expected_guests'] ?? 0) ?> ospiti</span>
                                 </div>
                             </div>
                             <div role="cell"><span class="anagrafica-list__date"><?= e(date('d/m/Y', strtotime((string) $record['arrival_date']))) ?></span></div>
                             <div role="cell"><span class="anagrafica-list__date"><?= e(date('d/m/Y', strtotime((string) $record['departure_date']))) ?></span></div>
                             <div class="anagrafica-list__actions" role="cell" data-row-ignore>
-                                <button type="button" class="anagrafica-icon-btn" title="Crea file ROSS1000" aria-label="Crea file ROSS1000" disabled>
+                                <a class="anagrafica-icon-btn<?= $rossConfigReady ? '' : ' is-disabled' ?>" href="<?= $rossConfigReady ? e(admin_url('actions/generate-ross1000.php?record_id=' . (int) $record['id'])) : '#' ?>" title="Genera file ROSS1000" aria-label="Genera file ROSS1000"<?= $rossConfigReady ? '' : ' tabindex="-1" aria-disabled="true"' ?>>
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><path d="M14 3v6h6"></path><path d="M8 13h8"></path><path d="M8 17h6"></path></svg>
                                     <span class="anagrafica-icon-btn__label">ROSS1000</span>
-                                </button>
+                                </a>
                                 <button type="button" class="anagrafica-icon-btn anagrafica-icon-btn--secondary" title="Crea file Alloggiati Web" aria-label="Crea file Alloggiati Web" disabled>
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v12H4z"></path><path d="M8 20h8"></path><path d="M10 16v4"></path><path d="M8 8h8"></path><path d="M8 12h5"></path></svg>
                                     <span class="anagrafica-icon-btn__label">Alloggiati</span>
@@ -214,13 +222,18 @@ require_once __DIR__ . '/includes/header.php';
                     <label>
                         <span>Tipologia record</span>
                         <select name="record_type" id="recordType" required>
-                            <option value="single" <?= $formRecord['record_type'] === 'single' ? 'selected' : '' ?>>Ospite singolo</option>
-                            <option value="group" <?= $formRecord['record_type'] === 'group' ? 'selected' : '' ?>>Gruppo / famiglia</option>
+                            <?php foreach ($recordTypeOptions as $key => $label): ?>
+                                <option value="<?= e($key) ?>" <?= $formRecord['record_type'] === $key ? 'selected' : '' ?>><?= e($label) ?></option>
+                            <?php endforeach; ?>
                         </select>
                     </label>
                     <label>
                         <span>Riferimento prenotazione</span>
                         <input type="text" name="booking_reference" maxlength="50" value="<?= e((string) $formRecord['booking_reference']) ?>" placeholder="Es. PLC-2026-0012">
+                    </label>
+                    <label>
+                        <span>Data registrazione prenotazione</span>
+                        <input type="text" name="booking_received_date" class="js-date" data-date-role="booking-received" value="<?= e((string) $formRecord['booking_received_date']) ?>" placeholder="Seleziona la data" autocomplete="off" required>
                     </label>
                     <label>
                         <span>Data arrivo prevista</span>
@@ -251,6 +264,18 @@ require_once __DIR__ . '/includes/header.php';
                         <span>Prezzo per persona / giorno</span>
                         <input type="number" step="0.01" min="0" name="daily_price" value="<?= e((string) $formRecord['daily_price']) ?>" placeholder="Es. 65.00">
                     </label>
+                    <label>
+                        <span>Stato provenienza prenotazione</span>
+                        <input list="state-options" name="booking_provenience_state_label" value="<?= e((string) $formRecord['booking_provenience_state_label']) ?>" placeholder="Seleziona o digita">
+                    </label>
+                    <label>
+                        <span>Provincia provenienza (se Italia)</span>
+                        <input list="province-options" name="booking_provenience_province" value="<?= e((string) $formRecord['booking_provenience_province']) ?>" placeholder="Seleziona o digita">
+                    </label>
+                    <label>
+                        <span>Luogo provenienza prenotazione</span>
+                        <input list="place-options" name="booking_provenience_place_label" value="<?= e((string) $formRecord['booking_provenience_place_label']) ?>" placeholder="Comune italiano, NUTS o località">
+                    </label>
                 </div>
             </div>
 
@@ -267,8 +292,8 @@ require_once __DIR__ . '/includes/header.php';
             <div class="anagrafica-section">
                 <div class="anagrafica-section__header">
                     <div>
-                        <h3>Componenti del gruppo</h3>
-                        <p class="muted">Aggiungi altri ospiti solo quando il record è di tipo gruppo / famiglia.</p>
+                        <h3>Componenti aggiuntivi</h3>
+                        <p class="muted">Aggiungi altri ospiti solo quando il record è di tipo Famiglia o Gruppo.</p>
                     </div>
                     <button class="btn btn-light" type="button" id="addGuestButton">Aggiungi componente</button>
                 </div>
@@ -284,7 +309,7 @@ require_once __DIR__ . '/includes/header.php';
                     <div class="anagrafica-guest-card__top">
                         <div>
                             <strong>Componente <span data-guest-number></span></strong>
-                            <p class="muted">Questo ospite verrà collegato al capogruppo.</p>
+                            <p class="muted">Questo ospite verrà collegato automaticamente al capogruppo.</p>
                         </div>
                         <button class="btn btn-light btn-sm" type="button" data-remove-guest>Rimuovi</button>
                     </div>
@@ -293,18 +318,25 @@ require_once __DIR__ . '/includes/header.php';
                         <label><span>Cognome</span><input type="text" data-name="last_name" maxlength="100"></label>
                         <label><span>Sesso</span><select data-name="gender"><option value="M">Maschio</option><option value="F">Femmina</option></select></label>
                         <label><span>Data di nascita</span><input type="text" class="js-date" data-date-role="birth" data-name="birth_date" placeholder="Seleziona la data" autocomplete="off"></label>
-                        <label><span>Cittadinanza</span><input list="citizenship-options" data-name="citizenship_label" placeholder="Seleziona o digita"></label>
-                        <label><span>Provincia di residenza</span><input list="province-options" data-name="residence_province" placeholder="Seleziona o digita"></label>
-                        <label><span>Luogo di residenza</span><input type="text" data-name="residence_place" maxlength="120"></label>
-                        <label><span>Tipologia documento</span><select data-name="document_type"><?php foreach ($documentTypes as $value => $label): ?><option value="<?= e($value) ?>"><?= e($label) ?></option><?php endforeach; ?></select></label>
+                        <label><span>Cittadinanza</span><input list="state-options" data-name="citizenship_label" placeholder="Seleziona o digita"></label>
+                        <label><span>Stato di nascita</span><input list="state-options" data-name="birth_state_label" value="<?= e(anagrafica_default_state_label()) ?>" placeholder="Seleziona o digita"></label>
+                        <label><span>Provincia nascita (se Italia)</span><input list="province-options" data-name="birth_province" placeholder="Seleziona o digita"></label>
+                        <label><span>Luogo/comune nascita</span><input list="city-options" data-name="birth_place_label" placeholder="Se Italia scegli il comune"></label>
+                        <label><span>Stato di residenza</span><input list="state-options" data-name="residence_state_label" value="<?= e(anagrafica_default_state_label()) ?>" placeholder="Seleziona o digita"></label>
+                        <label><span>Provincia residenza (se Italia)</span><input list="province-options" data-name="residence_province" placeholder="Seleziona o digita"></label>
+                        <label><span>Luogo residenza</span><input list="place-options" data-name="residence_place_label" placeholder="Comune italiano, NUTS o località"></label>
+                        <label><span>Tipologia documento</span><select data-name="document_type_label"><option value="">Seleziona</option><?php foreach ($documentTypes as $value => $label): ?><option value="<?= e($label) ?>"><?= e($label) ?></option><?php endforeach; ?></select></label>
                         <label><span>N. documento</span><input type="text" data-name="document_number" maxlength="50"></label>
                         <label><span>Data documento</span><input type="text" class="js-date" data-date-role="document-issue" data-name="document_issue_date" placeholder="Seleziona la data" autocomplete="off"></label>
                         <label><span>Scadenza documento</span><input type="text" class="js-date" data-date-role="document-expiry" data-name="document_expiry_date" placeholder="Seleziona la data" autocomplete="off"></label>
-                        <label><span>Luogo di emissione</span><input list="city-options" data-name="document_issue_place" placeholder="Seleziona o digita"></label>
+                        <label><span>Luogo emissione documento</span><input list="city-options" data-name="document_issue_place" placeholder="Seleziona o digita"></label>
                         <label><span>Email</span><input type="email" data-name="email" maxlength="190"></label>
                         <label><span>Telefono</span><input type="text" data-name="phone" maxlength="40"></label>
                         <label><span>Tipo turismo</span><select data-name="tourism_type"><?php foreach ($tourismTypes as $value): ?><option value="<?= e($value) ?>"><?= e($value) ?></option><?php endforeach; ?></select></label>
                         <label><span>Mezzo di trasporto</span><select data-name="transport_type"><?php foreach ($transportTypes as $value): ?><option value="<?= e($value) ?>"><?= e($value) ?></option><?php endforeach; ?></select></label>
+                        <label><span>Titolo di studio</span><select data-name="education_level"><option value="">Seleziona</option><?php foreach ($educationLevels as $value): ?><option value="<?= e($value) ?>"><?= e($value) ?></option><?php endforeach; ?></select></label>
+                        <label><span>Professione</span><input type="text" data-name="profession" maxlength="120"></label>
+                        <label><span>Codice esenzione imposta</span><input type="text" data-name="tax_exemption_code" maxlength="40"></label>
                     </div>
                 </div>
             </template>
@@ -316,8 +348,9 @@ require_once __DIR__ . '/includes/header.php';
     </section>
 </div>
 
-<datalist id="citizenship-options"><?php foreach ($cittadinanze as $citizenship): ?><option value="<?= e($citizenship) ?>"><?php endforeach; ?></datalist>
+<datalist id="state-options"><?php foreach ($stateOptions as $code => $label): ?><option value="<?= e($label) ?>"><?php endforeach; ?></datalist>
 <datalist id="province-options"><?php foreach ($province as $code => $provinceName): ?><option value="<?= e($provinceName) ?>"><?php endforeach; ?></datalist>
-<datalist id="city-options"><?php foreach ($citta as $city): ?><option value="<?= e($city) ?>"><?php endforeach; ?></datalist>
+<datalist id="city-options"><?php foreach ($cityOptions as $city): ?><option value="<?= e($city) ?>"><?php endforeach; ?></datalist>
+<datalist id="place-options"><?php foreach ($placeOptions as $place): ?><option value="<?= e($place) ?>"><?php endforeach; ?></datalist>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

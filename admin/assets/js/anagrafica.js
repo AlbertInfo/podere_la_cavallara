@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function updateGroupState() {
-    const isGroup = recordType && recordType.value === 'group';
+    const isGroup = recordType && recordType.value !== 'single';
     if (addButton) {
       addButton.disabled = !isGroup;
       addButton.classList.toggle('is-disabled', !isGroup);
@@ -127,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const numberNode = card.querySelector('[data-guest-number]');
       if (numberNode) numberNode.textContent = String(index + 2);
     });
-    if (expectedGuests && recordType?.value === 'group') {
+    if (expectedGuests && recordType?.value !== 'single') {
       expectedGuests.value = String(1 + repeater.querySelectorAll('[data-guest-card]').length);
     }
   }
@@ -161,11 +161,11 @@ document.addEventListener('DOMContentLoaded', () => {
         'last_name',
         'birth_date',
         'citizenship_label',
-        'residence_province',
-        'residence_place',
+        'residence_state_label',
+        'residence_place_label',
+        'document_type_label',
         'document_number',
         'document_expiry_date',
-        'document_issue_place',
         'tourism_type',
         'transport_type',
       ].includes(field.dataset.name)) {

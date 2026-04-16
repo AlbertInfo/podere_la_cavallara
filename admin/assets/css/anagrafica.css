@@ -156,6 +156,11 @@
   cursor: not-allowed;
 }
 
+.anagrafica-icon-btn.is-disabled {
+  opacity: .72;
+  pointer-events: none;
+}
+
 .anagrafica-delete-form {
   margin: 0;
 }
