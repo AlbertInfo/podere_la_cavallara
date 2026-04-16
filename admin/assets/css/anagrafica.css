@@ -214,10 +214,6 @@
   color: #334155;
 }
 
-.anagrafica-grid label.anagrafica-grid__wide {
-  grid-column: span 2;
-}
-
 .anagrafica-grid input,
 .anagrafica-grid select,
 .anagrafica-grid .flatpickr-input {

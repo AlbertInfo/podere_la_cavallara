@@ -15,8 +15,8 @@ verify_csrf();
 
 function redirect_to(string $url, string $type, string $message): never
 {
-    if (function_exists('set_flash')) {
-        set_flash($type, $message);
+    if (function_exists('flash_set')) {
+        flash_set($type, $message);
     }
     header('Location: ' . $url);
     exit;

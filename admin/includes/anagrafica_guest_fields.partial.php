@@ -17,17 +17,13 @@ $fieldDate = static function (array $data, string $key): string {
     $ts = strtotime($value);
     return $ts ? date('d/m/Y', $ts) : $value;
 };
-
-$selectedDocumentType = anagrafica_map_document_type_code($fieldValue($guestData, 'document_type', 'IDELE')) ?? 'IDELE';
-$residenceStateValue = $fieldValue($guestData, 'residence_state_label', 'Italia');
-$birthStateValue = $fieldValue($guestData, 'birth_state_label', 'Italia');
 ?>
 <div class="anagrafica-guest-card<?= $isRepeaterGuest ? '' : ' anagrafica-guest-card--primary' ?>"<?= $isRepeaterGuest ? ' data-guest-card' : '' ?>>
     <?php if ($isRepeaterGuest): ?>
         <div class="anagrafica-guest-card__top">
             <div>
                 <strong>Componente <span data-guest-number><?= e((string) $guestNumber) ?></span></strong>
-                <p class="muted">Questo ospite verrà collegato al capogruppo con tipo alloggiato automatico.</p>
+                <p class="muted">Questo ospite verrà collegato al capogruppo.</p>
             </div>
             <button class="btn btn-light btn-sm" type="button" data-remove-guest>Rimuovi</button>
         </div>
@@ -58,34 +54,18 @@ $birthStateValue = $fieldValue($guestData, 'birth_state_label', 'Italia');
             <input list="citizenship-options" name="<?= e($prefix) ?>[citizenship_label]" value="<?= e($fieldValue($guestData, 'citizenship_label')) ?>" placeholder="Seleziona o digita" required>
         </label>
         <label>
-            <span>Stato di residenza</span>
-            <input list="state-options" name="<?= e($prefix) ?>[residence_state_label]" value="<?= e($residenceStateValue) ?>" placeholder="Italia o estero" required>
+            <span>Provincia di residenza</span>
+            <input list="province-options" name="<?= e($prefix) ?>[residence_province]" value="<?= e($fieldValue($guestData, 'residence_province')) ?>" placeholder="Seleziona o digita" required>
         </label>
         <label>
-            <span>Provincia residenza (solo Italia)</span>
-            <input list="province-options" name="<?= e($prefix) ?>[residence_province]" value="<?= e($fieldValue($guestData, 'residence_province')) ?>" placeholder="Es. RM">
-        </label>
-        <label>
-            <span>Comune / località residenza</span>
-            <input type="text" name="<?= e($prefix) ?>[residence_place]" maxlength="120" value="<?= e($fieldValue($guestData, 'residence_place')) ?>" placeholder="Es. Roma / Paris / FR511" required>
-        </label>
-        <label>
-            <span>Stato di nascita</span>
-            <input list="state-options" name="<?= e($prefix) ?>[birth_state_label]" value="<?= e($birthStateValue) ?>" placeholder="Italia o estero" required>
-        </label>
-        <label>
-            <span>Provincia nascita (solo Italia)</span>
-            <input list="province-options" name="<?= e($prefix) ?>[birth_province]" value="<?= e($fieldValue($guestData, 'birth_province')) ?>" placeholder="Es. RM">
-        </label>
-        <label>
-            <span>Comune / località nascita</span>
-            <input type="text" name="<?= e($prefix) ?>[birth_place]" maxlength="120" value="<?= e($fieldValue($guestData, 'birth_place')) ?>" placeholder="Es. Roma" required>
+            <span>Luogo di residenza</span>
+            <input type="text" name="<?= e($prefix) ?>[residence_place]" maxlength="120" value="<?= e($fieldValue($guestData, 'residence_place')) ?>" required>
         </label>
         <label>
             <span>Tipologia documento</span>
             <select name="<?= e($prefix) ?>[document_type]" required>
                 <?php foreach ($documentTypes as $value => $label): ?>
-                    <option value="<?= e($value) ?>" <?= $selectedDocumentType === $value ? 'selected' : '' ?>><?= e($label) ?></option>
+                    <option value="<?= e($value) ?>" <?= $fieldValue($guestData, 'document_type', 'carta_identita') === $value ? 'selected' : '' ?>><?= e($label) ?></option>
                 <?php endforeach; ?>
             </select>
         </label>
@@ -102,12 +82,8 @@ $birthStateValue = $fieldValue($guestData, 'birth_state_label', 'Italia');
             <input type="text" name="<?= e($prefix) ?>[document_expiry_date]" class="js-date" data-date-role="document-expiry" value="<?= e($fieldDate($guestData, 'document_expiry_date')) ?>" placeholder="Seleziona la data" autocomplete="off" required>
         </label>
         <label>
-            <span>Provincia rilascio (solo Italia)</span>
-            <input list="province-options" name="<?= e($prefix) ?>[document_issue_province]" value="<?= e($fieldValue($guestData, 'document_issue_province')) ?>" placeholder="Es. RM">
-        </label>
-        <label>
-            <span>Comune / luogo di rilascio</span>
-            <input type="text" name="<?= e($prefix) ?>[document_issue_place]" value="<?= e($fieldValue($guestData, 'document_issue_place')) ?>" placeholder="Es. Roma">
+            <span>Luogo di emissione</span>
+            <input list="city-options" name="<?= e($prefix) ?>[document_issue_place]" value="<?= e($fieldValue($guestData, 'document_issue_place')) ?>" placeholder="Seleziona o digita" required>
         </label>
         <label>
             <span>Email</span>
