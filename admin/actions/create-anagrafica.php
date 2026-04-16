@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 verify_csrf();
 
-function redirect_to(string $url, string $type, string $message): never
+function redirect_to(string $url, string $type, string $message)
 {
     if (function_exists('flash_set')) {
         flash_set($type, $message);

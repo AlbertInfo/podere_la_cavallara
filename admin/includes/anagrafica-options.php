@@ -50,7 +50,7 @@ function anagrafica_csv_rows(string $relative): array
         return $cache[$relative] = [];
     }
 
-    $headers = array_map(static fn($value) => trim((string) $value), $headers);
+    $headers = array_map(static function ($value) { return trim((string) $value); }, $headers);
 
     while (($data = fgetcsv($handle)) !== false) {
         if ($data === [null] || $data === false) {
@@ -254,13 +254,13 @@ function anagrafica_map_document_type_code(?string $value): ?string
         }
     }
 
-    if (str_contains($normalized, 'PASSAPORT')) {
+    if (strpos($normalized, 'PASSAPORT') !== false) {
         return 'PASOR';
     }
-    if (str_contains($normalized, 'ELETTRON')) {
+    if (strpos($normalized, 'ELETTRON') !== false) {
         return 'IDELE';
     }
-    if (str_contains($normalized, 'IDENTITA')) {
+    if (strpos($normalized, 'IDENTITA') !== false) {
         return 'IDENT';
     }
 
