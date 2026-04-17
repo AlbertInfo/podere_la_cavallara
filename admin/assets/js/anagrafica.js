@@ -190,7 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.querySelectorAll('[data-month-export-form]').forEach((monthForm) => {
     monthForm.addEventListener('submit', (event) => {
-      const ok = window.confirm('Questa azione precompila il mese come aperto per i giorni non ancora chiusi e scarica l'XML mensile ROSS1000. Continuare?');
+      const ok = window.confirm("Questa azione precompila il mese come aperto per i giorni non ancora chiusi e scarica l'XML mensile ROSS1000. Continuare?");
       if (!ok) event.preventDefault();
     });
   });
