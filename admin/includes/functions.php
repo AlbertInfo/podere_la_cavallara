@@ -149,6 +149,39 @@ function validate_password_reset(PDO $pdo, string $email, string $token): ?array
     return null;
 }
 
+
+function contact_requests_last_seen(): ?string
+{
+    $value = $_SESSION['contact_requests_last_seen_at'] ?? null;
+    return is_string($value) && $value !== '' ? $value : null;
+}
+
+function count_unseen_contact_requests(PDO $pdo): int
+{
+    $seenAt = contact_requests_last_seen();
+
+    if (!$seenAt) {
+        return (int) $pdo->query('SELECT COUNT(*) FROM contact_requests')->fetchColumn();
+    }
+
+    $stmt = $pdo->prepare('SELECT COUNT(*) FROM contact_requests WHERE created_at > :seen_at');
+    $stmt->execute(['seen_at' => $seenAt]);
+
+    return (int) $stmt->fetchColumn();
+}
+
+function mark_contact_requests_seen(PDO $pdo): void
+{
+    $latest = $pdo->query('SELECT MAX(created_at) FROM contact_requests')->fetchColumn();
+
+    if (is_string($latest) && $latest !== '') {
+        $_SESSION['contact_requests_seen_at'] = $latest;
+        return;
+    }
+
+    $_SESSION['contact_requests_seen_at'] = (new DateTimeImmutable())->format('Y-m-d H:i:s');
+}
+
 function normalize_optional_email(string $email): ?string
 {
     $email = trim($email);

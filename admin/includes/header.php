@@ -52,7 +52,7 @@ if ($currentAdmin && isset($pdo) && $pdo instanceof PDO) {
     try {
         $sidebarCounters['registered_bookings'] = (int) $pdo->query('SELECT COUNT(*) FROM prenotazioni')->fetchColumn();
         $sidebarCounters['booking_requests'] = (int) $pdo->query('SELECT COUNT(*) FROM booking_requests')->fetchColumn();
-        $sidebarCounters['contact_requests'] = (int) $pdo->query('SELECT COUNT(*) FROM contact_requests')->fetchColumn();
+        $sidebarCounters['contact_requests'] = count_unseen_contact_requests($pdo);
 
         try {
             $sidebarCounters['clienti'] = (int) $pdo->query('SELECT COUNT(*) FROM clienti')->fetchColumn();
@@ -91,7 +91,7 @@ $mobilePageKicker = admin_mobile_page_kicker($currentPath);
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/7.5.0/css/flag-icons.min.css">
     <link rel="shortcut icon" href="<?= e(admin_url('assets/img/favicon.ico')) ?>" type="image/x-icon">
 </head>
-<body data-current-path="<?= e($currentPath) ?>" data-mobile-nav-key="<?= e($mobileNavKey) ?>">
+<body data-current-path="<?= e($currentPath) ?>" data-mobile-nav-key="<?= e($mobileNavKey) ?>" data-mark-contact-requests-url="<?= e(admin_url('actions/mark-contact-requests-seen.php')) ?>">
     <div class="admin-app<?= $currentAdmin ? ' has-sidebar' : ' auth-layout' ?>">
         <?php if ($currentAdmin): ?>
             <aside class="admin-sidebar" id="adminSidebar">
@@ -116,7 +116,7 @@ $mobilePageKicker = admin_mobile_page_kicker($currentPath);
                     </a>
 
                     <a class="sidebar-link<?= admin_nav_active(['anagrafica.php'], $currentPath) ?>" href="<?= e(admin_url('anagrafica.php')) ?>">
-                        <span class="sidebar-link__content">Ross 1000 - AlloggiatiWeb</span>
+                        <span class="sidebar-link__content">Ross1000 - AlloggiatiWeb</span>
                     </a>
 
                     <a class="sidebar-link<?= admin_nav_active(['new-prenotazione.php'], $currentPath) ?>" href="<?= e(admin_url('new-prenotazione.php')) ?>">
@@ -138,10 +138,10 @@ $mobilePageKicker = admin_mobile_page_kicker($currentPath);
                         <?php endif; ?>
                     </a>
 
-                    <a class="sidebar-link<?= admin_nav_active(['index.php'], $currentPath) ?>" href="<?= e(admin_url('index.php#contact-requests')) ?>">
+                    <a class="sidebar-link<?= admin_nav_active(['index.php'], $currentPath) ?>" href="<?= e(admin_url('index.php#contact-requests')) ?>" data-contact-requests-link>
                         <span class="sidebar-link__content">Richieste contatto</span>
                         <?php if ($sidebarCounters['contact_requests'] > 0): ?>
-                            <span class="sidebar-counter sidebar-counter--alert"><?= (int) $sidebarCounters['contact_requests'] ?></span>
+                            <span class="sidebar-counter sidebar-counter--alert" data-contact-requests-badge><?= (int) $sidebarCounters['contact_requests'] ?></span>
                         <?php endif; ?>
                     </a>
                 </nav>
