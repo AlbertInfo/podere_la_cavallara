@@ -202,6 +202,28 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  document.querySelectorAll('.ross-day-settings').forEach((dayForm) => {
+    dayForm.addEventListener('submit', (event) => {
+      const intent = event.submitter?.value || '';
+      if (intent === 'close') {
+        const ok = window.confirm('Chiudere definitivamente il giorno selezionato? Potrai comunque riaprirlo e rigenerarlo in seguito.');
+        if (!ok) event.preventDefault();
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-day-export-link]').forEach((exportLink) => {
+    exportLink.addEventListener('click', (event) => {
+      if (exportLink.classList.contains('is-disabled') || exportLink.getAttribute('aria-disabled') === 'true') {
+        event.preventDefault();
+        return;
+      }
+      const message = exportLink.dataset.confirmMessage || 'Confermare l'esportazione del file?';
+      const ok = window.confirm(message);
+      if (!ok) event.preventDefault();
+    });
+  });
+
   closeButton?.addEventListener('click', (event) => {
     event.preventDefault();
     closePanel();
@@ -232,66 +254,82 @@ document.addEventListener('DOMContentLoaded', () => {
   const dayStrip = document.querySelector('[data-day-strip]');
   const prevDayButton = document.querySelector('[data-day-carousel-prev]');
   const nextDayButton = document.querySelector('[data-day-carousel-next]');
+  const dayScrollTarget = dayViewport || dayStrip;
 
   function updateDayCarouselControls() {
-    if (!dayStrip || !prevDayButton || !nextDayButton) return;
-    const maxScroll = Math.max(0, dayStrip.scrollWidth - dayStrip.clientWidth - 2);
-    prevDayButton.disabled = dayStrip.scrollLeft <= 4;
-    nextDayButton.disabled = dayStrip.scrollLeft >= maxScroll;
+    if (!dayScrollTarget || !prevDayButton || !nextDayButton) return;
+    const maxScroll = Math.max(0, dayScrollTarget.scrollWidth - dayScrollTarget.clientWidth - 2);
+    prevDayButton.disabled = dayScrollTarget.scrollLeft <= 4;
+    nextDayButton.disabled = dayScrollTarget.scrollLeft >= maxScroll;
   }
 
   function scrollDayCarousel(direction) {
-    if (!dayStrip) return;
-    const step = Math.max(260, Math.round(dayStrip.clientWidth * 0.72));
-    dayStrip.scrollBy({ left: step * direction, behavior: 'smooth' });
+    if (!dayScrollTarget) return;
+    const step = Math.max(240, Math.round(dayScrollTarget.clientWidth * 0.82));
+    dayScrollTarget.scrollBy({ left: step * direction, behavior: 'smooth' });
   }
 
-  prevDayButton?.addEventListener('click', () => scrollDayCarousel(-1));
-  nextDayButton?.addEventListener('click', () => scrollDayCarousel(1));
+  function centerDayCard(card, behavior = 'smooth') {
+    if (!dayScrollTarget || !card) return;
+    const targetLeft = card.offsetLeft - ((dayScrollTarget.clientWidth - card.offsetWidth) / 2);
+    dayScrollTarget.scrollTo({ left: Math.max(0, targetLeft), behavior });
+  }
 
-  if (dayStrip) {
+  prevDayButton?.addEventListener('click', (event) => {
+    event.preventDefault();
+    scrollDayCarousel(-1);
+  });
+  nextDayButton?.addEventListener('click', (event) => {
+    event.preventDefault();
+    scrollDayCarousel(1);
+  });
+
+  if (dayScrollTarget) {
     let isPointerDown = false;
     let startX = 0;
     let startScrollLeft = 0;
 
-    dayStrip.addEventListener('scroll', updateDayCarouselControls, { passive: true });
+    dayScrollTarget.addEventListener('scroll', updateDayCarouselControls, { passive: true });
     window.addEventListener('resize', updateDayCarouselControls);
 
-    dayStrip.addEventListener('wheel', (event) => {
+    dayScrollTarget.addEventListener('wheel', (event) => {
       if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
         event.preventDefault();
-        dayStrip.scrollLeft += event.deltaY;
+        dayScrollTarget.scrollLeft += event.deltaY;
       }
     }, { passive: false });
 
-    dayStrip.addEventListener('pointerdown', (event) => {
+    dayScrollTarget.addEventListener('pointerdown', (event) => {
       if (event.pointerType === 'mouse' && event.button !== 0) return;
       isPointerDown = true;
       startX = event.clientX;
-      startScrollLeft = dayStrip.scrollLeft;
-      dayStrip.classList.add('is-dragging');
+      startScrollLeft = dayScrollTarget.scrollLeft;
+      dayCarousel?.classList.add('is-dragging');
+      dayScrollTarget.setPointerCapture?.(event.pointerId);
     });
 
-    dayStrip.addEventListener('pointermove', (event) => {
+    dayScrollTarget.addEventListener('pointermove', (event) => {
       if (!isPointerDown) return;
       const delta = event.clientX - startX;
-      dayStrip.scrollLeft = startScrollLeft - delta;
+      dayScrollTarget.scrollLeft = startScrollLeft - delta;
     });
 
-    const stopDragging = () => {
+    const stopDragging = (event) => {
       isPointerDown = false;
-      dayStrip.classList.remove('is-dragging');
+      dayCarousel?.classList.remove('is-dragging');
+      if (event?.pointerId != null) {
+        try { dayScrollTarget.releasePointerCapture?.(event.pointerId); } catch (e) {}
+      }
     };
 
-    dayStrip.addEventListener('pointerup', stopDragging);
-    dayStrip.addEventListener('pointercancel', stopDragging);
-    dayStrip.addEventListener('pointerleave', stopDragging);
+    dayScrollTarget.addEventListener('pointerup', stopDragging);
+    dayScrollTarget.addEventListener('pointercancel', stopDragging);
     updateDayCarouselControls();
   }
 
   const selectedDayCard = document.querySelector('[data-day-card].is-selected');
   if (selectedDayCard) {
-    selectedDayCard.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    centerDayCard(selectedDayCard, 'auto');
     updateDayCarouselControls();
   }
 });

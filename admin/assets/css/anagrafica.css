@@ -18,6 +18,7 @@
 
 .anagrafica-shell {
   gap: 1.4rem;
+  overflow-x: clip;
 }
 
 .anagrafica-hero {
@@ -123,9 +124,17 @@
 
 .ross-day-carousel__viewport {
   min-width: 0;
-  overflow: hidden;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
   mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
   -webkit-mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
+}
+
+.ross-day-carousel__viewport::-webkit-scrollbar {
+  display: none;
 }
 
 .ross-day-carousel__nav {
@@ -166,16 +175,12 @@
 .ross-day-strip {
   display: flex;
   gap: .85rem;
-  overflow-x: auto;
-  overflow-y: hidden;
+  width: max-content;
+  min-width: 100%;
+  overflow: visible;
   padding: .35rem .15rem .55rem;
   scroll-snap-type: x proximity;
   scroll-behavior: smooth;
-  scrollbar-width: none;
-}
-
-.ross-day-strip::-webkit-scrollbar {
-  display: none;
 }
 
 .ross-day-card {
@@ -205,6 +210,18 @@
   width: 4px;
   border-radius: 999px;
   background: #94a3b8;
+}
+
+.ross-day-carousel.is-dragging {
+  cursor: grabbing;
+}
+
+.ross-day-carousel.is-dragging .ross-day-card {
+  pointer-events: none;
+}
+
+.ross-day-carousel__viewport {
+  cursor: grab;
 }
 
 .ross-day-card::after {
