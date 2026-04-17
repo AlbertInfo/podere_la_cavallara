@@ -198,7 +198,7 @@ require_once __DIR__ . '/includes/header.php';
     <?php endif; ?>
 
     <section class="card ross-month-card">
-        <div class="ross-month-toolbar">
+        <div class="ross-month-toolbar ross-surface">
             <div class="ross-month-toolbar__title">
                 <h2><?= e(anagrafica_month_label($monthStart)) ?></h2>
                 <p class="muted">Ogni card rappresenta una giornata della struttura. Clicca un giorno per gestire apertura, riepilogo e export.</p>
@@ -214,48 +214,60 @@ require_once __DIR__ . '/includes/header.php';
             </form>
         </div>
 
-        <div class="ross-day-strip" aria-label="Calendario giornaliero del mese">
-            <?php foreach ($days as $date => $snapshot): ?>
-                <?php
-                $isSelected = $date === $selectedDay;
-                $isOpen = (bool) $snapshot['is_open'];
-                $dayClass = 'ross-day-card';
-                if ($isSelected) {
-                    $dayClass .= ' is-selected';
-                }
-                if (!$isOpen) {
-                    $dayClass .= ' is-closed';
-                } elseif ((int) ($snapshot['occupied_rooms'] ?? 0) > 0) {
-                    $dayClass .= ' is-busy';
-                } else {
-                    $dayClass .= ' is-zero';
-                }
-                if ((int) (($snapshot['day_state']['is_finalized'] ?? 0)) === 1) {
-                    $dayClass .= ' is-finalized';
-                }
-                ?>
-                <a class="<?= e($dayClass) ?>" href="<?= e(admin_url('anagrafica.php?month=' . rawurlencode($selectedMonth) . '&day=' . rawurlencode($date))) ?>" data-day-card="<?= e($date) ?>">
-                    <div class="ross-day-card__top">
-                        <span class="ross-day-card__weekday"><?= e(anagrafica_weekday_label($date)) ?></span>
-                        <span class="ross-day-card__number"><?= e((new DateTimeImmutable($date))->format('d')) ?></span>
-                    </div>
-                    <div class="ross-day-card__status">
-                        <strong><?= $isOpen ? 'Aperta' : 'Chiusa' ?></strong>
-                        <span><?= ((int) ($snapshot['day_state']['is_finalized'] ?? 0) === 1) ? 'Giorno chiuso' : 'In lavorazione' ?></span>
-                    </div>
-                    <dl class="ross-day-card__metrics">
-                        <div><dt>Cam.</dt><dd><?= (int) ($snapshot['occupied_rooms'] ?? 0) ?></dd></div>
-                        <div><dt>Pers.</dt><dd><?= (int) ($snapshot['present_guests'] ?? 0) ?></dd></div>
-                        <div><dt>Arr.</dt><dd><?= (int) ($snapshot['arrivals_guests'] ?? 0) ?></dd></div>
-                        <div><dt>Part.</dt><dd><?= (int) ($snapshot['departures_guests'] ?? 0) ?></dd></div>
-                    </dl>
-                </a>
-            <?php endforeach; ?>
+        <div class="ross-day-carousel" data-day-carousel>
+            <button class="ross-day-carousel__nav ross-day-carousel__nav--prev" type="button" data-day-carousel-prev aria-label="Scorri ai giorni precedenti">
+                <span aria-hidden="true">‹</span>
+            </button>
+
+            <div class="ross-day-carousel__viewport" data-day-carousel-viewport>
+                <div class="ross-day-strip" data-day-strip aria-label="Calendario giornaliero del mese">
+                    <?php foreach ($days as $date => $snapshot): ?>
+                        <?php
+                        $isSelected = $date === $selectedDay;
+                        $isOpen = (bool) $snapshot['is_open'];
+                        $dayClass = 'ross-day-card';
+                        if ($isSelected) {
+                            $dayClass .= ' is-selected';
+                        }
+                        if (!$isOpen) {
+                            $dayClass .= ' is-closed';
+                        } elseif ((int) ($snapshot['occupied_rooms'] ?? 0) > 0) {
+                            $dayClass .= ' is-busy';
+                        } else {
+                            $dayClass .= ' is-zero';
+                        }
+                        if ((int) (($snapshot['day_state']['is_finalized'] ?? 0)) === 1) {
+                            $dayClass .= ' is-finalized';
+                        }
+                        ?>
+                        <a class="<?= e($dayClass) ?>" href="<?= e(admin_url('anagrafica.php?month=' . rawurlencode($selectedMonth) . '&day=' . rawurlencode($date))) ?>" data-day-card="<?= e($date) ?>">
+                            <div class="ross-day-card__top">
+                                <span class="ross-day-card__weekday"><?= e(anagrafica_weekday_label($date)) ?></span>
+                                <span class="ross-day-card__number"><?= e((new DateTimeImmutable($date))->format('d')) ?></span>
+                            </div>
+                            <div class="ross-day-card__status">
+                                <strong><?= $isOpen ? 'Aperta' : 'Chiusa' ?></strong>
+                                <span><?= ((int) ($snapshot['day_state']['is_finalized'] ?? 0) === 1) ? 'Giorno chiuso' : 'In lavorazione' ?></span>
+                            </div>
+                            <dl class="ross-day-card__metrics">
+                                <div><dt>Cam.</dt><dd><?= (int) ($snapshot['occupied_rooms'] ?? 0) ?></dd></div>
+                                <div><dt>Pers.</dt><dd><?= (int) ($snapshot['present_guests'] ?? 0) ?></dd></div>
+                                <div><dt>Arr.</dt><dd><?= (int) ($snapshot['arrivals_guests'] ?? 0) ?></dd></div>
+                                <div><dt>Part.</dt><dd><?= (int) ($snapshot['departures_guests'] ?? 0) ?></dd></div>
+                            </dl>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+
+            <button class="ross-day-carousel__nav ross-day-carousel__nav--next" type="button" data-day-carousel-next aria-label="Scorri ai giorni successivi">
+                <span aria-hidden="true">›</span>
+            </button>
         </div>
     </section>
 
     <section class="card ross-day-detail">
-        <div class="ross-day-detail__head">
+        <div class="ross-day-detail__head ross-surface">
             <div>
                 <span class="eyebrow">Giorno selezionato</span>
                 <h2><?= e((new DateTimeImmutable($selectedDay))->format('d/m/Y')) ?></h2>
