@@ -173,6 +173,16 @@ $selectedDayOpen = (int) ($selectedDayState['is_open'] ?? 1) === 1;
 $selectedDayAvailableRooms = (int) ($selectedDayState['available_rooms'] ?? ($selectedDayOpen ? (int) ($config['camere_disponibili'] ?? 0) : 0));
 $selectedDayAvailableBeds = (int) ($selectedDayState['available_beds'] ?? ($selectedDayOpen ? (int) ($config['letti_disponibili'] ?? 0) : 0));
 $selectedDayFinalized = (int) ($selectedDayState['is_finalized'] ?? 0) === 1;
+$monthOpenDaysCount = 0;
+$monthFinalizedDaysCount = 0;
+foreach ($days as $snapshot) {
+    if (!empty($snapshot['is_open'])) {
+        $monthOpenDaysCount++;
+    }
+    if (!empty($snapshot['day_state']['is_finalized'])) {
+        $monthFinalizedDaysCount++;
+    }
+}
 
 require_once __DIR__ . '/includes/header.php';
 ?>
@@ -202,16 +212,31 @@ require_once __DIR__ . '/includes/header.php';
             <div class="ross-month-toolbar__title">
                 <h2><?= e(anagrafica_month_label($monthStart)) ?></h2>
                 <p class="muted">Ogni card rappresenta una giornata della struttura. Clicca un giorno per gestire apertura, riepilogo e export.</p>
+                <div class="ross-month-toolbar__meta">
+                    <span><?= (int) $monthOpenDaysCount ?> giorni aperti</span>
+                    <span><?= (int) $monthFinalizedDaysCount ?> giorni chiusi</span>
+                    <span><?= count($days) ?> giorni nel mese</span>
+                </div>
             </div>
-            <form class="ross-month-picker" method="get" action="<?= e(admin_url('anagrafica.php')) ?>">
-                <a class="btn btn-light btn-sm" href="<?= e($prevMonthUrl) ?>" aria-label="Mese precedente">‹</a>
-                <label class="ross-month-picker__field">
-                    <span>Mese</span>
-                    <input type="month" name="month" value="<?= e($selectedMonth) ?>" max="2099-12">
-                </label>
-                <button class="btn btn-primary btn-sm" type="submit">Apri mese</button>
-                <a class="btn btn-light btn-sm" href="<?= e($nextMonthUrl) ?>" aria-label="Mese successivo">›</a>
-            </form>
+            <div class="ross-month-toolbar__controls">
+                <form class="ross-month-picker" method="get" action="<?= e(admin_url('anagrafica.php')) ?>">
+                    <a class="btn btn-light btn-sm" href="<?= e($prevMonthUrl) ?>" aria-label="Mese precedente">‹</a>
+                    <label class="ross-month-picker__field">
+                        <span>Mese</span>
+                        <input type="month" name="month" value="<?= e($selectedMonth) ?>" max="2099-12">
+                    </label>
+                    <button class="btn btn-primary btn-sm" type="submit">Apri mese</button>
+                    <a class="btn btn-light btn-sm" href="<?= e($nextMonthUrl) ?>" aria-label="Mese successivo">›</a>
+                </form>
+                <form class="ross-month-quick-export" method="post" action="<?= e(admin_url('actions/generate-ross1000-month.php')) ?>" data-month-export-form>
+                    <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+                    <input type="hidden" name="month" value="<?= e($selectedMonth) ?>">
+                    <button class="btn btn-primary btn-sm ross-month-quick-export__button<?= $rossConfigReady ? '' : ' is-disabled' ?>" type="submit" <?= $rossConfigReady ? '' : 'disabled' ?>>
+                        <span>Apri tutto il mese + esporta ROSS1000</span>
+                    </button>
+                    <small>Precompila i giorni non chiusi come aperti con la disponibilità standard e scarica l'XML mensile.</small>
+                </form>
+            </div>
         </div>
 
         <div class="ross-day-carousel" data-day-carousel>

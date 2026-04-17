@@ -751,3 +751,70 @@
     min-height: 178px;
   }
 }
+
+.ross-month-toolbar__controls {
+  display: grid;
+  gap: .9rem;
+  justify-items: end;
+  min-width: min(100%, 34rem);
+}
+
+.ross-month-toolbar__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .55rem;
+  margin-top: .85rem;
+}
+
+.ross-month-toolbar__meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .45rem .75rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--ross-muted);
+  font-size: .78rem;
+  font-weight: 700;
+  letter-spacing: .01em;
+}
+
+.ross-month-quick-export {
+  display: grid;
+  gap: .45rem;
+  justify-items: end;
+  width: 100%;
+}
+
+.ross-month-quick-export__button {
+  min-width: min(100%, 22rem);
+  box-shadow: 0 14px 28px rgba(49, 88, 224, 0.18);
+}
+
+.ross-month-quick-export small {
+  max-width: 32rem;
+  text-align: right;
+  color: var(--ross-muted);
+  line-height: 1.45;
+}
+
+@media (max-width: 980px) {
+  .ross-month-toolbar__controls {
+    width: 100%;
+    justify-items: stretch;
+    min-width: 0;
+  }
+
+  .ross-month-picker,
+  .ross-month-quick-export {
+    width: 100%;
+  }
+
+  .ross-month-quick-export__button,
+  .ross-month-quick-export small {
+    min-width: 0;
+    max-width: none;
+    text-align: left;
+  }
+}

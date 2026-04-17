@@ -430,6 +430,147 @@ function ross1000_validate_day_export(array $snapshot, array $config, array $gue
     return array_values(array_unique($errors));
 }
 
+
+
+function ross1000_month_range(string $month): array
+{
+    if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
+        throw new RuntimeException('Mese non valido.');
+    }
+
+    $start = new DateTimeImmutable($month . '-01');
+    $end = $start->modify('last day of this month');
+
+    return [$start->format('Y-m-d'), $end->format('Y-m-d')];
+}
+
+function ross1000_prefill_open_month(PDO $pdo, string $month, ?array $config = null, bool $preserveFinalized = true): void
+{
+    if (!ross1000_day_status_table_ready($pdo)) {
+        throw new RuntimeException('Esegui prima la migration della tabella ross1000_day_status.');
+    }
+
+    $config = $config ?: ross1000_property_config();
+    [$from, $to] = ross1000_month_range($month);
+    $states = ross1000_get_day_states_for_range($pdo, $from, $to, $config);
+
+    $sql = "
+        INSERT INTO ross1000_day_status
+            (day_date, is_open, available_rooms, available_beds, is_finalized, finalized_at, exported_ross_at, exported_alloggiati_at, created_at, updated_at)
+        VALUES
+            (:day_date, :is_open, :available_rooms, :available_beds, :is_finalized, :finalized_at, :exported_ross_at, :exported_alloggiati_at, NOW(), NOW())
+        ON DUPLICATE KEY UPDATE
+            is_open = VALUES(is_open),
+            available_rooms = VALUES(available_rooms),
+            available_beds = VALUES(available_beds),
+            is_finalized = VALUES(is_finalized),
+            finalized_at = VALUES(finalized_at),
+            exported_ross_at = VALUES(exported_ross_at),
+            exported_alloggiati_at = VALUES(exported_alloggiati_at),
+            updated_at = NOW()
+    ";
+    $stmt = $pdo->prepare($sql);
+
+    $cursor = new DateTimeImmutable($from);
+    $end = new DateTimeImmutable($to);
+    while ($cursor <= $end) {
+        $date = $cursor->format('Y-m-d');
+        $state = $states[$date] ?? ross1000_default_day_state($config, $date);
+
+        if ($preserveFinalized && (int) ($state['is_finalized'] ?? 0) === 1) {
+            $cursor = $cursor->modify('+1 day');
+            continue;
+        }
+
+        $stmt->execute([
+            'day_date' => $date,
+            'is_open' => 1,
+            'available_rooms' => (int) ($config['camere_disponibili'] ?? 0),
+            'available_beds' => (int) ($config['letti_disponibili'] ?? 0),
+            'is_finalized' => (int) ($state['is_finalized'] ?? 0),
+            'finalized_at' => $state['finalized_at'] ?? null,
+            'exported_ross_at' => $state['exported_ross_at'] ?? null,
+            'exported_alloggiati_at' => $state['exported_alloggiati_at'] ?? null,
+        ]);
+
+        $cursor = $cursor->modify('+1 day');
+    }
+}
+
+function ross1000_build_movement_from_snapshot(string $date, array $snapshot, array $guestsGrouped): array
+{
+    $movement = [
+        'data' => ross1000_format_date($date),
+        'struttura' => [
+            'apertura' => $snapshot['is_open'] ? 'SI' : 'NO',
+            'camereoccupate' => $snapshot['is_open'] ? (string) $snapshot['occupied_rooms'] : '0',
+            'cameredisponibili' => $snapshot['is_open'] ? (string) $snapshot['available_rooms'] : '0',
+            'lettidisponibili' => $snapshot['is_open'] ? (string) $snapshot['available_beds'] : '0',
+        ],
+        'arrivi' => [],
+        'partenze' => [],
+        'prenotazioni' => [],
+        'rettifiche' => [],
+    ];
+
+    foreach ((array) $snapshot['arrival_records'] as $record) {
+        foreach (($guestsGrouped[(int) $record['id']] ?? []) as $guest) {
+            $movement['arrivi'][] = ross1000_build_guest_arrivo($guest, $record);
+        }
+    }
+
+    foreach ((array) $snapshot['departure_records'] as $record) {
+        foreach (($guestsGrouped[(int) $record['id']] ?? []) as $guest) {
+            $movement['partenze'][] = ross1000_build_guest_partenza($guest, $record);
+        }
+    }
+
+    foreach ((array) $snapshot['booking_records'] as $record) {
+        $movement['prenotazioni'][] = ross1000_build_prenotazione($record);
+    }
+
+    return $movement;
+}
+
+function ross1000_build_month_payload(PDO $pdo, string $month): array
+{
+    $config = ross1000_property_config();
+    [$from, $to] = ross1000_month_range($month);
+    $records = ross1000_fetch_records_for_range($pdo, $from, $to);
+    $dayStates = ross1000_get_day_states_for_range($pdo, $from, $to, $config);
+    $recordIds = array_map(static function (array $row): int {
+        return (int) ($row['id'] ?? 0);
+    }, $records);
+    $guestsGrouped = ross1000_fetch_guests_grouped($pdo, $recordIds);
+
+    $movements = [];
+    $errors = [];
+    $cursor = new DateTimeImmutable($from);
+    $end = new DateTimeImmutable($to);
+    while ($cursor <= $end) {
+        $date = $cursor->format('Y-m-d');
+        $snapshot = ross1000_build_day_snapshot($date, $records, $dayStates[$date] ?? ross1000_default_day_state($config, $date), $config);
+        foreach (ross1000_validate_day_export($snapshot, $config, $guestsGrouped) as $err) {
+            $errors[] = $date . ': ' . $err;
+        }
+        $movements[] = ross1000_build_movement_from_snapshot($date, $snapshot, $guestsGrouped);
+        $cursor = $cursor->modify('+1 day');
+    }
+
+    $errors = array_values(array_unique($errors));
+    if ($errors) {
+        throw new RuntimeException(implode("
+", $errors));
+    }
+
+    return [
+        'codice' => (string) ($config['codice_struttura'] ?? ''),
+        'prodotto' => (string) ($config['prodotto'] ?? (defined('ADMIN_APP_NAME') ? ADMIN_APP_NAME : 'Admin')),
+        'month' => $month,
+        'movimenti' => $movements,
+    ];
+}
+
 function ross1000_build_day_payload(PDO $pdo, string $date): array
 {
     $config = ross1000_property_config();
