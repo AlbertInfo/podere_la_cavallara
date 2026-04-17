@@ -164,6 +164,62 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
+
+  function hideContactRequestsBadge() {
+    document.querySelectorAll('[data-contact-requests-badge]').forEach(function (badge) {
+      if (badge && badge.parentNode) {
+        badge.parentNode.removeChild(badge);
+      }
+    });
+  }
+
+  function markContactRequestsSeen() {
+    var url = body.getAttribute('data-mark-contact-requests-url');
+    if (!url) return;
+
+    hideContactRequestsBadge();
+
+    if (navigator.sendBeacon) {
+      try {
+        var blob = new Blob([], { type: 'application/x-www-form-urlencoded; charset=UTF-8' });
+        navigator.sendBeacon(url, blob);
+        return;
+      } catch (e) {}
+    }
+
+    if (window.fetch) {
+      fetch(url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }).catch(function () {});
+      return;
+    }
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', url, true);
+    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+    xhr.send();
+  }
+
+  document.querySelectorAll('[data-contact-requests-link]').forEach(function (link) {
+    link.addEventListener('click', function () {
+      markContactRequestsSeen();
+    });
+  });
+
+  if ((body.getAttribute('data-current-path') || '') === 'index.php' && window.location.hash === '#contact-requests') {
+    markContactRequestsSeen();
+  }
+
+  window.addEventListener('hashchange', function () {
+    if ((body.getAttribute('data-current-path') || '') === 'index.php' && window.location.hash === '#contact-requests') {
+      markContactRequestsSeen();
+    }
+  });
+
   document.querySelectorAll('.js-date-range').forEach(function (input) {
     if (typeof flatpickr === 'undefined') return;
     var existing = (input.value || '').trim();

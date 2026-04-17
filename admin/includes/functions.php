@@ -152,7 +152,7 @@ function validate_password_reset(PDO $pdo, string $email, string $token): ?array
 
 function contact_requests_last_seen(): ?string
 {
-    $value = $_SESSION['contact_requests_last_seen_at'] ?? null;
+    $value = $_SESSION['contact_requests_seen_at'] ?? null;
     return is_string($value) && $value !== '' ? $value : null;
 }
 
