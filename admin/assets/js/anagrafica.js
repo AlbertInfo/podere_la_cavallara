@@ -1,4 +1,3 @@
-
 document.addEventListener('DOMContentLoaded', function () {
   'use strict';
 
@@ -10,28 +9,166 @@ document.addEventListener('DOMContentLoaded', function () {
     return Array.prototype.slice.call((scope || document).querySelectorAll(selector));
   }
 
-  function getSubmitter(event) {
-    return event.submitter || document.activeElement || null;
+  function parseJsonScript(id, fallback) {
+    var node = document.getElementById(id);
+    if (!node) return fallback;
+    try {
+      return JSON.parse(node.textContent || node.innerText || '');
+    } catch (err) {
+      return fallback;
+    }
   }
 
   function safeReplaceUrl(url) {
-    try {
-      if (window.history && typeof window.history.replaceState === 'function') {
-        window.history.replaceState({}, document.title, url);
-      }
-    } catch (err) {
-      // no-op
+    if (window.history && typeof window.history.replaceState === 'function') {
+      window.history.replaceState({}, document.title, url);
     }
   }
 
-  function setHidden(el, hidden) {
-    if (!el) return;
-    el.hidden = !!hidden;
-    if (hidden) {
-      el.classList.remove('is-open');
+  function formatDateForFlatpickr(input, isoDate) {
+    if (!input) return;
+    if (input._flatpickr) {
+      input._flatpickr.setDate(isoDate, true, 'Y-m-d');
     } else {
-      el.classList.add('is-open');
+      input.value = isoDate || '';
     }
+  }
+
+  var provinceMap = parseJsonScript('anagraficaProvinceMap', {});
+  var comuniByProvince = parseJsonScript('anagraficaComuniByProvince', {});
+  var globalPlaceListId = 'place-options';
+  var globalStateListId = 'state-options';
+  var globalProvinceListId = 'province-options';
+
+  function normalizeValue(value) {
+    return String(value || '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  }
+
+  function italySelected(value) {
+    return normalizeValue(value) === 'italia';
+  }
+
+  function resolveProvinceCode(value) {
+    var normalized = normalizeValue(value);
+    if (!normalized) return '';
+    if (provinceMap[value]) return provinceMap[value];
+    var keys = Object.keys(provinceMap);
+    for (var i = 0; i < keys.length; i += 1) {
+      if (normalizeValue(keys[i]) === normalized) {
+        return provinceMap[keys[i]];
+      }
+    }
+    return '';
+  }
+
+  function ensureDatalist(input, idPrefix, fallbackListId) {
+    if (!input) return null;
+    if (input.dataset.datalistId) {
+      return document.getElementById(input.dataset.datalistId);
+    }
+
+    var listId = input.getAttribute('list');
+    if (!listId) {
+      listId = idPrefix + '-' + Math.random().toString(36).slice(2, 8);
+      input.setAttribute('list', listId);
+    }
+
+    var datalist = document.getElementById(listId);
+    if (!datalist) {
+      datalist = document.createElement('datalist');
+      datalist.id = listId;
+      input.parentNode.appendChild(datalist);
+    }
+
+    input.dataset.datalistId = listId;
+    if (fallbackListId) {
+      input.dataset.fallbackListId = fallbackListId;
+    }
+    return datalist;
+  }
+
+  function fillDatalist(datalist, values) {
+    if (!datalist) return;
+    datalist.innerHTML = '';
+    (values || []).forEach(function (value) {
+      var option = document.createElement('option');
+      option.value = value;
+      datalist.appendChild(option);
+    });
+  }
+
+  function configurePlaceField(field, values, placeholder, disabled) {
+    if (!field) return;
+    field.disabled = !!disabled;
+    if (placeholder) field.placeholder = placeholder;
+    var datalist = ensureDatalist(field, field.getAttribute('data-place-role') || 'place', field.dataset.fallbackListId || globalPlaceListId);
+    fillDatalist(datalist, values);
+  }
+
+  function updateProvinceFilteredPlaces(scope) {
+    $all('[data-guest-scope]', scope || document).forEach(function (card) {
+      var birthState = $('[data-state-role="birth"]', card);
+      var birthProvince = $('[data-province-role="birth"]', card);
+      var birthPlace = $('[data-place-role="birth"]', card);
+
+      var residenceState = $('[data-state-role="residence"]', card);
+      var residenceProvince = $('[data-province-role="residence"]', card);
+      var residencePlace = $('[data-place-role="residence"]', card);
+
+      if (birthState && birthProvince && birthPlace) {
+        var birthIsItaly = italySelected(birthState.value);
+        birthProvince.disabled = !birthIsItaly;
+        var birthCode = resolveProvinceCode(birthProvince.value);
+        if (birthIsItaly && birthCode) {
+          configurePlaceField(birthPlace, comuniByProvince[birthCode] || [], 'Seleziona il comune di nascita', false);
+        } else if (birthIsItaly) {
+          configurePlaceField(birthPlace, [], 'Seleziona prima la provincia', false);
+        } else {
+          configurePlaceField(birthPlace, [], 'Per estero basta lo stato di nascita', true);
+          if (!birthPlace.dataset.keepValue) birthPlace.value = '';
+        }
+      }
+
+      if (residenceState && residenceProvince && residencePlace) {
+        var residenceIsItaly = italySelected(residenceState.value);
+        residenceProvince.disabled = !residenceIsItaly;
+        var residenceCode = resolveProvinceCode(residenceProvince.value);
+        if (residenceIsItaly && residenceCode) {
+          configurePlaceField(residencePlace, comuniByProvince[residenceCode] || [], 'Seleziona il comune di residenza', false);
+        } else if (residenceIsItaly) {
+          configurePlaceField(residencePlace, [], 'Seleziona prima la provincia', false);
+        } else {
+          residencePlace.disabled = false;
+          residencePlace.setAttribute('list', globalPlaceListId);
+          residencePlace.placeholder = 'Località estera o codice NUTS';
+        }
+      }
+    });
+  }
+
+  function addInvalidState(field, message) {
+    if (!field) return;
+    var label = field.closest('.anagrafica-field');
+    if (label) label.classList.add('is-invalid');
+    field.setCustomValidity(message || 'Campo obbligatorio');
+  }
+
+  function clearInvalidState(field) {
+    if (!field) return;
+    var label = field.closest('.anagrafica-field');
+    if (label) label.classList.remove('is-invalid');
+    field.setCustomValidity('');
+  }
+
+  function installLiveValidation(scope) {
+    $all('input, select, textarea', scope || document).forEach(function (field) {
+      field.addEventListener('input', function () { clearInvalidState(field); });
+      field.addEventListener('change', function () { clearInvalidState(field); });
+    });
   }
 
   function initFormPanel() {
@@ -42,35 +179,74 @@ document.addEventListener('DOMContentLoaded', function () {
     var closeButton = document.getElementById('closeAnagraficaForm');
     var openLinks = $all('[data-anagrafica-open-link]');
     var baseUrl = formCard.getAttribute('data-base-url') || window.location.pathname;
-    var forceOpen = (formCard.getAttribute('data-force-open') || '0') === '1';
     var recordType = document.getElementById('recordType');
     var addButton = document.getElementById('addGuestButton');
     var repeater = document.getElementById('guestRepeater');
     var template = document.getElementById('guestTemplate');
     var expectedGuests = document.getElementById('expectedGuests');
     var arrivalField = $('[data-date-role="arrival"]', form);
+    var bookingReceivedField = $('[data-date-role="booking-received"]', form);
     var departureField = $('[data-date-role="departure"]', form);
     var cloneIndex = repeater ? $all('[data-guest-card]', repeater).length + 1 : 1;
+    var forceOpen = (formCard.getAttribute('data-force-open') || '0') === '1';
+
+    function setPanelState(isOpen) {
+      if (isOpen) {
+        formCard.hidden = false;
+        formCard.classList.add('is-open');
+        window.requestAnimationFrame(function () {
+          try {
+            formCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          } catch (err) {
+            formCard.scrollIntoView(true);
+          }
+        });
+      } else {
+        formCard.hidden = true;
+        formCard.classList.remove('is-open');
+      }
+    }
+
+    function currentSelectedDay() {
+      return formCard.getAttribute('data-selected-day') || '';
+    }
+
+    function clearGuestRepeater() {
+      if (!repeater) return;
+      $all('[data-guest-card]', repeater).forEach(function (card) { card.remove(); });
+      cloneIndex = 1;
+    }
+
+    function resetNewFormValues() {
+      form.reset();
+      var selectedDay = currentSelectedDay();
+      if (selectedDay) {
+        formatDateForFlatpickr(bookingReceivedField, selectedDay);
+        formatDateForFlatpickr(arrivalField, selectedDay);
+      }
+      if (departureField) {
+        departureField.value = '';
+        if (departureField._flatpickr) departureField._flatpickr.clear();
+      }
+      clearGuestRepeater();
+      refreshGuestCounters();
+      updateGroupState();
+      updateProvinceFilteredPlaces(form);
+      clearClientValidation(form);
+    }
 
     function openPanel() {
-      setHidden(formCard, false);
-      window.requestAnimationFrame(function () {
-        try {
-          formCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        } catch (err) {
-          formCard.scrollIntoView(true);
-        }
-      });
+      resetNewFormValues();
+      setPanelState(true);
     }
 
     function closePanel() {
-      setHidden(formCard, true);
+      setPanelState(false);
       safeReplaceUrl(baseUrl);
     }
 
     function createDatePicker(field, extraOptions) {
       if (!field || typeof window.flatpickr === 'undefined' || field._flatpickr) return null;
-
       var role = field.getAttribute('data-date-role') || '';
       var options = Object.assign({
         locale: (window.flatpickr.l10ns && window.flatpickr.l10ns.it) ? window.flatpickr.l10ns.it : 'default',
@@ -78,11 +254,7 @@ document.addEventListener('DOMContentLoaded', function () {
         allowInput: true,
         disableMobile: true
       }, extraOptions || {});
-
-      if (role === 'birth') {
-        options.maxDate = 'today';
-      }
-
+      if (role === 'birth') options.maxDate = 'today';
       return window.flatpickr(field, options);
     }
 
@@ -96,7 +268,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         var issueDate = issueField._flatpickr.selectedDates[0] || null;
         var expiryDate = expiryField._flatpickr.selectedDates[0] || null;
-
         issueField._flatpickr.set('maxDate', expiryDate || null);
         expiryField._flatpickr.set('minDate', issueDate || null);
       });
@@ -104,40 +275,35 @@ document.addEventListener('DOMContentLoaded', function () {
       if (arrivalField && departureField && arrivalField._flatpickr && departureField._flatpickr) {
         var arrivalDate = arrivalField._flatpickr.selectedDates[0] || null;
         var departureDate = departureField._flatpickr.selectedDates[0] || null;
-
         arrivalField._flatpickr.set('maxDate', departureDate || null);
         departureField._flatpickr.set('minDate', arrivalDate || null);
       }
     }
 
     function initDates(scope) {
-      scope = scope || form;
-      $all('.js-date', scope).forEach(function (field) {
+      $all('.js-date', scope || form).forEach(function (field) {
         createDatePicker(field, {
-          onReady: [function () { syncDateConstraints(scope); }],
-          onChange: [function () { syncDateConstraints(scope); }]
+          onReady: [function () { syncDateConstraints(scope || form); }],
+          onChange: [function () { syncDateConstraints(scope || form); }]
         });
       });
-      syncDateConstraints(scope);
+      syncDateConstraints(scope || form);
     }
 
     function refreshGuestCounters() {
       if (!repeater) return;
-      $all('[data-guest-card]', repeater).forEach(function (card, index) {
-        var num = $('[data-guest-number]', card);
-        if (num) num.textContent = String(index + 2);
+      var cards = $all('[data-guest-card]', repeater);
+      cards.forEach(function (card, index) {
+        var numberNode = $('[data-guest-number]', card);
+        if (numberNode) numberNode.textContent = String(index + 2);
       });
-
-      if (expectedGuests && recordType && recordType.value !== 'single') {
-        expectedGuests.value = String(1 + $all('[data-guest-card]', repeater).length);
+      if (expectedGuests) {
+        expectedGuests.value = String(1 + cards.length);
       }
     }
 
     function bindRemoveButtons(scope) {
-      scope = scope || repeater;
-      if (!scope) return;
-
-      $all('[data-remove-guest]', scope).forEach(function (button) {
+      $all('[data-remove-guest]', scope || repeater).forEach(function (button) {
         if (button.dataset.bound === '1') return;
         button.dataset.bound = '1';
         button.addEventListener('click', function () {
@@ -152,66 +318,88 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function updateGroupState() {
       var isGroup = recordType && recordType.value !== 'single';
-
       if (addButton) {
         addButton.disabled = !isGroup;
         addButton.classList.toggle('is-disabled', !isGroup);
       }
-
-      if (!repeater) return;
-
-      repeater.style.display = isGroup ? 'grid' : 'none';
-
-      if (!isGroup) {
-        $all('[data-guest-card]', repeater).forEach(function (card) { card.remove(); });
-        cloneIndex = 1;
-        if (expectedGuests) expectedGuests.value = '1';
-      } else if (expectedGuests && parseInt(expectedGuests.value || '0', 10) < 2) {
-        expectedGuests.value = String(Math.max(2, 1 + $all('[data-guest-card]', repeater).length));
+      if (repeater) {
+        repeater.style.display = isGroup ? 'grid' : 'none';
       }
+      if (!isGroup) {
+        clearGuestRepeater();
+      }
+      refreshGuestCounters();
+    }
+
+    function wireCloneLists(card, index) {
+      $all('[data-list-template]', card).forEach(function (field) {
+        var kind = field.getAttribute('data-list-template');
+        var listId = kind + '-place-options-' + index;
+        var datalist = document.createElement('datalist');
+        datalist.id = listId;
+        field.setAttribute('list', listId);
+        field.parentNode.appendChild(datalist);
+      });
     }
 
     function addGuestCard() {
       if (!template || !repeater) return;
-
       var fragment = template.content.cloneNode(true);
       var card = $('[data-guest-card]', fragment);
       if (!card) return;
 
-      var requiredFields = [
-        'first_name',
-        'last_name',
-        'birth_date',
-        'citizenship_label',
-        'residence_state_label',
-        'residence_place_label',
-        'document_type_label',
-        'document_number',
-        'document_expiry_date',
-        'tourism_type',
-        'transport_type'
-      ];
-
       $all('[data-name]', card).forEach(function (field) {
         var dataName = field.getAttribute('data-name');
         field.name = 'guests[' + cloneIndex + '][' + dataName + ']';
-        if (requiredFields.indexOf(dataName) !== -1) {
-          field.required = true;
-        }
       });
 
+      wireCloneLists(card, cloneIndex);
       repeater.appendChild(card);
       bindRemoveButtons(card);
       initDates(card);
+      installLiveValidation(card);
       cloneIndex += 1;
       refreshGuestCounters();
+      updateProvinceFilteredPlaces(form);
+    }
+
+    function clearClientValidation(scope) {
+      $all('.anagrafica-field.is-invalid', scope || form).forEach(function (field) {
+        field.classList.remove('is-invalid');
+      });
+      $all('input, select, textarea', scope || form).forEach(function (field) {
+        field.setCustomValidity('');
+      });
+    }
+
+    function validateFormBeforeSubmit() {
+      clearClientValidation(form);
+      updateGroupState();
+      updateProvinceFilteredPlaces(form);
+
+      var firstInvalid = null;
+      $all('input, select, textarea', form).forEach(function (field) {
+        if (field.disabled || field.type === 'hidden') return;
+        if (!field.checkValidity()) {
+          addInvalidState(field, field.validationMessage || 'Campo obbligatorio');
+          if (!firstInvalid) firstInvalid = field;
+        }
+      });
+
+      if (firstInvalid) {
+        try {
+          firstInvalid.focus({ preventScroll: true });
+          firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } catch (err) {}
+        return false;
+      }
+      return true;
     }
 
     openLinks.forEach(function (link) {
       link.addEventListener('click', function (event) {
         event.preventDefault();
         openPanel();
-        safeReplaceUrl(link.getAttribute('href') || baseUrl);
       });
     });
 
@@ -225,11 +413,24 @@ document.addEventListener('DOMContentLoaded', function () {
     if (addButton) addButton.addEventListener('click', addGuestCard);
     if (recordType) recordType.addEventListener('change', updateGroupState);
 
+    form.addEventListener('submit', function (event) {
+      if (!validateFormBeforeSubmit()) {
+        event.preventDefault();
+      }
+    });
+
+    $all('[data-state-role], [data-province-role]', form).forEach(function (field) {
+      field.addEventListener('change', function () { updateProvinceFilteredPlaces(form); });
+      field.addEventListener('input', function () { updateProvinceFilteredPlaces(form); });
+    });
+
     initDates(form);
     bindRemoveButtons();
+    installLiveValidation(form);
     refreshGuestCounters();
     updateGroupState();
-    setHidden(formCard, !forceOpen);
+    updateProvinceFilteredPlaces(form);
+    setPanelState(forceOpen);
   }
 
   function initEditableRows() {
@@ -258,25 +459,27 @@ document.addEventListener('DOMContentLoaded', function () {
   function initConfirmations() {
     $all('[data-month-export-form]').forEach(function (monthForm) {
       monthForm.addEventListener('submit', function (event) {
-        var ok = window.confirm("Questa azione precompila il mese come aperto per i giorni non ancora chiusi e scarica l'XML mensile ROSS1000. Continuare?");
-        if (!ok) event.preventDefault();
+        if (!window.confirm("Questa azione imposta i giorni non chiusi come aperti e scarica l'XML mensile ROSS1000. Continuare?")) {
+          event.preventDefault();
+        }
       });
     });
 
     $all('[data-delete-form]').forEach(function (deleteForm) {
       deleteForm.addEventListener('submit', function (event) {
-        var ok = window.confirm('Eliminare definitivamente questa anagrafica?');
-        if (!ok) event.preventDefault();
+        if (!window.confirm('Eliminare definitivamente questa anagrafica?')) {
+          event.preventDefault();
+        }
       });
     });
 
     $all('.ross-day-settings').forEach(function (dayForm) {
       dayForm.addEventListener('submit', function (event) {
-        var submitter = getSubmitter(event);
-        var intent = submitter ? (submitter.value || submitter.getAttribute('value') || '') : '';
-        if (intent === 'close') {
-          var ok = window.confirm('Chiudere definitivamente il giorno selezionato?');
-          if (!ok) event.preventDefault();
+        var submitter = event.submitter;
+        if (submitter && (submitter.value || '') === 'close') {
+          if (!window.confirm('Chiudere definitivamente il giorno selezionato?')) {
+            event.preventDefault();
+          }
         }
       });
     });
@@ -288,8 +491,9 @@ document.addEventListener('DOMContentLoaded', function () {
           return;
         }
         var message = link.getAttribute('data-confirm-message') || "Confermare l'esportazione del file?";
-        var ok = window.confirm(message);
-        if (!ok) event.preventDefault();
+        if (!window.confirm(message)) {
+          event.preventDefault();
+        }
       });
     });
   }
@@ -302,105 +506,120 @@ document.addEventListener('DOMContentLoaded', function () {
     var nextButton = $('[data-day-carousel-next]');
     if (!carousel || !viewport || !strip) return;
 
-    function getStep() {
-      var firstCard = $('.ross-day-card', strip);
-      if (!firstCard) return Math.max(240, Math.round(viewport.clientWidth * 0.7));
-      var style = window.getComputedStyle(strip);
-      var gap = parseFloat(style.columnGap || style.gap || '0') || 0;
-      return Math.round(firstCard.getBoundingClientRect().width + gap);
+    var pointer = {
+      down: false,
+      dragged: false,
+      startX: 0,
+      scrollLeft: 0,
+      pointerId: null
+    };
+
+    function firstCard() {
+      return $('.ross-day-card', strip);
     }
 
-    function maxScrollLeft() {
-      return Math.max(0, viewport.scrollWidth - viewport.clientWidth);
+    function getStep() {
+      var card = firstCard();
+      if (!card) return Math.max(220, Math.round(viewport.clientWidth * 0.75));
+      var gap = parseFloat(window.getComputedStyle(strip).gap || '0') || 0;
+      return Math.round(card.getBoundingClientRect().width + gap);
     }
 
     function updateControls() {
-      if (!prevButton || !nextButton) return;
-      var left = Math.round(viewport.scrollLeft);
-      var max = Math.round(maxScrollLeft());
-      prevButton.disabled = left <= 2;
-      nextButton.disabled = left >= (max - 2);
+      var max = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
+      if (prevButton) prevButton.disabled = viewport.scrollLeft <= 2;
+      if (nextButton) nextButton.disabled = viewport.scrollLeft >= (max - 2);
     }
 
-    function scrollByStep(direction) {
-      viewport.scrollBy({
-        left: getStep() * direction,
-        behavior: 'smooth'
-      });
-      window.setTimeout(updateControls, 350);
+    function scrollStep(direction) {
+      viewport.scrollBy({ left: getStep() * direction, behavior: 'smooth' });
+      window.setTimeout(updateControls, 250);
     }
 
     if (prevButton) {
       prevButton.addEventListener('click', function (event) {
         event.preventDefault();
-        scrollByStep(-1);
+        scrollStep(-1);
       });
     }
 
     if (nextButton) {
       nextButton.addEventListener('click', function (event) {
         event.preventDefault();
-        scrollByStep(1);
+        scrollStep(1);
       });
     }
-
-    viewport.addEventListener('scroll', updateControls, { passive: true });
-    window.addEventListener('resize', updateControls);
 
     viewport.addEventListener('wheel', function (event) {
       if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
       event.preventDefault();
       viewport.scrollLeft += event.deltaY;
+      updateControls();
     }, { passive: false });
-
-    var isDown = false;
-    var startX = 0;
-    var startScrollLeft = 0;
 
     viewport.addEventListener('pointerdown', function (event) {
       if (event.pointerType === 'mouse' && event.button !== 0) return;
-      isDown = true;
-      startX = event.clientX;
-      startScrollLeft = viewport.scrollLeft;
-      carousel.classList.add('is-dragging');
-      if (typeof viewport.setPointerCapture === 'function') {
-        try { viewport.setPointerCapture(event.pointerId); } catch (err) {}
-      }
+      pointer.down = true;
+      pointer.dragged = false;
+      pointer.startX = event.clientX;
+      pointer.scrollLeft = viewport.scrollLeft;
+      pointer.pointerId = event.pointerId;
+      carousel.classList.add('is-drag-ready');
     });
 
     viewport.addEventListener('pointermove', function (event) {
-      if (!isDown) return;
-      var delta = event.clientX - startX;
-      viewport.scrollLeft = startScrollLeft - delta;
+      if (!pointer.down) return;
+      var delta = event.clientX - pointer.startX;
+      if (Math.abs(delta) > 6) {
+        pointer.dragged = true;
+        carousel.classList.add('is-dragging');
+        viewport.scrollLeft = pointer.scrollLeft - delta;
+        updateControls();
+      }
     });
 
-    function stopDrag(event) {
-      if (!isDown) return;
-      isDown = false;
+    function stopPointer() {
+      pointer.down = false;
+      window.setTimeout(function () {
+        pointer.dragged = false;
+      }, 0);
       carousel.classList.remove('is-dragging');
-      if (event && typeof viewport.releasePointerCapture === 'function' && event.pointerId != null) {
-        try { viewport.releasePointerCapture(event.pointerId); } catch (err) {}
-      }
-      updateControls();
+      carousel.classList.remove('is-drag-ready');
     }
 
-    viewport.addEventListener('pointerup', stopDrag);
-    viewport.addEventListener('pointercancel', stopDrag);
+    viewport.addEventListener('pointerup', stopPointer);
+    viewport.addEventListener('pointercancel', stopPointer);
     viewport.addEventListener('mouseleave', function () {
-      if (isDown) stopDrag();
+      if (pointer.down) stopPointer();
+    });
+
+    $all('.ross-day-card', strip).forEach(function (card) {
+      card.addEventListener('click', function (event) {
+        if (pointer.dragged) {
+          event.preventDefault();
+          return;
+        }
+        event.preventDefault();
+        var href = card.getAttribute('href');
+        if (href) {
+          window.location.href = href;
+        }
+      });
     });
 
     var selectedCard = $('.ross-day-card.is-selected', strip);
     if (selectedCard) {
-      var targetLeft = selectedCard.offsetLeft - ((viewport.clientWidth - selectedCard.offsetWidth) / 2);
-      viewport.scrollLeft = Math.max(0, targetLeft);
+      var left = selectedCard.offsetLeft - ((viewport.clientWidth - selectedCard.offsetWidth) / 2);
+      viewport.scrollLeft = Math.max(0, left);
     }
 
+    viewport.addEventListener('scroll', updateControls, { passive: true });
+    window.addEventListener('resize', updateControls);
     updateControls();
   }
 
-  try { initFormPanel(); } catch (err) { console.error('Anagrafica form init failed:', err); }
-  try { initEditableRows(); } catch (err) { console.error('Editable rows init failed:', err); }
-  try { initConfirmations(); } catch (err) { console.error('Confirmations init failed:', err); }
-  try { initCarousel(); } catch (err) { console.error('Carousel init failed:', err); }
+  try { initFormPanel(); } catch (err) { console.error('Form panel init failed', err); }
+  try { initEditableRows(); } catch (err) { console.error('Editable rows init failed', err); }
+  try { initConfirmations(); } catch (err) { console.error('Confirmations init failed', err); }
+  try { initCarousel(); } catch (err) { console.error('Carousel init failed', err); }
 });

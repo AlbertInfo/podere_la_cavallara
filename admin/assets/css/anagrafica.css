@@ -835,3 +835,66 @@
     text-align: left;
   }
 }
+
+
+.anagrafica-form-alert {
+  display: grid;
+  gap: .45rem;
+  padding: 1rem 1.1rem;
+  border-radius: 18px;
+  border: 1px solid rgba(239, 68, 68, 0.22);
+  background: linear-gradient(180deg, rgba(254, 242, 242, 0.95), rgba(255, 255, 255, 0.98));
+  color: #991b1b;
+  box-shadow: 0 10px 26px rgba(239, 68, 68, 0.08);
+}
+
+.anagrafica-form-alert ul {
+  margin: 0;
+  padding-left: 1rem;
+}
+
+.anagrafica-grid--compact {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.anagrafica-field {
+  position: relative;
+}
+
+.anagrafica-field.is-invalid span {
+  color: #b91c1c;
+}
+
+.anagrafica-field.is-invalid input,
+.anagrafica-field.is-invalid select,
+.anagrafica-field.is-invalid .flatpickr-input {
+  border-color: rgba(220, 38, 38, 0.72) !important;
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.08) !important;
+  background: linear-gradient(180deg, rgba(255,255,255,1), rgba(254,242,242,0.9));
+}
+
+.anagrafica-field-error {
+  display: block;
+  margin-top: .18rem;
+  font-size: .78rem;
+  line-height: 1.35;
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+.ross-day-carousel.is-drag-ready .ross-day-carousel__viewport,
+.ross-day-carousel.is-dragging .ross-day-carousel__viewport {
+  cursor: grabbing;
+}
+
+@media (max-width: 1200px) {
+  .anagrafica-grid--compact {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .anagrafica-grid--compact {
+    grid-template-columns: 1fr;
+  }
+}

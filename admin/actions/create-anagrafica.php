@@ -14,9 +14,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 verify_csrf();
 
-function redirect_to(string $url, string $type, string $message): never
+function redirect_to(string $url, ?string $type = null, string $message = ''): never
 {
-    if (function_exists('set_flash')) {
+    if ($type !== null && $message !== '' && function_exists('set_flash')) {
         set_flash($type, $message);
     }
     header('Location: ' . $url);
@@ -28,6 +28,7 @@ function parse_date_input(?string $value): ?string
     if ($value === null) {
         return null;
     }
+
     $value = trim((string) $value);
     if ($value === '') {
         return null;
@@ -43,24 +44,13 @@ function parse_date_input(?string $value): ?string
     return null;
 }
 
-function first_non_empty(array $values): string
-{
-    foreach ($values as $value) {
-        $value = trim((string) $value);
-        if ($value !== '') {
-            return $value;
-        }
-    }
-    return '';
-}
-
 function normalize_optional(?string $value): ?string
 {
     $value = trim((string) $value);
     return $value === '' ? null : $value;
 }
 
-function build_record_redirect_url(int $recordId, bool $isEdit, string $month = '', string $day = ''): string
+function build_form_redirect_url(int $recordId, bool $isEdit, string $month = '', string $day = ''): string
 {
     $params = [];
     if ($month !== '') {
@@ -101,6 +91,37 @@ function derive_guest_idswh(string $bookingIdswh, int $index): string
     return strtoupper(substr($bookingIdswh . str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT), 0, 20));
 }
 
+function derive_booking_idswh(string $recordType, string $bookingReference): string
+{
+    $seed = $bookingReference !== '' ? $bookingReference : ($recordType . '-' . date('YmdHis'));
+    $seed = preg_replace('/[^A-Za-z0-9]/', '', strtoupper($seed));
+    if ($seed === null || $seed === '') {
+        $seed = 'ANA' . date('YmdHis');
+    }
+    return substr($seed, 0, 20);
+}
+
+function add_field_error(array &$fieldErrors, string $field, string $message): void
+{
+    if (!isset($fieldErrors[$field])) {
+        $fieldErrors[$field] = $message;
+    }
+}
+
+function persist_form_state(array $postData, array $fieldErrors, array $messages): void
+{
+    $_SESSION['_anagrafica_form_state'] = [
+        'data' => $postData,
+        'field_errors' => $fieldErrors,
+        'messages' => array_values(array_unique(array_filter($messages))),
+    ];
+}
+
+function clear_form_state(): void
+{
+    unset($_SESSION['_anagrafica_form_state']);
+}
+
 try {
     $tableReady = (bool) $pdo->query("SHOW TABLES LIKE 'anagrafica_records'")->fetchColumn();
     if (!$tableReady) {
@@ -121,47 +142,39 @@ try {
     $bookingReceivedDate = parse_date_input($_POST['booking_received_date'] ?? null);
     $arrivalDate = parse_date_input($_POST['arrival_date'] ?? null);
     $departureDate = parse_date_input($_POST['departure_date'] ?? null);
-    $expectedGuests = max(1, (int) ($_POST['expected_guests'] ?? 1));
     $reservedRooms = max(1, (int) ($_POST['reserved_rooms'] ?? 1));
-    $bookingChannel = trim((string) ($_POST['booking_channel'] ?? ''));
-    $dailyPrice = trim((string) ($_POST['daily_price'] ?? ''));
-    $bookingProvenienceStateLabel = trim((string) ($_POST['booking_provenience_state_label'] ?? ''));
-    $bookingProvenienceProvince = trim((string) ($_POST['booking_provenience_province'] ?? ''));
-    $bookingProveniencePlaceLabel = trim((string) ($_POST['booking_provenience_place_label'] ?? ''));
-    $guests = $_POST['guests'] ?? [];
+    $guestsInput = $_POST['guests'] ?? [];
+    $guests = is_array($guestsInput) ? array_values(array_filter($guestsInput, 'is_array')) : [];
 
-    $errors = [];
+    $fieldErrors = [];
+    $messages = [];
+
     if (!$bookingReceivedDate) {
-        $errors[] = 'Inserisci una data registrazione prenotazione valida.';
+        add_field_error($fieldErrors, 'booking_received_date', 'Inserisci una data di registrazione valida.');
     }
-    if (!$arrivalDate || !$departureDate) {
-        $errors[] = 'Inserisci date di arrivo e partenza valide.';
+    if (!$arrivalDate) {
+        add_field_error($fieldErrors, 'arrival_date', 'Inserisci una data di arrivo valida.');
+    }
+    if (!$departureDate) {
+        add_field_error($fieldErrors, 'departure_date', 'Inserisci una data di partenza valida.');
     }
     if ($arrivalDate && $departureDate && $arrivalDate > $departureDate) {
-        $errors[] = 'La data di partenza non può essere precedente alla data di arrivo.';
+        add_field_error($fieldErrors, 'departure_date', 'La partenza non può essere precedente all’arrivo.');
     }
-    if (!is_array($guests) || count($guests) === 0) {
-        $errors[] = 'Inserisci almeno un ospite.';
+    if ($reservedRooms < 1) {
+        add_field_error($fieldErrors, 'reserved_rooms', 'Indica almeno una camera.');
     }
-    if ($errors) {
-        redirect_to(build_record_redirect_url($recordId, $isEdit, $returnMonth, $returnDay), 'error', implode(' ', $errors));
+    if (!$guests) {
+        $messages[] = 'Inserisci almeno un ospite.';
+    }
+    if ($recordType !== 'single' && count($guests) < 2) {
+        $messages[] = 'Per Famiglia o Gruppo aggiungi almeno un componente oltre al capogruppo.';
     }
 
-    $bookingProvenienceState = null;
-    $bookingProveniencePlace = null;
-    if ($bookingProvenienceStateLabel !== '') {
-        $bookingProvenienceState = anagrafica_find_state_by_value($bookingProvenienceStateLabel);
-        if (!$bookingProvenienceState) {
-            $errors[] = 'Stato provenienza prenotazione non riconosciuto.';
-        } elseif ($bookingProveniencePlaceLabel !== '') {
-            $bookingProveniencePlace = anagrafica_resolve_place_value($bookingProvenienceState['code'], $bookingProveniencePlaceLabel, $bookingProvenienceProvince);
-            if (!$bookingProveniencePlace) {
-                $errors[] = 'Luogo provenienza prenotazione non riconosciuto.';
-            }
-        }
-    } elseif ($bookingProveniencePlaceLabel !== '') {
-        $errors[] = 'Se compili il luogo provenienza prenotazione devi indicare anche lo stato.';
-    }
+    $normalizedGuests = [];
+    $existingGuestIds = [];
+    $recordUuid = '';
+    $bookingIdswh = '';
 
     if ($isEdit) {
         $existing = $pdo->prepare('SELECT id, uuid, ross_prenotazione_idswh FROM anagrafica_records WHERE id = :id LIMIT 1');
@@ -180,142 +193,183 @@ try {
         }, $existingGuestStmt->fetchAll(PDO::FETCH_ASSOC) ?: [])));
     } else {
         $recordUuid = bin2hex(random_bytes(16));
-        $bookingIdswh = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $bookingReference !== '' ? $bookingReference : ('ANA' . date('YmdHis'))), 0, 20));
-        if ($bookingIdswh === '') {
-            $bookingIdswh = 'ANA' . date('YmdHis');
-        }
-        $existingGuestIds = [];
+        $bookingIdswh = derive_booking_idswh($recordType, $bookingReference);
     }
 
-    $normalizedGuests = [];
+    $documentRows = anagrafica_document_types();
+
     foreach ($guests as $index => $guest) {
-        if (!is_array($guest)) {
-            continue;
-        }
-
-        $firstName = trim((string) ($guest['first_name'] ?? ''));
-        $lastName = trim((string) ($guest['last_name'] ?? ''));
-        if ($firstName === '' || $lastName === '') {
-            continue;
-        }
-
         if ($recordType === 'single' && $index > 0) {
             continue;
         }
 
+        $fieldPrefix = 'guests.' . $index . '.';
+        $isLeader = $index === 0;
+        $firstName = trim((string) ($guest['first_name'] ?? ''));
+        $lastName = trim((string) ($guest['last_name'] ?? ''));
+        $gender = in_array((string) ($guest['gender'] ?? ''), ['M', 'F'], true) ? (string) $guest['gender'] : '';
+        $birthDate = parse_date_input($guest['birth_date'] ?? null);
+
+        if ($firstName === '') {
+            add_field_error($fieldErrors, $fieldPrefix . 'first_name', 'Inserisci il nome.');
+        }
+        if ($lastName === '') {
+            add_field_error($fieldErrors, $fieldPrefix . 'last_name', 'Inserisci il cognome.');
+        }
+        if ($gender === '') {
+            add_field_error($fieldErrors, $fieldPrefix . 'gender', 'Seleziona il sesso.');
+        }
+        if (!$birthDate) {
+            add_field_error($fieldErrors, $fieldPrefix . 'birth_date', 'Inserisci una data di nascita valida.');
+        }
+
         $citizenshipLabel = trim((string) ($guest['citizenship_label'] ?? ''));
-        $residenceStateLabel = first_non_empty([
-            (string) ($guest['residence_state_label'] ?? ''),
-            anagrafica_default_state_label(),
-        ]);
+        $citizenship = $citizenshipLabel !== '' ? anagrafica_find_state_by_value($citizenshipLabel) : null;
+        if (!$citizenship) {
+            add_field_error($fieldErrors, $fieldPrefix . 'citizenship_label', 'Seleziona una cittadinanza valida.');
+        }
+
         $birthStateLabel = trim((string) ($guest['birth_state_label'] ?? ''));
-        $birthProvince = trim((string) ($guest['birth_province'] ?? ''));
+        $birthState = $birthStateLabel !== '' ? anagrafica_find_state_by_value($birthStateLabel) : null;
+        if (!$birthState) {
+            add_field_error($fieldErrors, $fieldPrefix . 'birth_state_label', 'Seleziona lo stato di nascita.');
+        }
+
+        $birthProvinceInput = trim((string) ($guest['birth_province'] ?? ''));
+        $birthProvinceCode = anagrafica_find_province_code($birthProvinceInput);
         $birthPlaceLabel = trim((string) ($guest['birth_place_label'] ?? ''));
-        $residenceProvince = trim((string) ($guest['residence_province'] ?? ''));
-        $residencePlaceLabel = first_non_empty([
-            (string) ($guest['residence_place_label'] ?? ''),
-            (string) ($guest['residence_place'] ?? ''),
-        ]);
-        $documentTypeLabel = first_non_empty([
-            (string) ($guest['document_type_label'] ?? ''),
-            (string) ($guest['document_type'] ?? ''),
-        ]);
+        $birthCity = null;
+        if ($birthState && $birthState['code'] === anagrafica_default_italy_state_code()) {
+            if ($birthProvinceCode === null) {
+                add_field_error($fieldErrors, $fieldPrefix . 'birth_province', 'Seleziona la provincia di nascita.');
+            }
+            if ($birthPlaceLabel === '') {
+                add_field_error($fieldErrors, $fieldPrefix . 'birth_place_label', 'Seleziona il comune di nascita.');
+            } else {
+                $birthCity = anagrafica_find_comune_by_value($birthPlaceLabel, (string) ($birthProvinceCode ?? ''));
+                if (!$birthCity) {
+                    add_field_error($fieldErrors, $fieldPrefix . 'birth_place_label', 'Comune di nascita non riconosciuto.');
+                }
+            }
+        }
+
+        $residenceStateLabel = trim((string) ($guest['residence_state_label'] ?? ''));
+        $residenceState = $residenceStateLabel !== '' ? anagrafica_find_state_by_value($residenceStateLabel) : null;
+        if (!$residenceState) {
+            add_field_error($fieldErrors, $fieldPrefix . 'residence_state_label', 'Seleziona lo stato di residenza.');
+        }
+
+        $residenceProvinceInput = trim((string) ($guest['residence_province'] ?? ''));
+        $residenceProvinceCode = anagrafica_find_province_code($residenceProvinceInput);
+        $residencePlaceLabel = trim((string) ($guest['residence_place_label'] ?? ''));
+        $residencePlace = null;
+        if ($residenceState && $residenceState['code'] === anagrafica_default_italy_state_code()) {
+            if ($residenceProvinceCode === null) {
+                add_field_error($fieldErrors, $fieldPrefix . 'residence_province', 'Seleziona la provincia di residenza.');
+            }
+            if ($residencePlaceLabel === '') {
+                add_field_error($fieldErrors, $fieldPrefix . 'residence_place_label', 'Seleziona il comune di residenza.');
+            }
+        } elseif ($residencePlaceLabel === '') {
+            add_field_error($fieldErrors, $fieldPrefix . 'residence_place_label', 'Indica la località o il codice NUTS di residenza.');
+        }
+
+        if ($residenceState) {
+            $residencePlace = anagrafica_resolve_place_value($residenceState['code'], $residencePlaceLabel, (string) ($residenceProvinceCode ?? ''));
+            if (!$residencePlace && $residencePlaceLabel !== '') {
+                add_field_error($fieldErrors, $fieldPrefix . 'residence_place_label', 'Luogo di residenza non riconosciuto.');
+            }
+        }
+
+        $documentTypeLabel = trim((string) ($guest['document_type_label'] ?? ''));
+        $documentType = $documentTypeLabel !== '' ? anagrafica_find_document_by_value($documentTypeLabel) : null;
+        $documentNumber = trim((string) ($guest['document_number'] ?? ''));
         $documentIssuePlace = trim((string) ($guest['document_issue_place'] ?? ''));
 
-        $citizenship = anagrafica_find_state_by_value($citizenshipLabel);
-        if (!$citizenship) {
-            $errors[] = 'Cittadinanza non riconosciuta per ' . $firstName . ' ' . $lastName . '.';
-            continue;
-        }
-
-        $residenceState = anagrafica_find_state_by_value($residenceStateLabel);
-        if (!$residenceState) {
-            $errors[] = 'Stato di residenza non riconosciuto per ' . $firstName . ' ' . $lastName . '.';
-            continue;
-        }
-
-        $residencePlace = anagrafica_resolve_place_value($residenceState['code'], $residencePlaceLabel, $residenceProvince);
-        if (!$residencePlace) {
-            $errors[] = 'Luogo di residenza non riconosciuto per ' . $firstName . ' ' . $lastName . '.';
-            continue;
-        }
-
-        $birthState = null;
-        if ($birthStateLabel !== '' || $birthPlaceLabel !== '' || $birthProvince !== '') {
-            $birthState = anagrafica_find_state_by_value($birthStateLabel !== '' ? $birthStateLabel : anagrafica_default_state_label());
-            if (!$birthState) {
-                $errors[] = 'Stato di nascita non riconosciuto per ' . $firstName . ' ' . $lastName . '.';
-                continue;
+        if ($isLeader) {
+            if (!$documentType) {
+                add_field_error($fieldErrors, $fieldPrefix . 'document_type_label', 'Seleziona il tipo documento.');
             }
-        }
-
-        $birthCity = null;
-        if ($birthState && $birthState['code'] === anagrafica_default_italy_state_code() && $birthPlaceLabel !== '') {
-            $birthCity = anagrafica_find_comune_by_value($birthPlaceLabel, $birthProvince);
-            if (!$birthCity) {
-                $errors[] = 'Comune di nascita non riconosciuto per ' . $firstName . ' ' . $lastName . '.';
-                continue;
+            if ($documentNumber === '') {
+                add_field_error($fieldErrors, $fieldPrefix . 'document_number', 'Inserisci il numero documento.');
             }
-        }
-
-        $documentType = anagrafica_find_document_by_value($documentTypeLabel);
-        if (!$documentType) {
-            $errors[] = 'Tipologia documento non riconosciuta per ' . $firstName . ' ' . $lastName . '.';
-            continue;
+            if ($documentIssuePlace === '') {
+                add_field_error($fieldErrors, $fieldPrefix . 'document_issue_place', 'Inserisci il luogo di rilascio del documento.');
+            }
         }
 
         $documentIssuePlaceCode = null;
         if ($documentIssuePlace !== '') {
             $issueComune = anagrafica_find_comune_by_value($documentIssuePlace, '');
-            $documentIssuePlaceCode = $issueComune ? $issueComune['code'] : null;
+            $documentIssuePlaceCode = $issueComune['code'] ?? null;
+        }
+
+        $tourismType = trim((string) ($guest['tourism_type'] ?? ''));
+        if ($tourismType === '') {
+            add_field_error($fieldErrors, $fieldPrefix . 'tourism_type', 'Seleziona il tipo di turismo.');
+        }
+
+        $transportType = trim((string) ($guest['transport_type'] ?? ''));
+        if ($transportType === '') {
+            add_field_error($fieldErrors, $fieldPrefix . 'transport_type', 'Seleziona il mezzo di trasporto.');
+        }
+
+        if ($firstName === '' || $lastName === '' || $gender === '' || !$birthDate || !$citizenship || !$birthState || !$residenceState || !$residencePlace || $tourismType === '' || $transportType === '') {
+            continue;
+        }
+
+        if ($birthState['code'] === anagrafica_default_italy_state_code() && !$birthCity) {
+            continue;
+        }
+
+        if ($isLeader && (!$documentType || $documentNumber === '' || $documentIssuePlace === '')) {
+            continue;
         }
 
         $normalizedGuests[] = [
             'first_name' => $firstName,
             'last_name' => $lastName,
-            'gender' => in_array((string) ($guest['gender'] ?? 'M'), ['M', 'F'], true) ? (string) $guest['gender'] : 'M',
-            'birth_date' => parse_date_input($guest['birth_date'] ?? null),
+            'gender' => $gender,
+            'birth_date' => $birthDate,
             'citizenship_label' => $citizenship['description'],
             'citizenship_code' => $citizenship['code'],
-            'birth_state_label' => $birthState['description'] ?? null,
-            'birth_state_code' => $birthState['code'] ?? null,
-            'birth_province' => normalize_optional($birthProvince),
-            'birth_place_label' => normalize_optional($birthCity['label'] ?? $birthPlaceLabel),
+            'birth_state_label' => $birthState['description'],
+            'birth_state_code' => $birthState['code'],
+            'birth_province' => $birthProvinceCode,
+            'birth_place_label' => $birthCity['label'] ?? null,
             'birth_city_code' => $birthCity['code'] ?? null,
             'residence_state_label' => $residenceState['description'],
             'residence_state_code' => $residenceState['code'],
-            'residence_province' => normalize_optional($residenceProvince),
+            'residence_province' => $residenceProvinceCode,
             'residence_place_label' => $residencePlace['label'],
             'residence_place_code' => $residencePlace['code'],
-            'document_type_label' => $documentType['description'],
-            'document_type_code' => $documentType['code'],
-            'document_number' => trim((string) ($guest['document_number'] ?? '')),
-            'document_issue_date' => parse_date_input($guest['document_issue_date'] ?? null),
-            'document_expiry_date' => parse_date_input($guest['document_expiry_date'] ?? null),
-            'document_issue_place' => normalize_optional($documentIssuePlace),
-            'document_issue_place_code' => $documentIssuePlaceCode,
-            'email' => normalize_optional((string) ($guest['email'] ?? '')),
-            'phone' => normalize_optional((string) ($guest['phone'] ?? '')),
-            'tourism_type' => trim((string) ($guest['tourism_type'] ?? '')),
-            'transport_type' => trim((string) ($guest['transport_type'] ?? '')),
-            'education_level' => normalize_optional((string) ($guest['education_level'] ?? '')),
-            'profession' => normalize_optional((string) ($guest['profession'] ?? '')),
-            'tax_exemption_code' => normalize_optional((string) ($guest['tax_exemption_code'] ?? '')),
+            'document_type_label' => $isLeader ? ($documentType['description'] ?? null) : null,
+            'document_type_code' => $isLeader ? ($documentType['code'] ?? null) : null,
+            'document_number' => $isLeader ? $documentNumber : null,
+            'document_issue_place' => $isLeader ? $documentIssuePlace : null,
+            'document_issue_place_code' => $isLeader ? $documentIssuePlaceCode : null,
+            'tourism_type' => $tourismType,
+            'transport_type' => $transportType,
         ];
     }
 
     if (!$normalizedGuests) {
-        $errors[] = 'Inserisci almeno un ospite valido.';
+        $messages[] = 'Completa correttamente almeno il capogruppo / primo ospite.';
     }
 
-    if ($errors) {
-        redirect_to(build_record_redirect_url($recordId, $isEdit, $returnMonth, $returnDay), 'error', implode(' ', array_unique($errors)));
+    if ($recordType !== 'single' && count($normalizedGuests) < 2) {
+        $messages[] = 'Per Famiglia o Gruppo è necessario almeno un componente aggiuntivo.';
+    }
+
+    if ($fieldErrors || $messages) {
+        persist_form_state($_POST, $fieldErrors, $messages);
+        redirect_to(build_form_redirect_url($recordId, $isEdit, $returnMonth, $returnDay));
     }
 
     $pdo->beginTransaction();
 
     if ($isEdit) {
-        $stmt = $pdo->prepare('UPDATE anagrafica_records SET record_type = :record_type, booking_reference = :booking_reference, booking_received_date = :booking_received_date, arrival_date = :arrival_date, departure_date = :departure_date, expected_guests = :expected_guests, reserved_rooms = :reserved_rooms, booking_channel = :booking_channel, daily_price = :daily_price, booking_provenience_state_label = :booking_provenience_state_label, booking_provenience_state_code = :booking_provenience_state_code, booking_provenience_province = :booking_provenience_province, booking_provenience_place_label = :booking_provenience_place_label, booking_provenience_place_code = :booking_provenience_place_code, updated_at = NOW() WHERE id = :id');
+        $stmt = $pdo->prepare('UPDATE anagrafica_records SET record_type = :record_type, booking_reference = :booking_reference, booking_received_date = :booking_received_date, arrival_date = :arrival_date, departure_date = :departure_date, expected_guests = :expected_guests, reserved_rooms = :reserved_rooms, booking_channel = NULL, daily_price = NULL, booking_provenience_state_label = NULL, booking_provenience_state_code = NULL, booking_provenience_province = NULL, booking_provenience_place_label = NULL, booking_provenience_place_code = NULL, updated_at = NOW() WHERE id = :id');
         $stmt->execute([
             'id' => $recordId,
             'record_type' => $recordType,
@@ -325,18 +379,11 @@ try {
             'departure_date' => $departureDate,
             'expected_guests' => count($normalizedGuests),
             'reserved_rooms' => $reservedRooms,
-            'booking_channel' => $bookingChannel !== '' ? $bookingChannel : null,
-            'daily_price' => $dailyPrice !== '' ? $dailyPrice : null,
-            'booking_provenience_state_label' => $bookingProvenienceState['description'] ?? null,
-            'booking_provenience_state_code' => $bookingProvenienceState['code'] ?? null,
-            'booking_provenience_province' => $bookingProvenienceProvince !== '' ? $bookingProvenienceProvince : null,
-            'booking_provenience_place_label' => $bookingProveniencePlace['label'] ?? ($bookingProveniencePlaceLabel !== '' ? $bookingProveniencePlaceLabel : null),
-            'booking_provenience_place_code' => $bookingProveniencePlace['code'] ?? null,
         ]);
 
         $pdo->prepare('DELETE FROM anagrafica_guests WHERE record_id = :record_id')->execute(['record_id' => $recordId]);
     } else {
-        $stmt = $pdo->prepare('INSERT INTO anagrafica_records (uuid, record_type, booking_reference, ross_prenotazione_idswh, booking_received_date, arrival_date, departure_date, expected_guests, reserved_rooms, booking_channel, daily_price, booking_provenience_state_label, booking_provenience_state_code, booking_provenience_province, booking_provenience_place_label, booking_provenience_place_code, status, created_at, updated_at) VALUES (:uuid, :record_type, :booking_reference, :ross_prenotazione_idswh, :booking_received_date, :arrival_date, :departure_date, :expected_guests, :reserved_rooms, :booking_channel, :daily_price, :booking_provenience_state_label, :booking_provenience_state_code, :booking_provenience_province, :booking_provenience_place_label, :booking_provenience_place_code, :status, NOW(), NOW())');
+        $stmt = $pdo->prepare('INSERT INTO anagrafica_records (uuid, record_type, booking_reference, ross_prenotazione_idswh, booking_received_date, arrival_date, departure_date, expected_guests, reserved_rooms, booking_channel, daily_price, booking_provenience_state_label, booking_provenience_state_code, booking_provenience_province, booking_provenience_place_label, booking_provenience_place_code, status, created_at, updated_at) VALUES (:uuid, :record_type, :booking_reference, :ross_prenotazione_idswh, :booking_received_date, :arrival_date, :departure_date, :expected_guests, :reserved_rooms, NULL, NULL, NULL, NULL, NULL, NULL, NULL, :status, NOW(), NOW())');
         $stmt->execute([
             'uuid' => $recordUuid,
             'record_type' => $recordType,
@@ -347,19 +394,12 @@ try {
             'departure_date' => $departureDate,
             'expected_guests' => count($normalizedGuests),
             'reserved_rooms' => $reservedRooms,
-            'booking_channel' => $bookingChannel !== '' ? $bookingChannel : null,
-            'daily_price' => $dailyPrice !== '' ? $dailyPrice : null,
-            'booking_provenience_state_label' => $bookingProvenienceState['description'] ?? null,
-            'booking_provenience_state_code' => $bookingProvenienceState['code'] ?? null,
-            'booking_provenience_province' => $bookingProvenienceProvince !== '' ? $bookingProvenienceProvince : null,
-            'booking_provenience_place_label' => $bookingProveniencePlace['label'] ?? ($bookingProveniencePlaceLabel !== '' ? $bookingProveniencePlaceLabel : null),
-            'booking_provenience_place_code' => $bookingProveniencePlace['code'] ?? null,
             'status' => 'draft',
         ]);
         $recordId = (int) $pdo->lastInsertId();
     }
 
-    $guestStmt = $pdo->prepare('INSERT INTO anagrafica_guests (record_id, guest_idswh, is_group_leader, leader_idswh, tipoalloggiato_code, first_name, last_name, gender, birth_date, citizenship_label, citizenship_code, birth_state_label, birth_state_code, birth_province, birth_place_label, birth_city_code, residence_state_label, residence_state_code, residence_province, residence_place_label, residence_place_code, document_type, document_type_label, document_type_code, document_number, document_issue_date, document_expiry_date, document_issue_place, document_issue_place_code, email, phone, tourism_type, transport_type, education_level, profession, tax_exemption_code, created_at, updated_at) VALUES (:record_id, :guest_idswh, :is_group_leader, :leader_idswh, :tipoalloggiato_code, :first_name, :last_name, :gender, :birth_date, :citizenship_label, :citizenship_code, :birth_state_label, :birth_state_code, :birth_province, :birth_place_label, :birth_city_code, :residence_state_label, :residence_state_code, :residence_province, :residence_place_label, :residence_place_code, :document_type, :document_type_label, :document_type_code, :document_number, :document_issue_date, :document_expiry_date, :document_issue_place, :document_issue_place_code, :email, :phone, :tourism_type, :transport_type, :education_level, :profession, :tax_exemption_code, NOW(), NOW())');
+    $guestStmt = $pdo->prepare('INSERT INTO anagrafica_guests (record_id, guest_idswh, is_group_leader, leader_idswh, tipoalloggiato_code, first_name, last_name, gender, birth_date, citizenship_label, citizenship_code, birth_state_label, birth_state_code, birth_province, birth_place_label, birth_city_code, residence_state_label, residence_state_code, residence_province, residence_place_label, residence_place_code, document_type, document_type_label, document_type_code, document_number, document_issue_date, document_expiry_date, document_issue_place, document_issue_place_code, email, phone, tourism_type, transport_type, education_level, profession, tax_exemption_code, created_at, updated_at) VALUES (:record_id, :guest_idswh, :is_group_leader, :leader_idswh, :tipoalloggiato_code, :first_name, :last_name, :gender, :birth_date, :citizenship_label, :citizenship_code, :birth_state_label, :birth_state_code, :birth_province, :birth_place_label, :birth_city_code, :residence_state_label, :residence_state_code, :residence_province, :residence_place_label, :residence_place_code, :document_type, :document_type_label, :document_type_code, :document_number, NULL, NULL, :document_issue_place, :document_issue_place_code, NULL, NULL, :tourism_type, :transport_type, NULL, NULL, NULL, NOW(), NOW())');
 
     $leaderIdswh = '';
     foreach ($normalizedGuests as $index => $guest) {
@@ -394,17 +434,10 @@ try {
             'document_type_label' => $guest['document_type_label'],
             'document_type_code' => $guest['document_type_code'],
             'document_number' => $guest['document_number'],
-            'document_issue_date' => $guest['document_issue_date'],
-            'document_expiry_date' => $guest['document_expiry_date'],
             'document_issue_place' => $guest['document_issue_place'],
             'document_issue_place_code' => $guest['document_issue_place_code'],
-            'email' => $guest['email'],
-            'phone' => $guest['phone'],
             'tourism_type' => $guest['tourism_type'],
             'transport_type' => $guest['transport_type'],
-            'education_level' => $guest['education_level'],
-            'profession' => $guest['profession'],
-            'tax_exemption_code' => $guest['tax_exemption_code'],
         ]);
     }
 
@@ -414,13 +447,17 @@ try {
     ]);
 
     $pdo->commit();
+    clear_form_state();
 
-    $query = $isEdit ? 'updated=' . $recordId : 'created=' . $recordId;
-    redirect_to(build_listing_redirect_url($returnMonth, $returnDay !== '' ? $returnDay : $arrivalDate, $isEdit ? 'updated' : 'created', $recordId), 'success', $isEdit ? 'Anagrafica aggiornata correttamente.' : 'Nuova anagrafica salvata correttamente.');
+    redirect_to(
+        build_listing_redirect_url($returnMonth, $returnDay !== '' ? $returnDay : $arrivalDate, $isEdit ? 'updated' : 'created', $recordId),
+        'success',
+        $isEdit ? 'Anagrafica aggiornata correttamente.' : 'Nuova anagrafica salvata correttamente.'
+    );
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    $target = build_record_redirect_url(max(0, (int) ($_POST['record_id'] ?? 0)), max(0, (int) ($_POST['record_id'] ?? 0)) > 0, trim((string) ($_POST['return_month'] ?? '')), trim((string) ($_POST['return_day'] ?? '')));
-    redirect_to($target, 'error', 'Errore durante il salvataggio dell\'anagrafica: ' . $e->getMessage());
+    persist_form_state($_POST, [], ['Errore durante il salvataggio dell\'anagrafica. Controlla i dati e riprova.']);
+    redirect_to(build_form_redirect_url(max(0, (int) ($_POST['record_id'] ?? 0)), max(0, (int) ($_POST['record_id'] ?? 0)) > 0, trim((string) ($_POST['return_month'] ?? '')), trim((string) ($_POST['return_day'] ?? ''))));
 }

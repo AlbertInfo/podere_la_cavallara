@@ -59,7 +59,8 @@ function anagrafica_normalize_lookup_value(string $value): string
     }
 
     $value = html_entity_decode($value, ENT_QUOTES, 'UTF-8');
-    $value = str_replace(["", "
+    $value = str_replace(["
+", "
 ", "	"], ' ', $value);
 
     if (function_exists('iconv')) {
@@ -96,6 +97,49 @@ function anagrafica_province_italiane(): array
         'UD' => 'Udine',
         'VA' => 'Varese', 'VE' => 'Venezia', 'VB' => 'Verbano-Cusio-Ossola', 'VC' => 'Vercelli', 'VR' => 'Verona', 'VV' => 'Vibo Valentia', 'VI' => 'Vicenza', 'VT' => 'Viterbo',
     ];
+}
+
+
+function anagrafica_find_province_code(?string $value): ?string
+{
+    $value = trim((string) $value);
+    if ($value === '') {
+        return null;
+    }
+
+    $normalizedValue = anagrafica_normalize_lookup_value($value);
+    foreach (anagrafica_province_italiane() as $code => $label) {
+        if ($normalizedValue === anagrafica_normalize_lookup_value($code) || $normalizedValue === anagrafica_normalize_lookup_value($label)) {
+            return $code;
+        }
+    }
+
+    return null;
+}
+
+function anagrafica_comune_labels_by_province(): array
+{
+    static $cache = null;
+    if ($cache !== null) {
+        return $cache;
+    }
+
+    $grouped = [];
+    foreach (anagrafica_comune_rows() as $row) {
+        $province = (string) ($row['province'] ?? '');
+        if ($province === '') {
+            continue;
+        }
+        $grouped[$province][] = (string) ($row['label'] ?? '');
+    }
+
+    foreach ($grouped as $province => $labels) {
+        $labels = array_values(array_unique(array_filter($labels)));
+        sort($labels, SORT_NATURAL | SORT_FLAG_CASE);
+        $grouped[$province] = $labels;
+    }
+
+    return $cache = $grouped;
 }
 
 function anagrafica_default_italy_state_code(): string

@@ -295,7 +295,7 @@ require_once __DIR__ . '/includes/header.php';
                 <div class="mobile-filter-drawer__head">
                     <div>
                         <h3>Filtra e ordina</h3>
-                        <p>Ricerca rapida stile booking: apri il pannello solo quando serve, senza sprecare spazio verticale.</p>
+                        <!-- <p>Ricerca rapida stile booking: apri il pannello solo quando serve, senza sprecare spazio verticale.</p> -->
                     </div>
                 </div>
 
