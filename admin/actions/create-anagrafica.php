@@ -60,9 +60,40 @@ function normalize_optional(?string $value): ?string
     return $value === '' ? null : $value;
 }
 
-function build_record_redirect_url(int $recordId, bool $isEdit): string
+function build_record_redirect_url(int $recordId, bool $isEdit, string $month = '', string $day = ''): string
 {
-    return admin_url('anagrafica.php?' . ($isEdit ? 'edit=' . $recordId : 'new=1'));
+    $params = [];
+    if ($month !== '') {
+        $params['month'] = $month;
+    }
+    if ($day !== '') {
+        $params['day'] = $day;
+    }
+    if ($isEdit) {
+        $params['edit'] = (string) $recordId;
+    } else {
+        $params['new'] = '1';
+    }
+
+    $query = http_build_query($params);
+    return admin_url('anagrafica.php' . ($query !== '' ? ('?' . $query) : ''));
+}
+
+function build_listing_redirect_url(string $month = '', string $day = '', string $extraKey = '', int $extraId = 0): string
+{
+    $params = [];
+    if ($month !== '') {
+        $params['month'] = $month;
+    }
+    if ($day !== '') {
+        $params['day'] = $day;
+    }
+    if ($extraKey !== '' && $extraId > 0) {
+        $params[$extraKey] = (string) $extraId;
+    }
+
+    $query = http_build_query($params);
+    return admin_url('anagrafica.php' . ($query !== '' ? ('?' . $query) : ''));
 }
 
 function derive_guest_idswh(string $bookingIdswh, int $index): string
@@ -78,6 +109,8 @@ try {
 
     $recordId = max(0, (int) ($_POST['record_id'] ?? 0));
     $isEdit = $recordId > 0;
+    $returnMonth = trim((string) ($_POST['return_month'] ?? ''));
+    $returnDay = trim((string) ($_POST['return_day'] ?? ''));
     $allowedRecordTypes = ['single', 'family', 'group'];
     $recordType = (string) ($_POST['record_type'] ?? 'single');
     if (!in_array($recordType, $allowedRecordTypes, true)) {
@@ -111,7 +144,7 @@ try {
         $errors[] = 'Inserisci almeno un ospite.';
     }
     if ($errors) {
-        redirect_to(build_record_redirect_url($recordId, $isEdit), 'error', implode(' ', $errors));
+        redirect_to(build_record_redirect_url($recordId, $isEdit, $returnMonth, $returnDay), 'error', implode(' ', $errors));
     }
 
     $bookingProvenienceState = null;
@@ -135,7 +168,7 @@ try {
         $existing->execute(['id' => $recordId]);
         $existingRecord = $existing->fetch(PDO::FETCH_ASSOC);
         if (!$existingRecord) {
-            redirect_to(admin_url('anagrafica.php'), 'error', 'Anagrafica non trovata.');
+            redirect_to(build_listing_redirect_url($returnMonth, $returnDay), 'error', 'Anagrafica non trovata.');
         }
         $recordUuid = (string) $existingRecord['uuid'];
         $bookingIdswh = (string) $existingRecord['ross_prenotazione_idswh'];
@@ -276,7 +309,7 @@ try {
     }
 
     if ($errors) {
-        redirect_to(build_record_redirect_url($recordId, $isEdit), 'error', implode(' ', array_unique($errors)));
+        redirect_to(build_record_redirect_url($recordId, $isEdit, $returnMonth, $returnDay), 'error', implode(' ', array_unique($errors)));
     }
 
     $pdo->beginTransaction();
@@ -383,11 +416,11 @@ try {
     $pdo->commit();
 
     $query = $isEdit ? 'updated=' . $recordId : 'created=' . $recordId;
-    redirect_to(admin_url('anagrafica.php?' . $query), 'success', $isEdit ? 'Anagrafica aggiornata correttamente.' : 'Nuova anagrafica salvata correttamente.');
+    redirect_to(build_listing_redirect_url($returnMonth, $returnDay !== '' ? $returnDay : $arrivalDate, $isEdit ? 'updated' : 'created', $recordId), 'success', $isEdit ? 'Anagrafica aggiornata correttamente.' : 'Nuova anagrafica salvata correttamente.');
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    $target = build_record_redirect_url(max(0, (int) ($_POST['record_id'] ?? 0)), max(0, (int) ($_POST['record_id'] ?? 0)) > 0);
+    $target = build_record_redirect_url(max(0, (int) ($_POST['record_id'] ?? 0)), max(0, (int) ($_POST['record_id'] ?? 0)) > 0, trim((string) ($_POST['return_month'] ?? '')), trim((string) ($_POST['return_day'] ?? '')));
     redirect_to($target, 'error', 'Errore durante il salvataggio dell\'anagrafica: ' . $e->getMessage());
 }

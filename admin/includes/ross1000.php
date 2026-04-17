@@ -32,27 +32,458 @@ function ross1000_normalize_decimal($value): string
 function ross1000_is_open_on_date(array $config, string $date): bool
 {
     if (!empty($config['aperto_tutto_anno'])) {
+        foreach ((array) ($config['giorni_chiusura'] ?? []) as $closedDate) {
+            if ($closedDate === $date) {
+                return false;
+            }
+        }
+
+        foreach ((array) ($config['periodi_chiusura'] ?? []) as $period) {
+            if (!is_array($period)) {
+                continue;
+            }
+            $from = (string) ($period['from'] ?? '');
+            $to = (string) ($period['to'] ?? '');
+            if ($from !== '' && $to !== '' && $date >= $from && $date <= $to) {
+                return false;
+            }
+        }
+
         return true;
     }
 
-    foreach ((array) ($config['giorni_chiusura'] ?? []) as $closedDate) {
-        if ($closedDate === $date) {
-            return false;
-        }
+    return false;
+}
+
+function ross1000_day_status_table_ready(PDO $pdo): bool
+{
+    try {
+        return (bool) $pdo->query("SHOW TABLES LIKE 'ross1000_day_status'")->fetchColumn();
+    } catch (Throwable $e) {
+        return false;
+    }
+}
+
+function ross1000_default_day_state(array $config, string $date): array
+{
+    $isOpen = ross1000_is_open_on_date($config, $date);
+
+    return [
+        'day_date' => $date,
+        'is_open' => $isOpen ? 1 : 0,
+        'available_rooms' => $isOpen ? (int) ($config['camere_disponibili'] ?? 0) : 0,
+        'available_beds' => $isOpen ? (int) ($config['letti_disponibili'] ?? 0) : 0,
+        'is_finalized' => 0,
+        'finalized_at' => null,
+        'exported_ross_at' => null,
+        'exported_alloggiati_at' => null,
+    ];
+}
+
+function ross1000_get_day_states_for_range(PDO $pdo, string $from, string $to, ?array $config = null): array
+{
+    $config = $config ?: ross1000_property_config();
+    $states = [];
+
+    $cursor = new DateTimeImmutable($from);
+    $end = new DateTimeImmutable($to);
+
+    while ($cursor <= $end) {
+        $date = $cursor->format('Y-m-d');
+        $states[$date] = ross1000_default_day_state($config, $date);
+        $cursor = $cursor->modify('+1 day');
     }
 
-    foreach ((array) ($config['periodi_chiusura'] ?? []) as $period) {
-        if (!is_array($period)) {
+    if (!ross1000_day_status_table_ready($pdo)) {
+        return $states;
+    }
+
+    $stmt = $pdo->prepare('SELECT * FROM ross1000_day_status WHERE day_date BETWEEN :from AND :to ORDER BY day_date ASC');
+    $stmt->execute(['from' => $from, 'to' => $to]);
+
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+        $date = (string) ($row['day_date'] ?? '');
+        if ($date === '') {
             continue;
         }
-        $from = (string) ($period['from'] ?? '');
-        $to = (string) ($period['to'] ?? '');
-        if ($from !== '' && $to !== '' && $date >= $from && $date <= $to) {
-            return false;
+
+        $base = $states[$date] ?? ross1000_default_day_state($config, $date);
+        $states[$date] = array_merge($base, [
+            'day_date' => $date,
+            'is_open' => (int) ($row['is_open'] ?? $base['is_open']),
+            'available_rooms' => $row['available_rooms'] !== null ? (int) $row['available_rooms'] : $base['available_rooms'],
+            'available_beds' => $row['available_beds'] !== null ? (int) $row['available_beds'] : $base['available_beds'],
+            'is_finalized' => (int) ($row['is_finalized'] ?? 0),
+            'finalized_at' => $row['finalized_at'] ?? null,
+            'exported_ross_at' => $row['exported_ross_at'] ?? null,
+            'exported_alloggiati_at' => $row['exported_alloggiati_at'] ?? null,
+        ]);
+    }
+
+    return $states;
+}
+
+function ross1000_get_day_state(PDO $pdo, string $date, ?array $config = null): array
+{
+    $states = ross1000_get_day_states_for_range($pdo, $date, $date, $config);
+    return $states[$date] ?? ross1000_default_day_state($config ?: ross1000_property_config(), $date);
+}
+
+function ross1000_fetch_records_for_range(PDO $pdo, string $from, string $to): array
+{
+    $sql = "
+        SELECT
+            ar.*,
+            leader.first_name AS leader_first_name,
+            leader.last_name AS leader_last_name
+        FROM anagrafica_records ar
+        LEFT JOIN anagrafica_guests leader
+            ON leader.record_id = ar.id
+           AND leader.is_group_leader = 1
+        WHERE
+            (
+                ar.arrival_date <= :to_date
+                AND ar.departure_date >= :from_date
+            )
+            OR (
+                ar.booking_received_date BETWEEN :from_date AND :to_date
+            )
+        ORDER BY ar.arrival_date ASC, ar.id ASC
+    ";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([
+        'from_date' => $from,
+        'to_date' => $to,
+    ]);
+
+    return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+}
+
+function ross1000_fetch_guests_grouped(PDO $pdo, array $recordIds): array
+{
+    $recordIds = array_values(array_filter(array_map('intval', $recordIds)));
+    if (!$recordIds) {
+        return [];
+    }
+
+    $placeholders = implode(',', array_fill(0, count($recordIds), '?'));
+    $stmt = $pdo->prepare("SELECT * FROM anagrafica_guests WHERE record_id IN ($placeholders) ORDER BY is_group_leader DESC, id ASC");
+    $stmt->execute($recordIds);
+
+    $grouped = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+        $grouped[(int) $row['record_id']][] = $row;
+    }
+
+    return $grouped;
+}
+
+function ross1000_record_is_present_on_day(array $record, string $date): bool
+{
+    $arrival = substr((string) ($record['arrival_date'] ?? ''), 0, 10);
+    $departure = substr((string) ($record['departure_date'] ?? ''), 0, 10);
+
+    return $arrival !== '' && $departure !== '' && $arrival <= $date && $departure > $date;
+}
+
+function ross1000_record_arrives_on_day(array $record, string $date): bool
+{
+    return substr((string) ($record['arrival_date'] ?? ''), 0, 10) === $date;
+}
+
+function ross1000_record_departs_on_day(array $record, string $date): bool
+{
+    return substr((string) ($record['departure_date'] ?? ''), 0, 10) === $date;
+}
+
+function ross1000_record_booked_on_day(array $record, string $date): bool
+{
+    return substr((string) ($record['booking_received_date'] ?? ''), 0, 10) === $date;
+}
+
+function ross1000_record_label(array $record): string
+{
+    $name = trim((string) (($record['leader_first_name'] ?? '') . ' ' . ($record['leader_last_name'] ?? '')));
+    if ($name !== '') {
+        return $name;
+    }
+    return trim((string) ($record['booking_reference'] ?? ('Record #' . ($record['id'] ?? ''))));
+}
+
+function ross1000_build_day_snapshot(string $date, array $records, array $dayState, array $config): array
+{
+    $presentRecords = [];
+    $arrivalRecords = [];
+    $departureRecords = [];
+    $bookingRecords = [];
+    $touchingRecords = [];
+
+    foreach ($records as $record) {
+        $touchesDay = false;
+        $flags = [
+            'arrival' => ross1000_record_arrives_on_day($record, $date),
+            'departure' => ross1000_record_departs_on_day($record, $date),
+            'booking' => ross1000_record_booked_on_day($record, $date),
+            'present' => ross1000_record_is_present_on_day($record, $date),
+        ];
+
+        foreach ($flags as $flagValue) {
+            if ($flagValue) {
+                $touchesDay = true;
+                break;
+            }
+        }
+
+        if (!$touchesDay) {
+            continue;
+        }
+
+        if ($flags['present']) {
+            $presentRecords[] = $record;
+        }
+        if ($flags['arrival']) {
+            $arrivalRecords[] = $record;
+        }
+        if ($flags['departure']) {
+            $departureRecords[] = $record;
+        }
+        if ($flags['booking']) {
+            $bookingRecords[] = $record;
+        }
+
+        $touchingRecords[] = [
+            'record' => $record,
+            'flags' => $flags,
+            'label' => ross1000_record_label($record),
+        ];
+    }
+
+    $isOpen = (int) ($dayState['is_open'] ?? 1) === 1;
+    $occupiedRooms = 0;
+    $presentGuests = 0;
+    if ($isOpen) {
+        foreach ($presentRecords as $record) {
+            $occupiedRooms += (int) ($record['reserved_rooms'] ?? 0);
+            $presentGuests += (int) ($record['expected_guests'] ?? 0);
         }
     }
 
-    return true;
+    $arrivalsGuests = 0;
+    foreach ($arrivalRecords as $record) {
+        $arrivalsGuests += (int) ($record['expected_guests'] ?? 0);
+    }
+
+    $departuresGuests = 0;
+    foreach ($departureRecords as $record) {
+        $departuresGuests += (int) ($record['expected_guests'] ?? 0);
+    }
+
+    $availableRooms = $isOpen ? (int) ($dayState['available_rooms'] ?? ($config['camere_disponibili'] ?? 0)) : 0;
+    $availableBeds = $isOpen ? (int) ($dayState['available_beds'] ?? ($config['letti_disponibili'] ?? 0)) : 0;
+
+    $warnings = [];
+    if (!$isOpen && ($occupiedRooms > 0 || $arrivalsGuests > 0 || $departuresGuests > 0 || count($bookingRecords) > 0)) {
+        $warnings[] = 'Il giorno è impostato come chiuso ma contiene movimenti o occupazione.';
+    }
+    if ($availableRooms > 0 && $occupiedRooms > $availableRooms) {
+        $warnings[] = 'Le camere occupate superano le camere disponibili impostate per il giorno.';
+    }
+
+    return [
+        'date' => $date,
+        'day_state' => $dayState,
+        'is_open' => $isOpen,
+        'available_rooms' => $availableRooms,
+        'available_beds' => $availableBeds,
+        'occupied_rooms' => $occupiedRooms,
+        'present_guests' => $presentGuests,
+        'arrivals_guests' => $arrivalsGuests,
+        'departures_guests' => $departuresGuests,
+        'booking_records_count' => count($bookingRecords),
+        'presence_records_count' => count($presentRecords),
+        'arrival_records' => $arrivalRecords,
+        'departure_records' => $departureRecords,
+        'booking_records' => $bookingRecords,
+        'present_records' => $presentRecords,
+        'touching_records' => $touchingRecords,
+        'warnings' => $warnings,
+    ];
+}
+
+function ross1000_build_guest_arrivo(array $guest, array $record): array
+{
+    $bookingChannel = trim((string) ($guest['guest_booking_channel'] ?? '')) !== ''
+        ? (string) $guest['guest_booking_channel']
+        : (string) ($record['booking_channel'] ?? '');
+
+    return [
+        'idswh' => (string) ($guest['guest_idswh'] ?? ''),
+        'tipoalloggiato' => (string) ($guest['tipoalloggiato_code'] ?? ''),
+        'idcapo' => (int) ($guest['is_group_leader'] ?? 0) === 1 ? '' : (string) ($guest['leader_idswh'] ?? ''),
+        'cognome' => (string) ($guest['last_name'] ?? ''),
+        'nome' => (string) ($guest['first_name'] ?? ''),
+        'sesso' => (string) ($guest['gender'] ?? ''),
+        'cittadinanza' => (string) ($guest['citizenship_code'] ?? ''),
+        'statoresidenza' => (string) ($guest['residence_state_code'] ?? ''),
+        'luogoresidenza' => (string) ($guest['residence_place_code'] ?? ''),
+        'datanascita' => ross1000_format_date((string) ($guest['birth_date'] ?? '')),
+        'statonascita' => (string) ($guest['birth_state_code'] ?? ''),
+        'comunenascita' => (string) ($guest['birth_city_code'] ?? ''),
+        'tipoturismo' => (string) ($guest['tourism_type'] ?? ''),
+        'mezzotrasporto' => (string) ($guest['transport_type'] ?? ''),
+        'canaleprenotazione' => (string) $bookingChannel,
+        'titolostudio' => (string) ($guest['education_level'] ?? ''),
+        'professione' => (string) ($guest['profession'] ?? ''),
+        'esenzioneimposta' => (string) ($guest['tax_exemption_code'] ?? ''),
+    ];
+}
+
+function ross1000_build_guest_partenza(array $guest, array $record): array
+{
+    return [
+        'idswh' => (string) ($guest['guest_idswh'] ?? ''),
+        'tipoalloggiato' => (string) ($guest['tipoalloggiato_code'] ?? ''),
+        'arrivo' => ross1000_format_date((string) ($record['arrival_date'] ?? '')),
+    ];
+}
+
+function ross1000_build_prenotazione(array $record): array
+{
+    return [
+        'idswh' => (string) ($record['ross_prenotazione_idswh'] ?? ''),
+        'arrivo' => ross1000_format_date((string) ($record['arrival_date'] ?? '')),
+        'partenza' => ross1000_format_date((string) ($record['departure_date'] ?? '')),
+        'ospiti' => (string) ((int) ($record['expected_guests'] ?? 0)),
+        'camere' => (string) ((int) ($record['reserved_rooms'] ?? 0)),
+        'prezzo' => ross1000_normalize_decimal($record['daily_price'] ?? null),
+        'canaleprenotazione' => (string) ($record['booking_channel'] ?? ''),
+        'statoprovenienza' => (string) ($record['booking_provenience_state_code'] ?? ''),
+        'comuneprovenienza' => (string) ($record['booking_provenience_place_code'] ?? ''),
+    ];
+}
+
+function ross1000_validate_day_export(array $snapshot, array $config, array $guestsGrouped): array
+{
+    $errors = [];
+
+    if (!ross1000_property_config_ready($config)) {
+        $errors[] = 'Configura prima admin/includes/ross1000-config.php con codice struttura, camere e letti disponibili.';
+    }
+
+    foreach ((array) ($snapshot['warnings'] ?? []) as $warning) {
+        $errors[] = (string) $warning;
+    }
+
+    foreach ((array) ($snapshot['arrival_records'] ?? []) as $record) {
+        $recordId = (int) ($record['id'] ?? 0);
+        $guests = $guestsGrouped[$recordId] ?? [];
+        if (!$guests) {
+            $errors[] = 'Record #' . $recordId . ': nessun ospite associato per l\'arrivo del giorno.';
+            continue;
+        }
+
+        foreach ($guests as $index => $guest) {
+            $prefix = 'Arrivo ' . ross1000_record_label($record) . ' · ospite #' . ($index + 1);
+            $requiredFields = [
+                'guest_idswh' => 'idswh ospite',
+                'tipoalloggiato_code' => 'tipo alloggiato',
+                'first_name' => 'nome',
+                'last_name' => 'cognome',
+                'gender' => 'sesso',
+                'birth_date' => 'data di nascita',
+                'citizenship_code' => 'codice cittadinanza',
+                'residence_state_code' => 'codice stato residenza',
+                'residence_place_code' => 'luogo residenza',
+                'tourism_type' => 'tipo turismo',
+                'transport_type' => 'mezzo di trasporto',
+            ];
+
+            foreach ($requiredFields as $field => $label) {
+                if (trim((string) ($guest[$field] ?? '')) === '') {
+                    $errors[] = $prefix . ': manca ' . $label . '.';
+                }
+            }
+
+            if (in_array((string) ($guest['tipoalloggiato_code'] ?? ''), ['19', '20'], true) && trim((string) ($guest['leader_idswh'] ?? '')) === '') {
+                $errors[] = $prefix . ': i componenti gruppo/famiglia devono avere idcapo valorizzato.';
+            }
+        }
+    }
+
+    foreach ((array) ($snapshot['departure_records'] ?? []) as $record) {
+        $recordId = (int) ($record['id'] ?? 0);
+        $guests = $guestsGrouped[$recordId] ?? [];
+        if (!$guests) {
+            $errors[] = 'Record #' . $recordId . ': nessun ospite associato per la partenza del giorno.';
+        }
+    }
+
+    foreach ((array) ($snapshot['booking_records'] ?? []) as $record) {
+        if (trim((string) ($record['ross_prenotazione_idswh'] ?? '')) === '') {
+            $errors[] = ross1000_record_label($record) . ': manca l\'idswh della prenotazione.';
+        }
+        if (trim((string) ($record['arrival_date'] ?? '')) === '' || trim((string) ($record['departure_date'] ?? '')) === '') {
+            $errors[] = ross1000_record_label($record) . ': mancano arrivo o partenza previsti.';
+        }
+    }
+
+    return array_values(array_unique($errors));
+}
+
+function ross1000_build_day_payload(PDO $pdo, string $date): array
+{
+    $config = ross1000_property_config();
+    $dayState = ross1000_get_day_state($pdo, $date, $config);
+    $records = ross1000_fetch_records_for_range($pdo, $date, $date);
+    $snapshot = ross1000_build_day_snapshot($date, $records, $dayState, $config);
+
+    $recordIds = array_map(static function (array $row): int {
+        return (int) ($row['id'] ?? 0);
+    }, $records);
+    $guestsGrouped = ross1000_fetch_guests_grouped($pdo, $recordIds);
+
+    $errors = ross1000_validate_day_export($snapshot, $config, $guestsGrouped);
+    if ($errors) {
+        throw new RuntimeException(implode("\n", $errors));
+    }
+
+    $movement = [
+        'data' => ross1000_format_date($date),
+        'struttura' => [
+            'apertura' => $snapshot['is_open'] ? 'SI' : 'NO',
+            'camereoccupate' => $snapshot['is_open'] ? (string) $snapshot['occupied_rooms'] : '0',
+            'cameredisponibili' => $snapshot['is_open'] ? (string) $snapshot['available_rooms'] : '0',
+            'lettidisponibili' => $snapshot['is_open'] ? (string) $snapshot['available_beds'] : '0',
+        ],
+        'arrivi' => [],
+        'partenze' => [],
+        'prenotazioni' => [],
+        'rettifiche' => [],
+    ];
+
+    foreach ((array) $snapshot['arrival_records'] as $record) {
+        foreach (($guestsGrouped[(int) $record['id']] ?? []) as $guest) {
+            $movement['arrivi'][] = ross1000_build_guest_arrivo($guest, $record);
+        }
+    }
+
+    foreach ((array) $snapshot['departure_records'] as $record) {
+        foreach (($guestsGrouped[(int) $record['id']] ?? []) as $guest) {
+            $movement['partenze'][] = ross1000_build_guest_partenza($guest, $record);
+        }
+    }
+
+    foreach ((array) $snapshot['booking_records'] as $record) {
+        $movement['prenotazioni'][] = ross1000_build_prenotazione($record);
+    }
+
+    return [
+        'codice' => (string) ($config['codice_struttura'] ?? ''),
+        'prodotto' => (string) ($config['prodotto'] ?? (defined('ADMIN_APP_NAME') ? ADMIN_APP_NAME : 'Admin')),
+        'day' => $date,
+        'snapshot' => $snapshot,
+        'movimenti' => [$movement],
+    ];
 }
 
 function ross1000_fetch_record(PDO $pdo, int $recordId): array
@@ -146,58 +577,6 @@ function ross1000_compute_occupied_rooms(PDO $pdo, string $date): int
     $stmt = $pdo->prepare('SELECT COALESCE(SUM(reserved_rooms), 0) FROM anagrafica_records WHERE arrival_date <= :date AND departure_date > :date');
     $stmt->execute(['date' => $date]);
     return (int) $stmt->fetchColumn();
-}
-
-function ross1000_build_guest_arrivo(array $guest, array $record): array
-{
-    $bookingChannel = trim((string) ($guest['guest_booking_channel'] ?? '')) !== ''
-        ? (string) $guest['guest_booking_channel']
-        : (string) ($record['booking_channel'] ?? '');
-
-    return [
-        'idswh' => (string) ($guest['guest_idswh'] ?? ''),
-        'tipoalloggiato' => (string) ($guest['tipoalloggiato_code'] ?? ''),
-        'idcapo' => (int) ($guest['is_group_leader'] ?? 0) === 1 ? '' : (string) ($guest['leader_idswh'] ?? ''),
-        'cognome' => (string) ($guest['last_name'] ?? ''),
-        'nome' => (string) ($guest['first_name'] ?? ''),
-        'sesso' => (string) ($guest['gender'] ?? ''),
-        'cittadinanza' => (string) ($guest['citizenship_code'] ?? ''),
-        'statoresidenza' => (string) ($guest['residence_state_code'] ?? ''),
-        'luogoresidenza' => (string) ($guest['residence_place_code'] ?? ''),
-        'datanascita' => ross1000_format_date((string) ($guest['birth_date'] ?? '')),
-        'statonascita' => (string) ($guest['birth_state_code'] ?? ''),
-        'comunenascita' => (string) ($guest['birth_city_code'] ?? ''),
-        'tipoturismo' => (string) ($guest['tourism_type'] ?? ''),
-        'mezzotrasporto' => (string) ($guest['transport_type'] ?? ''),
-        'canaleprenotazione' => $bookingChannel,
-        'titolostudio' => (string) ($guest['education_level'] ?? ''),
-        'professione' => (string) ($guest['profession'] ?? ''),
-        'esenzioneimposta' => (string) ($guest['tax_exemption_code'] ?? ''),
-    ];
-}
-
-function ross1000_build_guest_partenza(array $guest, array $record): array
-{
-    return [
-        'idswh' => (string) ($guest['guest_idswh'] ?? ''),
-        'tipoalloggiato' => (string) ($guest['tipoalloggiato_code'] ?? ''),
-        'arrivo' => ross1000_format_date((string) ($record['arrival_date'] ?? '')),
-    ];
-}
-
-function ross1000_build_prenotazione(array $record): array
-{
-    return [
-        'idswh' => (string) ($record['ross_prenotazione_idswh'] ?? ''),
-        'arrivo' => ross1000_format_date((string) ($record['arrival_date'] ?? '')),
-        'partenza' => ross1000_format_date((string) ($record['departure_date'] ?? '')),
-        'ospiti' => (string) ((int) ($record['expected_guests'] ?? 0)),
-        'camere' => (string) ((int) ($record['reserved_rooms'] ?? 0)),
-        'prezzo' => ross1000_normalize_decimal($record['daily_price'] ?? null),
-        'canaleprenotazione' => (string) ($record['booking_channel'] ?? ''),
-        'statoprovenienza' => (string) ($record['booking_provenience_state_code'] ?? ''),
-        'comuneprovenienza' => (string) ($record['booking_provenience_place_code'] ?? ''),
-    ];
 }
 
 function ross1000_build_intermediate_array(PDO $pdo, int $recordId): array

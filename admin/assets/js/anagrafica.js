@@ -1,36 +1,29 @@
 document.addEventListener('DOMContentLoaded', () => {
-  const panel = document.querySelector('[data-anagrafica-form-panel]');
+  const formCard = document.getElementById('anagraficaFormCard');
   const form = document.getElementById('anagraficaForm');
-  if (!panel || !form) return;
-
-  const closeButton = document.querySelector('[data-anagrafica-close]');
+  const closeButton = document.getElementById('closeAnagraficaForm');
+  const openLinks = document.querySelectorAll('[data-anagrafica-open-link]');
+  const baseUrl = formCard?.dataset.baseUrl || window.location.pathname;
+  const forceOpen = formCard?.dataset.forceOpen === '1';
   const recordType = document.getElementById('recordType');
-  const expectedGuests = document.getElementById('expectedGuests');
-  const repeater = document.getElementById('guestRepeater');
   const addButton = document.getElementById('addGuestButton');
+  const repeater = document.getElementById('guestRepeater');
   const template = document.getElementById('guestTemplate');
-  const arrivalField = form.querySelector('[data-date-role="arrival"]');
-  const departureField = form.querySelector('[data-date-role="departure"]');
-  const baseUrl = panel.dataset.baseUrl || window.location.pathname;
-
+  const expectedGuests = document.getElementById('expectedGuests');
+  const arrivalField = form?.querySelector('[data-date-role="arrival"]') || null;
+  const departureField = form?.querySelector('[data-date-role="departure"]') || null;
   let cloneIndex = repeater ? repeater.querySelectorAll('[data-guest-card]').length + 1 : 1;
 
-  const openLinks = document.querySelectorAll('[data-anagrafica-open-link]');
-  const forceOpen = panel.dataset.forceOpen === '1';
+  if (!formCard || !form) return;
 
   function setPanelState(isOpen) {
-    panel.classList.toggle('is-open', isOpen);
-    panel.hidden = !isOpen;
-  }
-
-  function resetCreateMode() {
-    if (form.dataset.mode !== 'create') return;
-    form.reset();
-    repeater?.querySelectorAll('[data-guest-card]').forEach((card) => card.remove());
-    cloneIndex = 1;
-    refreshGuestCounters();
-    updateGroupState();
-    syncDateConstraints(form);
+    formCard.hidden = !isOpen;
+    formCard.classList.toggle('is-open', isOpen);
+    if (isOpen) {
+      requestAnimationFrame(() => {
+        formCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
   }
 
   function openPanel() {
@@ -39,39 +32,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function closePanel() {
     setPanelState(false);
-    resetCreateMode();
     if (window.history && typeof window.history.replaceState === 'function') {
       window.history.replaceState({}, document.title, baseUrl);
     }
   }
 
-  function createDatePicker(element, options = {}) {
-    if (typeof flatpickr !== 'function' || !element || element._flatpickr) return null;
+  function createDatePicker(field, extraOptions = {}) {
+    if (typeof flatpickr === 'undefined' || !field || field._flatpickr) return null;
 
-    return flatpickr(element, {
+    const locale = flatpickr.l10ns.it || 'default';
+
+    return flatpickr(field, {
+      locale,
       dateFormat: 'd/m/Y',
-      altInput: true,
-      altFormat: 'd/m/Y',
       allowInput: true,
-      locale: 'it',
       disableMobile: true,
-      monthSelectorType: 'static',
-      prevArrow: '<span aria-hidden="true">‹</span>',
-      nextArrow: '<span aria-hidden="true">›</span>',
-      ...options,
+      ...extraOptions,
     });
   }
 
   function syncDateConstraints(scope = form) {
     const issueFields = scope.querySelectorAll('[data-date-role="document-issue"]');
-
     issueFields.forEach((issueField) => {
-      const container = issueField.closest('[data-guest-card], .anagrafica-guest-card') || scope;
+      const container = issueField.closest('[data-guest-card]') || scope;
       const expiryField = container.querySelector('[data-date-role="document-expiry"]');
       if (!expiryField || !issueField._flatpickr || !expiryField._flatpickr) return;
 
       const selectedIssue = issueField._flatpickr.selectedDates[0] || null;
       const selectedExpiry = expiryField._flatpickr.selectedDates[0] || null;
+
       expiryField._flatpickr.config.minDate = selectedIssue;
       issueField._flatpickr.config.maxDate = selectedExpiry || null;
     });
@@ -79,6 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (arrivalField?._flatpickr && departureField?._flatpickr) {
       const arrivalDate = arrivalField._flatpickr.selectedDates[0] || null;
       const departureDate = departureField._flatpickr.selectedDates[0] || null;
+
       departureField._flatpickr.config.minDate = arrivalDate;
       arrivalField._flatpickr.config.maxDate = departureDate || null;
     }
@@ -228,8 +218,8 @@ document.addEventListener('DOMContentLoaded', () => {
   updateGroupState();
   setPanelState(forceOpen);
 
-  const highlightedRow = document.querySelector('[data-record-row].is-highlighted');
-  if (highlightedRow) {
-    highlightedRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  const selectedDayCard = document.querySelector('[data-day-card].is-selected');
+  if (selectedDayCard) {
+    selectedDayCard.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
   }
 });

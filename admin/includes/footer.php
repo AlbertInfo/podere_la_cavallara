@@ -36,7 +36,7 @@
     <script src="<?= e(admin_url('assets/js/admin-ui.js')) ?>?v=47"></script>
     <script src="<?= e(admin_url('assets/js/interhome-import.js')) ?>?v=31"></script>
     <?php if ($currentPath === 'anagrafica.php'): ?>
-        <script src="<?= e(admin_url('assets/js/anagrafica.js')) ?>?v=50"></script>
+        <script src="<?= e(admin_url('assets/js/anagrafica.js')) ?>?v=61"></script>
     <?php endif; ?>
 
 </body>

@@ -64,7 +64,7 @@ $currentDocumentLabel = $currentDocument['description'] ?? $currentDocumentValue
         </label>
         <label>
             <span>Stato di nascita</span>
-            <input list="state-options" name="<?= e($prefix) ?>[birth_state_label]" value="<?= e($fieldValue($guestData, 'birth_state_label', anagrafica_default_state_label())) ?>" placeholder="Seleziona o digita">
+            <input list="state-options" name="<?= e($prefix) ?>[birth_state_label]" value="<?= e($fieldValue($guestData, 'birth_state_label')) ?>" placeholder="Seleziona o digita">
         </label>
         <label>
             <span>Provincia nascita (se Italia)</span>
@@ -77,7 +77,7 @@ $currentDocumentLabel = $currentDocument['description'] ?? $currentDocumentValue
 
         <label>
             <span>Stato di residenza</span>
-            <input list="state-options" name="<?= e($prefix) ?>[residence_state_label]" value="<?= e($fieldValue($guestData, 'residence_state_label', anagrafica_default_state_label())) ?>" placeholder="Seleziona o digita" required>
+            <input list="state-options" name="<?= e($prefix) ?>[residence_state_label]" value="<?= e($fieldValue($guestData, 'residence_state_label')) ?>" placeholder="Seleziona o digita" required>
         </label>
         <label>
             <span>Provincia residenza (se Italia)</span>
