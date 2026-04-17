@@ -116,7 +116,7 @@ $mobilePageKicker = admin_mobile_page_kicker($currentPath);
                     </a>
 
                     <a class="sidebar-link<?= admin_nav_active(['anagrafica.php'], $currentPath) ?>" href="<?= e(admin_url('anagrafica.php')) ?>">
-                        <span class="sidebar-link__content">Ross 1000 - AllogiatiWeb</span>
+                        <span class="sidebar-link__content">Ross 1000 - AlloggiatiWeb</span>
                     </a>
 
                     <a class="sidebar-link<?= admin_nav_active(['new-prenotazione.php'], $currentPath) ?>" href="<?= e(admin_url('new-prenotazione.php')) ?>">
