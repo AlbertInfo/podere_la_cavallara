@@ -1,152 +1,184 @@
-document.addEventListener('DOMContentLoaded', () => {
-  const formCard = document.getElementById('anagraficaFormCard');
-  const form = document.getElementById('anagraficaForm');
-  const closeButton = document.getElementById('closeAnagraficaForm');
-  const openLinks = document.querySelectorAll('[data-anagrafica-open-link]');
-  const baseUrl = formCard?.dataset.baseUrl || window.location.pathname;
-  const forceOpen = formCard?.dataset.forceOpen === '1';
-  const recordType = document.getElementById('recordType');
-  const addButton = document.getElementById('addGuestButton');
-  const repeater = document.getElementById('guestRepeater');
-  const template = document.getElementById('guestTemplate');
-  const expectedGuests = document.getElementById('expectedGuests');
-  const arrivalField = form?.querySelector('[data-date-role="arrival"]') || null;
-  const departureField = form?.querySelector('[data-date-role="departure"]') || null;
-  let cloneIndex = repeater ? repeater.querySelectorAll('[data-guest-card]').length + 1 : 1;
 
-  if (!formCard || !form) return;
+document.addEventListener('DOMContentLoaded', function () {
+  'use strict';
 
-  function setPanelState(isOpen) {
-    formCard.hidden = !isOpen;
-    formCard.classList.toggle('is-open', isOpen);
-    if (isOpen) {
-      requestAnimationFrame(() => {
-        formCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  function $(selector, scope) {
+    return (scope || document).querySelector(selector);
+  }
+
+  function $all(selector, scope) {
+    return Array.prototype.slice.call((scope || document).querySelectorAll(selector));
+  }
+
+  function getSubmitter(event) {
+    return event.submitter || document.activeElement || null;
+  }
+
+  function safeReplaceUrl(url) {
+    try {
+      if (window.history && typeof window.history.replaceState === 'function') {
+        window.history.replaceState({}, document.title, url);
+      }
+    } catch (err) {
+      // no-op
+    }
+  }
+
+  function setHidden(el, hidden) {
+    if (!el) return;
+    el.hidden = !!hidden;
+    if (hidden) {
+      el.classList.remove('is-open');
+    } else {
+      el.classList.add('is-open');
+    }
+  }
+
+  function initFormPanel() {
+    var formCard = document.getElementById('anagraficaFormCard');
+    var form = document.getElementById('anagraficaForm');
+    if (!formCard || !form) return;
+
+    var closeButton = document.getElementById('closeAnagraficaForm');
+    var openLinks = $all('[data-anagrafica-open-link]');
+    var baseUrl = formCard.getAttribute('data-base-url') || window.location.pathname;
+    var forceOpen = (formCard.getAttribute('data-force-open') || '0') === '1';
+    var recordType = document.getElementById('recordType');
+    var addButton = document.getElementById('addGuestButton');
+    var repeater = document.getElementById('guestRepeater');
+    var template = document.getElementById('guestTemplate');
+    var expectedGuests = document.getElementById('expectedGuests');
+    var arrivalField = $('[data-date-role="arrival"]', form);
+    var departureField = $('[data-date-role="departure"]', form);
+    var cloneIndex = repeater ? $all('[data-guest-card]', repeater).length + 1 : 1;
+
+    function openPanel() {
+      setHidden(formCard, false);
+      window.requestAnimationFrame(function () {
+        try {
+          formCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch (err) {
+          formCard.scrollIntoView(true);
+        }
       });
     }
-  }
 
-  function openPanel() {
-    setPanelState(true);
-  }
-
-  function closePanel() {
-    setPanelState(false);
-    if (window.history && typeof window.history.replaceState === 'function') {
-      window.history.replaceState({}, document.title, baseUrl);
+    function closePanel() {
+      setHidden(formCard, true);
+      safeReplaceUrl(baseUrl);
     }
-  }
 
-  function createDatePicker(field, extraOptions = {}) {
-    if (typeof flatpickr === 'undefined' || !field || field._flatpickr) return null;
+    function createDatePicker(field, extraOptions) {
+      if (!field || typeof window.flatpickr === 'undefined' || field._flatpickr) return null;
 
-    const locale = flatpickr.l10ns.it || 'default';
-
-    return flatpickr(field, {
-      locale,
-      dateFormat: 'd/m/Y',
-      allowInput: true,
-      disableMobile: true,
-      ...extraOptions,
-    });
-  }
-
-  function syncDateConstraints(scope = form) {
-    const issueFields = scope.querySelectorAll('[data-date-role="document-issue"]');
-    issueFields.forEach((issueField) => {
-      const container = issueField.closest('[data-guest-card]') || scope;
-      const expiryField = container.querySelector('[data-date-role="document-expiry"]');
-      if (!expiryField || !issueField._flatpickr || !expiryField._flatpickr) return;
-
-      const selectedIssue = issueField._flatpickr.selectedDates[0] || null;
-      const selectedExpiry = expiryField._flatpickr.selectedDates[0] || null;
-
-      expiryField._flatpickr.config.minDate = selectedIssue;
-      issueField._flatpickr.config.maxDate = selectedExpiry || null;
-    });
-
-    if (arrivalField?._flatpickr && departureField?._flatpickr) {
-      const arrivalDate = arrivalField._flatpickr.selectedDates[0] || null;
-      const departureDate = departureField._flatpickr.selectedDates[0] || null;
-
-      departureField._flatpickr.config.minDate = arrivalDate;
-      arrivalField._flatpickr.config.maxDate = departureDate || null;
-    }
-  }
-
-  function initDates(scope = document) {
-    scope.querySelectorAll('.js-date').forEach((field) => {
-      const role = field.dataset.dateRole || '';
-      const options = {};
+      var role = field.getAttribute('data-date-role') || '';
+      var options = Object.assign({
+        locale: (window.flatpickr.l10ns && window.flatpickr.l10ns.it) ? window.flatpickr.l10ns.it : 'default',
+        dateFormat: 'd/m/Y',
+        allowInput: true,
+        disableMobile: true
+      }, extraOptions || {});
 
       if (role === 'birth') {
         options.maxDate = 'today';
       }
 
-      createDatePicker(field, {
-        ...options,
-        onReady: [() => syncDateConstraints(scope)],
-        onChange: [() => syncDateConstraints(scope)],
-      });
-    });
-
-    syncDateConstraints(scope);
-  }
-
-  function updateGroupState() {
-    const isGroup = recordType && recordType.value !== 'single';
-    if (addButton) {
-      addButton.disabled = !isGroup;
-      addButton.classList.toggle('is-disabled', !isGroup);
+      return window.flatpickr(field, options);
     }
-    if (repeater) {
-      repeater.style.display = isGroup ? 'grid' : 'none';
-      if (!isGroup) {
-        repeater.querySelectorAll('[data-guest-card]').forEach((card) => card.remove());
-        cloneIndex = 1;
-        if (expectedGuests) expectedGuests.value = '1';
-      } else if (expectedGuests && Number(expectedGuests.value || 0) < 2) {
-        expectedGuests.value = String(Math.max(2, 1 + repeater.querySelectorAll('[data-guest-card]').length));
+
+    function syncDateConstraints(scope) {
+      scope = scope || form;
+
+      $all('[data-date-role="document-issue"]', scope).forEach(function (issueField) {
+        var container = issueField.closest('[data-guest-card]') || scope;
+        var expiryField = $('[data-date-role="document-expiry"]', container);
+        if (!expiryField || !issueField._flatpickr || !expiryField._flatpickr) return;
+
+        var issueDate = issueField._flatpickr.selectedDates[0] || null;
+        var expiryDate = expiryField._flatpickr.selectedDates[0] || null;
+
+        issueField._flatpickr.set('maxDate', expiryDate || null);
+        expiryField._flatpickr.set('minDate', issueDate || null);
+      });
+
+      if (arrivalField && departureField && arrivalField._flatpickr && departureField._flatpickr) {
+        var arrivalDate = arrivalField._flatpickr.selectedDates[0] || null;
+        var departureDate = departureField._flatpickr.selectedDates[0] || null;
+
+        arrivalField._flatpickr.set('maxDate', departureDate || null);
+        departureField._flatpickr.set('minDate', arrivalDate || null);
       }
     }
-  }
 
-  function refreshGuestCounters() {
-    if (!repeater) return;
-    repeater.querySelectorAll('[data-guest-card]').forEach((card, index) => {
-      const numberNode = card.querySelector('[data-guest-number]');
-      if (numberNode) numberNode.textContent = String(index + 2);
-    });
-    if (expectedGuests && recordType?.value !== 'single') {
-      expectedGuests.value = String(1 + repeater.querySelectorAll('[data-guest-card]').length);
-    }
-  }
-
-  function bindGuestRemoveButtons(scope = repeater) {
-    if (!scope) return;
-    scope.querySelectorAll('[data-remove-guest]').forEach((button) => {
-      if (button.dataset.bound === '1') return;
-      button.dataset.bound = '1';
-      button.addEventListener('click', () => {
-        const card = button.closest('[data-guest-card]');
-        if (card) {
-          card.remove();
-          refreshGuestCounters();
-        }
+    function initDates(scope) {
+      scope = scope || form;
+      $all('.js-date', scope).forEach(function (field) {
+        createDatePicker(field, {
+          onReady: [function () { syncDateConstraints(scope); }],
+          onChange: [function () { syncDateConstraints(scope); }]
+        });
       });
-    });
-  }
+      syncDateConstraints(scope);
+    }
 
-  function addGuestCard() {
-    if (!template || !repeater) return;
+    function refreshGuestCounters() {
+      if (!repeater) return;
+      $all('[data-guest-card]', repeater).forEach(function (card, index) {
+        var num = $('[data-guest-number]', card);
+        if (num) num.textContent = String(index + 2);
+      });
 
-    const fragment = template.content.cloneNode(true);
-    const card = fragment.querySelector('[data-guest-card]');
-    if (!card) return;
+      if (expectedGuests && recordType && recordType.value !== 'single') {
+        expectedGuests.value = String(1 + $all('[data-guest-card]', repeater).length);
+      }
+    }
 
-    card.querySelectorAll('[data-name]').forEach((field) => {
-      field.name = `guests[${cloneIndex}][${field.dataset.name}]`;
-      if ([
+    function bindRemoveButtons(scope) {
+      scope = scope || repeater;
+      if (!scope) return;
+
+      $all('[data-remove-guest]', scope).forEach(function (button) {
+        if (button.dataset.bound === '1') return;
+        button.dataset.bound = '1';
+        button.addEventListener('click', function () {
+          var card = button.closest('[data-guest-card]');
+          if (card) {
+            card.remove();
+            refreshGuestCounters();
+          }
+        });
+      });
+    }
+
+    function updateGroupState() {
+      var isGroup = recordType && recordType.value !== 'single';
+
+      if (addButton) {
+        addButton.disabled = !isGroup;
+        addButton.classList.toggle('is-disabled', !isGroup);
+      }
+
+      if (!repeater) return;
+
+      repeater.style.display = isGroup ? 'grid' : 'none';
+
+      if (!isGroup) {
+        $all('[data-guest-card]', repeater).forEach(function (card) { card.remove(); });
+        cloneIndex = 1;
+        if (expectedGuests) expectedGuests.value = '1';
+      } else if (expectedGuests && parseInt(expectedGuests.value || '0', 10) < 2) {
+        expectedGuests.value = String(Math.max(2, 1 + $all('[data-guest-card]', repeater).length));
+      }
+    }
+
+    function addGuestCard() {
+      if (!template || !repeater) return;
+
+      var fragment = template.content.cloneNode(true);
+      var card = $('[data-guest-card]', fragment);
+      if (!card) return;
+
+      var requiredFields = [
         'first_name',
         'last_name',
         'birth_date',
@@ -157,179 +189,218 @@ document.addEventListener('DOMContentLoaded', () => {
         'document_number',
         'document_expiry_date',
         'tourism_type',
-        'transport_type',
-      ].includes(field.dataset.name)) {
-        field.required = true;
-      }
+        'transport_type'
+      ];
+
+      $all('[data-name]', card).forEach(function (field) {
+        var dataName = field.getAttribute('data-name');
+        field.name = 'guests[' + cloneIndex + '][' + dataName + ']';
+        if (requiredFields.indexOf(dataName) !== -1) {
+          field.required = true;
+        }
+      });
+
+      repeater.appendChild(card);
+      bindRemoveButtons(card);
+      initDates(card);
+      cloneIndex += 1;
+      refreshGuestCounters();
+    }
+
+    openLinks.forEach(function (link) {
+      link.addEventListener('click', function (event) {
+        event.preventDefault();
+        openPanel();
+        safeReplaceUrl(link.getAttribute('href') || baseUrl);
+      });
     });
 
-    repeater.appendChild(card);
-    bindGuestRemoveButtons(card);
-    initDates(card);
-    cloneIndex += 1;
+    if (closeButton) {
+      closeButton.addEventListener('click', function (event) {
+        event.preventDefault();
+        closePanel();
+      });
+    }
+
+    if (addButton) addButton.addEventListener('click', addGuestCard);
+    if (recordType) recordType.addEventListener('change', updateGroupState);
+
+    initDates(form);
+    bindRemoveButtons();
     refreshGuestCounters();
+    updateGroupState();
+    setHidden(formCard, !forceOpen);
   }
 
-  document.querySelectorAll('[data-record-row]').forEach((row) => {
-    const editUrl = row.dataset.editUrl;
-    if (!editUrl) return;
+  function initEditableRows() {
+    $all('[data-record-row]').forEach(function (row) {
+      var editUrl = row.getAttribute('data-edit-url');
+      if (!editUrl) return;
 
-    row.addEventListener('click', (event) => {
-      if (event.target.closest('[data-row-ignore]')) return;
-      window.location.href = editUrl;
+      function shouldIgnore(target) {
+        return !!(target && target.closest('[data-row-ignore]'));
+      }
+
+      row.addEventListener('click', function (event) {
+        if (shouldIgnore(event.target)) return;
+        window.location.href = editUrl;
+      });
+
+      row.addEventListener('keydown', function (event) {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        if (shouldIgnore(event.target)) return;
+        event.preventDefault();
+        window.location.href = editUrl;
+      });
     });
+  }
 
-    row.addEventListener('keydown', (event) => {
-      if (event.key !== 'Enter' && event.key !== ' ') return;
-      if (event.target.closest('[data-row-ignore]')) return;
-      event.preventDefault();
-      window.location.href = editUrl;
-    });
-  });
-
-
-  document.querySelectorAll('[data-month-export-form]').forEach((monthForm) => {
-    monthForm.addEventListener('submit', (event) => {
-      const ok = window.confirm("Questa azione precompila il mese come aperto per i giorni non ancora chiusi e scarica l'XML mensile ROSS1000. Continuare?");
-      if (!ok) event.preventDefault();
-    });
-  });
-
-  document.querySelectorAll('[data-delete-form]').forEach((deleteForm) => {
-    deleteForm.addEventListener('submit', (event) => {
-      const ok = window.confirm('Eliminare definitivamente questa anagrafica?');
-      if (!ok) event.preventDefault();
-    });
-  });
-
-  document.querySelectorAll('.ross-day-settings').forEach((dayForm) => {
-    dayForm.addEventListener('submit', (event) => {
-      const intent = event.submitter?.value || '';
-      if (intent === 'close') {
-        const ok = window.confirm('Chiudere definitivamente il giorno selezionato? Potrai comunque riaprirlo e rigenerarlo in seguito.');
+  function initConfirmations() {
+    $all('[data-month-export-form]').forEach(function (monthForm) {
+      monthForm.addEventListener('submit', function (event) {
+        var ok = window.confirm("Questa azione precompila il mese come aperto per i giorni non ancora chiusi e scarica l'XML mensile ROSS1000. Continuare?");
         if (!ok) event.preventDefault();
-      }
+      });
     });
-  });
 
-  document.querySelectorAll('[data-day-export-link]').forEach((exportLink) => {
-    exportLink.addEventListener('click', (event) => {
-      if (exportLink.classList.contains('is-disabled') || exportLink.getAttribute('aria-disabled') === 'true') {
+    $all('[data-delete-form]').forEach(function (deleteForm) {
+      deleteForm.addEventListener('submit', function (event) {
+        var ok = window.confirm('Eliminare definitivamente questa anagrafica?');
+        if (!ok) event.preventDefault();
+      });
+    });
+
+    $all('.ross-day-settings').forEach(function (dayForm) {
+      dayForm.addEventListener('submit', function (event) {
+        var submitter = getSubmitter(event);
+        var intent = submitter ? (submitter.value || submitter.getAttribute('value') || '') : '';
+        if (intent === 'close') {
+          var ok = window.confirm('Chiudere definitivamente il giorno selezionato?');
+          if (!ok) event.preventDefault();
+        }
+      });
+    });
+
+    $all('[data-day-export-link]').forEach(function (link) {
+      link.addEventListener('click', function (event) {
+        if (link.classList.contains('is-disabled') || link.getAttribute('aria-disabled') === 'true') {
+          event.preventDefault();
+          return;
+        }
+        var message = link.getAttribute('data-confirm-message') || "Confermare l'esportazione del file?";
+        var ok = window.confirm(message);
+        if (!ok) event.preventDefault();
+      });
+    });
+  }
+
+  function initCarousel() {
+    var carousel = $('[data-day-carousel]');
+    var viewport = $('[data-day-carousel-viewport]');
+    var strip = $('[data-day-strip]');
+    var prevButton = $('[data-day-carousel-prev]');
+    var nextButton = $('[data-day-carousel-next]');
+    if (!carousel || !viewport || !strip) return;
+
+    function getStep() {
+      var firstCard = $('.ross-day-card', strip);
+      if (!firstCard) return Math.max(240, Math.round(viewport.clientWidth * 0.7));
+      var style = window.getComputedStyle(strip);
+      var gap = parseFloat(style.columnGap || style.gap || '0') || 0;
+      return Math.round(firstCard.getBoundingClientRect().width + gap);
+    }
+
+    function maxScrollLeft() {
+      return Math.max(0, viewport.scrollWidth - viewport.clientWidth);
+    }
+
+    function updateControls() {
+      if (!prevButton || !nextButton) return;
+      var left = Math.round(viewport.scrollLeft);
+      var max = Math.round(maxScrollLeft());
+      prevButton.disabled = left <= 2;
+      nextButton.disabled = left >= (max - 2);
+    }
+
+    function scrollByStep(direction) {
+      viewport.scrollBy({
+        left: getStep() * direction,
+        behavior: 'smooth'
+      });
+      window.setTimeout(updateControls, 350);
+    }
+
+    if (prevButton) {
+      prevButton.addEventListener('click', function (event) {
         event.preventDefault();
-        return;
-      }
-      const message = exportLink.dataset.confirmMessage || 'Confermare l'esportazione del file?';
-      const ok = window.confirm(message);
-      if (!ok) event.preventDefault();
-    });
-  });
+        scrollByStep(-1);
+      });
+    }
 
-  closeButton?.addEventListener('click', (event) => {
-    event.preventDefault();
-    closePanel();
-  });
+    if (nextButton) {
+      nextButton.addEventListener('click', function (event) {
+        event.preventDefault();
+        scrollByStep(1);
+      });
+    }
 
-  openLinks.forEach((link) => {
-    link.addEventListener('click', (event) => {
+    viewport.addEventListener('scroll', updateControls, { passive: true });
+    window.addEventListener('resize', updateControls);
+
+    viewport.addEventListener('wheel', function (event) {
+      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
       event.preventDefault();
-      openPanel();
-      if (window.history && typeof window.history.replaceState === 'function') {
-        window.history.replaceState({}, document.title, link.getAttribute('href') || baseUrl);
-      }
-    });
-  });
-
-  addButton?.addEventListener('click', addGuestCard);
-  recordType?.addEventListener('change', updateGroupState);
-
-  initDates(form);
-  bindGuestRemoveButtons();
-  refreshGuestCounters();
-  updateGroupState();
-  setPanelState(forceOpen);
-
-
-  const dayCarousel = document.querySelector('[data-day-carousel]');
-  const dayViewport = document.querySelector('[data-day-carousel-viewport]');
-  const dayStrip = document.querySelector('[data-day-strip]');
-  const prevDayButton = document.querySelector('[data-day-carousel-prev]');
-  const nextDayButton = document.querySelector('[data-day-carousel-next]');
-  const dayScrollTarget = dayViewport || dayStrip;
-
-  function updateDayCarouselControls() {
-    if (!dayScrollTarget || !prevDayButton || !nextDayButton) return;
-    const maxScroll = Math.max(0, dayScrollTarget.scrollWidth - dayScrollTarget.clientWidth - 2);
-    prevDayButton.disabled = dayScrollTarget.scrollLeft <= 4;
-    nextDayButton.disabled = dayScrollTarget.scrollLeft >= maxScroll;
-  }
-
-  function scrollDayCarousel(direction) {
-    if (!dayScrollTarget) return;
-    const step = Math.max(240, Math.round(dayScrollTarget.clientWidth * 0.82));
-    dayScrollTarget.scrollBy({ left: step * direction, behavior: 'smooth' });
-  }
-
-  function centerDayCard(card, behavior = 'smooth') {
-    if (!dayScrollTarget || !card) return;
-    const targetLeft = card.offsetLeft - ((dayScrollTarget.clientWidth - card.offsetWidth) / 2);
-    dayScrollTarget.scrollTo({ left: Math.max(0, targetLeft), behavior });
-  }
-
-  prevDayButton?.addEventListener('click', (event) => {
-    event.preventDefault();
-    scrollDayCarousel(-1);
-  });
-  nextDayButton?.addEventListener('click', (event) => {
-    event.preventDefault();
-    scrollDayCarousel(1);
-  });
-
-  if (dayScrollTarget) {
-    let isPointerDown = false;
-    let startX = 0;
-    let startScrollLeft = 0;
-
-    dayScrollTarget.addEventListener('scroll', updateDayCarouselControls, { passive: true });
-    window.addEventListener('resize', updateDayCarouselControls);
-
-    dayScrollTarget.addEventListener('wheel', (event) => {
-      if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
-        event.preventDefault();
-        dayScrollTarget.scrollLeft += event.deltaY;
-      }
+      viewport.scrollLeft += event.deltaY;
     }, { passive: false });
 
-    dayScrollTarget.addEventListener('pointerdown', (event) => {
+    var isDown = false;
+    var startX = 0;
+    var startScrollLeft = 0;
+
+    viewport.addEventListener('pointerdown', function (event) {
       if (event.pointerType === 'mouse' && event.button !== 0) return;
-      isPointerDown = true;
+      isDown = true;
       startX = event.clientX;
-      startScrollLeft = dayScrollTarget.scrollLeft;
-      dayCarousel?.classList.add('is-dragging');
-      dayScrollTarget.setPointerCapture?.(event.pointerId);
-    });
-
-    dayScrollTarget.addEventListener('pointermove', (event) => {
-      if (!isPointerDown) return;
-      const delta = event.clientX - startX;
-      dayScrollTarget.scrollLeft = startScrollLeft - delta;
-    });
-
-    const stopDragging = (event) => {
-      isPointerDown = false;
-      dayCarousel?.classList.remove('is-dragging');
-      if (event?.pointerId != null) {
-        try { dayScrollTarget.releasePointerCapture?.(event.pointerId); } catch (e) {}
+      startScrollLeft = viewport.scrollLeft;
+      carousel.classList.add('is-dragging');
+      if (typeof viewport.setPointerCapture === 'function') {
+        try { viewport.setPointerCapture(event.pointerId); } catch (err) {}
       }
-    };
+    });
 
-    dayScrollTarget.addEventListener('pointerup', stopDragging);
-    dayScrollTarget.addEventListener('pointercancel', stopDragging);
-    updateDayCarouselControls();
+    viewport.addEventListener('pointermove', function (event) {
+      if (!isDown) return;
+      var delta = event.clientX - startX;
+      viewport.scrollLeft = startScrollLeft - delta;
+    });
+
+    function stopDrag(event) {
+      if (!isDown) return;
+      isDown = false;
+      carousel.classList.remove('is-dragging');
+      if (event && typeof viewport.releasePointerCapture === 'function' && event.pointerId != null) {
+        try { viewport.releasePointerCapture(event.pointerId); } catch (err) {}
+      }
+      updateControls();
+    }
+
+    viewport.addEventListener('pointerup', stopDrag);
+    viewport.addEventListener('pointercancel', stopDrag);
+    viewport.addEventListener('mouseleave', function () {
+      if (isDown) stopDrag();
+    });
+
+    var selectedCard = $('.ross-day-card.is-selected', strip);
+    if (selectedCard) {
+      var targetLeft = selectedCard.offsetLeft - ((viewport.clientWidth - selectedCard.offsetWidth) / 2);
+      viewport.scrollLeft = Math.max(0, targetLeft);
+    }
+
+    updateControls();
   }
 
-  const selectedDayCard = document.querySelector('[data-day-card].is-selected');
-  if (selectedDayCard) {
-    centerDayCard(selectedDayCard, 'auto');
-    updateDayCarouselControls();
-  }
+  try { initFormPanel(); } catch (err) { console.error('Anagrafica form init failed:', err); }
+  try { initEditableRows(); } catch (err) { console.error('Editable rows init failed:', err); }
+  try { initConfirmations(); } catch (err) { console.error('Confirmations init failed:', err); }
+  try { initCarousel(); } catch (err) { console.error('Carousel init failed:', err); }
 });
