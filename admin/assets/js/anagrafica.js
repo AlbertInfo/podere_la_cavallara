@@ -457,41 +457,9 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function initConfirmations() {
-    $all('[data-month-export-form]').forEach(function (monthForm) {
-      monthForm.addEventListener('submit', function (event) {
-        if (!window.confirm("Questa azione imposta i giorni non chiusi come aperti e scarica l'XML mensile ROSS1000. Continuare?")) {
-          event.preventDefault();
-        }
-      });
-    });
-
     $all('[data-delete-form]').forEach(function (deleteForm) {
       deleteForm.addEventListener('submit', function (event) {
         if (!window.confirm('Eliminare definitivamente questa anagrafica?')) {
-          event.preventDefault();
-        }
-      });
-    });
-
-    $all('.ross-day-settings').forEach(function (dayForm) {
-      dayForm.addEventListener('submit', function (event) {
-        var submitter = event.submitter;
-        if (submitter && (submitter.value || '') === 'close') {
-          if (!window.confirm('Chiudere definitivamente il giorno selezionato?')) {
-            event.preventDefault();
-          }
-        }
-      });
-    });
-
-    $all('[data-day-export-link]').forEach(function (link) {
-      link.addEventListener('click', function (event) {
-        if (link.classList.contains('is-disabled') || link.getAttribute('aria-disabled') === 'true') {
-          event.preventDefault();
-          return;
-        }
-        var message = link.getAttribute('data-confirm-message') || "Confermare l'esportazione del file?";
-        if (!window.confirm(message)) {
           event.preventDefault();
         }
       });
@@ -505,17 +473,17 @@ document.addEventListener('DOMContentLoaded', function () {
     var confirmButton = document.getElementById('alloggiatiConfirmSubmit');
     if (!modal || !body || !confirmButton) return;
 
-    var activeForm = null;
+    var activeAction = null;
 
     function closeModal() {
       modal.hidden = true;
       document.body.classList.remove('is-modal-open');
       body.innerHTML = '';
-      activeForm = null;
+      activeAction = null;
     }
 
-    function openModal(html, form) {
-      activeForm = form || null;
+    function openModal(html, action) {
+      activeAction = action || null;
       body.innerHTML = html || '<p class="muted">Nessun riepilogo disponibile.</p>';
       modal.hidden = false;
       document.body.classList.add('is-modal-open');
@@ -536,22 +504,38 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     confirmButton.addEventListener('click', function () {
-      if (activeForm) {
-        activeForm.submit();
-      }
+      var action = activeAction;
       closeModal();
+      if (!action) return;
+      if (action.type === 'form' && action.form) {
+        HTMLFormElement.prototype.submit.call(action.form);
+        return;
+      }
+      if (action.type === 'link' && action.href) {
+        window.location.href = action.href;
+      }
     });
 
-    $all('.js-alloggiati-modal-trigger').forEach(function (button) {
+    $all('.js-alloggiati-modal-trigger, .js-confirm-modal-trigger').forEach(function (button) {
       button.addEventListener('click', function (event) {
-        event.preventDefault();
-        var form = button.form || button.closest('form');
-        if (!form) return;
-        if (button.disabled || button.classList.contains('is-disabled')) return;
+        if (button.disabled || button.classList.contains('is-disabled') || button.getAttribute('aria-disabled') === 'true') {
+          event.preventDefault();
+          return;
+        }
         var templateId = button.getAttribute('data-modal-template-id');
         var template = templateId ? document.getElementById(templateId) : null;
         var html = template ? template.innerHTML : '';
-        openModal(html, form);
+        var form = button.form || button.closest('form');
+        var href = button.getAttribute('href');
+        var action = null;
+        if (form) {
+          action = { type: 'form', form: form };
+        } else if (href && href !== '#') {
+          action = { type: 'link', href: href };
+        }
+        if (!action) return;
+        event.preventDefault();
+        openModal(html, action);
       });
     });
   }

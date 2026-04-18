@@ -432,6 +432,44 @@ function ross1000_validate_day_export(array $snapshot, array $config, array $gue
 
 
 
+function ross1000_upsert_day_state(PDO $pdo, string $date, array $state): void
+{
+    if (!ross1000_day_status_table_ready($pdo)) {
+        throw new RuntimeException('Esegui prima la migration della tabella ross1000_day_status.');
+    }
+
+    $base = ross1000_default_day_state(ross1000_property_config(), $date);
+    $state = array_merge($base, $state);
+
+    $sql = "
+        INSERT INTO ross1000_day_status
+            (day_date, is_open, available_rooms, available_beds, is_finalized, finalized_at, exported_ross_at, exported_alloggiati_at, created_at, updated_at)
+        VALUES
+            (:day_date, :is_open, :available_rooms, :available_beds, :is_finalized, :finalized_at, :exported_ross_at, :exported_alloggiati_at, NOW(), NOW())
+        ON DUPLICATE KEY UPDATE
+            is_open = VALUES(is_open),
+            available_rooms = VALUES(available_rooms),
+            available_beds = VALUES(available_beds),
+            is_finalized = VALUES(is_finalized),
+            finalized_at = VALUES(finalized_at),
+            exported_ross_at = VALUES(exported_ross_at),
+            exported_alloggiati_at = VALUES(exported_alloggiati_at),
+            updated_at = NOW()
+    ";
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([
+        'day_date' => $date,
+        'is_open' => !empty($state['is_open']) ? 1 : 0,
+        'available_rooms' => (int) ($state['available_rooms'] ?? 0),
+        'available_beds' => (int) ($state['available_beds'] ?? 0),
+        'is_finalized' => (int) ($state['is_finalized'] ?? 0),
+        'finalized_at' => $state['finalized_at'] ?? null,
+        'exported_ross_at' => $state['exported_ross_at'] ?? null,
+        'exported_alloggiati_at' => $state['exported_alloggiati_at'] ?? null,
+    ]);
+}
+
 function ross1000_month_range(string $month): array
 {
     if (!preg_match('/^\d{4}-\d{2}$/', $month)) {

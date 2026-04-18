@@ -1019,3 +1019,18 @@ body.is-modal-open {
     align-items: stretch;
   }
 }
+
+
+.alloggiati-confirm p.muted {
+  margin: .9rem 0 0;
+}
+
+.alloggiati-confirm__list {
+  margin: .9rem 0 0;
+  padding-left: 1rem;
+  color: var(--ross-muted);
+}
+
+.alloggiati-confirm__list li + li {
+  margin-top: .25rem;
+}

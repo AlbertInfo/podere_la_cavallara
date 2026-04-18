@@ -88,6 +88,29 @@ $selectedSchedine = [];
 $selectedSchedineCounts = ['total' => 0, 'bozza' => 0, 'pronta' => 0, 'inviata' => 0, 'errore' => 0];
 $alloggiatiWsConfig = alloggiati_ws_config();
 $alloggiatiWsReady = alloggiati_ws_config_ready($alloggiatiWsConfig);
+$monthDayCount = count($days);
+$monthOpenCount = 0;
+$monthClosedCount = 0;
+$monthFinalizedCount = 0;
+foreach ($days as $snapshotCount) {
+    if (!empty($snapshotCount['is_open'])) {
+        $monthOpenCount++;
+    } else {
+        $monthClosedCount++;
+    }
+    if (!empty($snapshotCount['day_state']['is_finalized'])) {
+        $monthFinalizedCount++;
+    }
+}
+$monthPendingCount = max(0, $monthDayCount - $monthFinalizedCount);
+$alloggiatiDayExportableCount = (int) ($selectedSchedineCounts['pronta'] + $selectedSchedineCounts['inviata']);
+$alloggiatiDayDocumentCount = 0;
+foreach ($selectedSchedine as $schedinaCount) {
+    $payloadCount = is_array($schedinaCount['payload'] ?? null) ? $schedinaCount['payload'] : [];
+    if (trim((string) ($payloadCount['document_number'] ?? '')) !== '') {
+        $alloggiatiDayDocumentCount++;
+    }
+}
 
 try {
     $recordTableReady = (bool) $pdo->query("SHOW TABLES LIKE 'anagrafica_records'")->fetchColumn();
@@ -294,11 +317,24 @@ require_once __DIR__ . '/includes/header.php';
                 <form class="ross-month-quick-export" method="post" action="<?= e(admin_url('actions/generate-ross1000-month.php')) ?>" data-month-export-form>
                     <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
                     <input type="hidden" name="month" value="<?= e($selectedMonth) ?>">
-                    <button class="btn btn-primary btn-sm ross-month-quick-export__button<?= $rossConfigReady ? '' : ' is-disabled' ?>" type="submit" <?= $rossConfigReady ? '' : 'disabled' ?>>
+                    <button class="btn btn-primary btn-sm ross-month-quick-export__button<?= $rossConfigReady ? '' : ' is-disabled' ?> js-confirm-modal-trigger" type="submit" <?= $rossConfigReady ? '' : 'disabled' ?> data-modal-template-id="rossMonthConfirmTemplate">
                         <span>Apri tutto il mese + esporta ROSS1000</span>
                     </button>
                     <small>Precompila i giorni non chiusi come aperti con la disponibilità standard e scarica l'XML mensile.</small>
                 </form>
+                <template id="rossMonthConfirmTemplate">
+                    <div class="alloggiati-confirm">
+                        <div class="alloggiati-confirm__grid">
+                            <div><span>Mese</span><strong><?= e(anagrafica_month_label($monthStart)) ?></strong></div>
+                            <div><span>Giorni nel mese</span><strong><?= (int) $monthDayCount ?></strong></div>
+                            <div><span>Giorni già chiusi</span><strong><?= (int) $monthFinalizedCount ?></strong></div>
+                            <div><span>Giorni da precompilare</span><strong><?= (int) $monthPendingCount ?></strong></div>
+                            <div><span>Camere standard</span><strong><?= (int) ($config['camere_disponibili'] ?? 0) ?></strong></div>
+                            <div><span>Letti standard</span><strong><?= (int) ($config['letti_disponibili'] ?? 0) ?></strong></div>
+                        </div>
+                        <p class="muted">L'azione lascia invariati i giorni già chiusi, precompila i restanti come aperti con disponibilità standard e scarica l'XML mensile ROSS1000.</p>
+                    </div>
+                </template>
             </div>
         </div>
 
@@ -429,9 +465,22 @@ require_once __DIR__ . '/includes/header.php';
                     <?php if ($selectedDayFinalized): ?>
                         <button class="btn btn-light" type="submit" name="intent" value="reopen">Riapri giorno</button>
                     <?php else: ?>
-                        <button class="btn btn-primary" type="submit" name="intent" value="close">Chiudi giorno</button>
+                        <button class="btn btn-primary js-confirm-modal-trigger" type="submit" name="intent" value="close" data-modal-template-id="rossDayCloseTemplate">Chiudi giorno</button>
                     <?php endif; ?>
                 </div>
+                <template id="rossDayCloseTemplate">
+                    <div class="alloggiati-confirm">
+                        <div class="alloggiati-confirm__grid">
+                            <div><span>Giorno</span><strong><?= e((new DateTimeImmutable($selectedDay))->format('d/m/Y')) ?></strong></div>
+                            <div><span>Stato struttura</span><strong><?= $selectedDayOpen ? 'Aperta' : 'Chiusa' ?></strong></div>
+                            <div><span>Camere occupate</span><strong><?= (int) ($selectedSnapshot['occupied_rooms'] ?? 0) ?></strong></div>
+                            <div><span>Persone presenti</span><strong><?= (int) ($selectedSnapshot['present_guests'] ?? 0) ?></strong></div>
+                            <div><span>Arrivi / Partenze</span><strong><?= (int) ($selectedSnapshot['arrivals_guests'] ?? 0) ?> / <?= (int) ($selectedSnapshot['departures_guests'] ?? 0) ?></strong></div>
+                            <div><span>Disponibilità</span><strong><?= (int) $selectedDayAvailableRooms ?> cam. · <?= (int) $selectedDayAvailableBeds ?> letti</strong></div>
+                        </div>
+                        <p class="muted">Confermando, il giorno viene chiuso e potrà essere esportato con il riepilogo definitivo dei movimenti.</p>
+                    </div>
+                </template>
             </form>
 
             <div class="ross-day-export card-lite">
@@ -440,13 +489,26 @@ require_once __DIR__ . '/includes/header.php';
                     <p class="muted">Quando il giorno è chiuso definitivamente puoi esportare il file giornaliero.</p>
                 </div>
                 <div class="ross-day-export__buttons">
-                    <a class="btn btn-primary<?= $selectedDayFinalized ? '' : ' is-disabled' ?>" href="<?= $selectedDayFinalized ? e(admin_url('actions/generate-ross1000-day.php?month=' . rawurlencode($selectedMonth) . '&day=' . rawurlencode($selectedDay))) : '#' ?>" data-day-export-link data-confirm-message="Confermare l'esportazione del file ROSS1000 del giorno selezionato?"<?= $selectedDayFinalized ? '' : ' aria-disabled="true" tabindex="-1"' ?>>Esporta ROSS1000</a>
+                    <a class="btn btn-primary<?= $selectedDayFinalized ? '' : ' is-disabled' ?> js-confirm-modal-trigger" href="<?= $selectedDayFinalized ? e(admin_url('actions/generate-ross1000-day.php?month=' . rawurlencode($selectedMonth) . '&day=' . rawurlencode($selectedDay))) : '#' ?>" data-day-export-link data-modal-template-id="rossDayExportTemplate"<?= $selectedDayFinalized ? '' : ' aria-disabled="true" tabindex="-1"' ?>>Esporta ROSS1000</a>
                     <a class="btn btn-light" href="#alloggiatiDaySection">Schedine Alloggiati</a>
                 </div>
                 <dl class="ross-day-export__meta">
                     <div><dt>ROSS</dt><dd><?= !empty($selectedDayState['exported_ross_at']) ? e(date('d/m/Y H:i', strtotime((string) $selectedDayState['exported_ross_at']))) : 'Non esportato' ?></dd></div>
                     <div><dt>Alloggiati</dt><dd><?= !empty($selectedDayState['exported_alloggiati_at']) ? e(date('d/m/Y H:i', strtotime((string) $selectedDayState['exported_alloggiati_at']))) : 'Non esportato' ?></dd></div>
                 </dl>
+                <template id="rossDayExportTemplate">
+                    <div class="alloggiati-confirm">
+                        <div class="alloggiati-confirm__grid">
+                            <div><span>Giorno</span><strong><?= e((new DateTimeImmutable($selectedDay))->format('d/m/Y')) ?></strong></div>
+                            <div><span>Camere occupate</span><strong><?= (int) ($selectedSnapshot['occupied_rooms'] ?? 0) ?></strong></div>
+                            <div><span>Persone presenti</span><strong><?= (int) ($selectedSnapshot['present_guests'] ?? 0) ?></strong></div>
+                            <div><span>Arrivi / Partenze</span><strong><?= (int) ($selectedSnapshot['arrivals_guests'] ?? 0) ?> / <?= (int) ($selectedSnapshot['departures_guests'] ?? 0) ?></strong></div>
+                            <div><span>Camere disponibili</span><strong><?= (int) $selectedDayAvailableRooms ?></strong></div>
+                            <div><span>Letti disponibili</span><strong><?= (int) $selectedDayAvailableBeds ?></strong></div>
+                        </div>
+                        <p class="muted">Scaricherai il file XML ROSS1000 del giorno selezionato con la fotografia completa della giornata.</p>
+                    </div>
+                </template>
             </div>
         </div>
 
@@ -555,10 +617,10 @@ require_once __DIR__ . '/includes/header.php';
                         <div class="alloggiati-confirm__grid">
                             <div><span>Giorno</span><strong><?= e((new DateTimeImmutable($selectedDay))->format('d/m/Y')) ?></strong></div>
                             <div><span>Schedine esportabili</span><strong><?= (int) ($selectedSchedineCounts['pronta'] + $selectedSchedineCounts['inviata']) ?></strong></div>
-                            <div><span>Formato</span><strong>TXT tracciato record</strong></div>
-                            <div><span>WS</span><strong><?= $alloggiatiWsReady ? 'Predisposto' : 'Da configurare' ?></strong></div>
+                            <div><span>Schedine pronte</span><strong><?= (int) $selectedSchedineCounts['pronta'] ?></strong></div>
+                            <div><span>Documenti valorizzati</span><strong><?= (int) $alloggiatiDayDocumentCount ?></strong></div>
                         </div>
-                        <p class="muted">Il download contiene solo le schedine valide del giorno, ordinate per record e con i componenti subito dopo il relativo capo famiglia/gruppo.</p>
+                        <p class="muted">Il download contiene le schedine valide del giorno di arrivo selezionato, ordinate per record con il capo famiglia/gruppo prima dei componenti.</p>
                     </div>
                 </template>
 
@@ -569,6 +631,8 @@ require_once __DIR__ . '/includes/header.php';
                             <div><span>Schedine pronte</span><strong><?= (int) $selectedSchedineCounts['pronta'] ?></strong></div>
                             <div><span>Schedine già inviate</span><strong><?= (int) $selectedSchedineCounts['inviata'] ?></strong></div>
                             <div><span>Schedine con errore</span><strong><?= (int) $selectedSchedineCounts['errore'] ?></strong></div>
+                            <div><span>Documenti valorizzati</span><strong><?= (int) $alloggiatiDayDocumentCount ?></strong></div>
+                            <div><span>WS</span><strong><?= $alloggiatiWsReady ? 'Predisposto' : 'Da configurare' ?></strong></div>
                         </div>
                         <p class="muted">Conferma l'invio delle schedine pronte del giorno selezionato. Il tracciato record e le richieste SOAP GenerateToken/Test/Send sono già predisposti nel backend.</p>
                     </div>
@@ -615,7 +679,7 @@ require_once __DIR__ . '/includes/header.php';
                                                 <div><span>Ospite</span><strong><?= e((string) ($schedina['display_name'] ?? ($payload['display_name'] ?? ''))) ?></strong></div>
                                                 <div><span>Tipo</span><strong><?= e((string) ($payload['tipo_alloggiato_label'] ?? '')) ?></strong></div>
                                                 <div><span>Arrivo</span><strong><?= e((string) ($payload['arrival_date_portal'] ?? '')) ?></strong></div>
-                                                <div><span>Lunghezza riga</span><strong><?= (int) ($schedina['trace_length'] ?? 0) ?> car.</strong></div>
+                                                <?php if (!empty($payload['document_type_label'])): ?><div><span>Documento</span><strong><?= e((string) $payload['document_type_label']) ?> · <?= e((string) ($payload['document_number'] ?? '')) ?></strong></div><?php else: ?><div><span>Documento</span><strong>Non richiesto</strong></div><?php endif; ?>
                                             </div>
                                             <p class="muted">Scaricherai il tracciato record della schedina selezionata nel formato testuale previsto da Alloggiati Web.</p>
                                         </div>
@@ -662,15 +726,15 @@ require_once __DIR__ . '/includes/header.php';
         <div class="anagrafica-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="alloggiatiConfirmTitle">
             <div class="anagrafica-modal__header">
                 <div>
-                    <span class="eyebrow">Conferma invio</span>
-                    <h3 id="alloggiatiConfirmTitle">Verifica riepilogo schedine</h3>
+                    <span class="eyebrow">Conferma azione</span>
+                    <h3 id="alloggiatiConfirmTitle">Verifica riepilogo</h3>
                 </div>
                 <button class="btn btn-light btn-sm" type="button" data-modal-close>Chiudi</button>
             </div>
             <div class="anagrafica-modal__body" id="alloggiatiConfirmBody"></div>
             <div class="anagrafica-modal__actions">
                 <button class="btn btn-light" type="button" data-modal-close>Annulla</button>
-                <button class="btn btn-primary" type="button" id="alloggiatiConfirmSubmit">Conferma invio</button>
+                <button class="btn btn-primary" type="button" id="alloggiatiConfirmSubmit">Conferma azione</button>
             </div>
         </div>
     </div>
