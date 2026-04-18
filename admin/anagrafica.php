@@ -86,6 +86,8 @@ $selectedRecords = [];
 $alloggiatiTableReady = false;
 $selectedSchedine = [];
 $selectedSchedineCounts = ['total' => 0, 'bozza' => 0, 'pronta' => 0, 'inviata' => 0, 'errore' => 0];
+$alloggiatiWsConfig = alloggiati_ws_config();
+$alloggiatiWsReady = alloggiati_ws_config_ready($alloggiatiWsConfig);
 
 try {
     $recordTableReady = (bool) $pdo->query("SHOW TABLES LIKE 'anagrafica_records'")->fetchColumn();
@@ -510,6 +512,11 @@ require_once __DIR__ . '/includes/header.php';
             </div>
             <div class="ross-day-detail__head-actions">
                 <?php if ($alloggiatiTableReady): ?>
+                    <form method="get" action="<?= e(admin_url('actions/generate-alloggiati-day.php')) ?>" class="alloggiati-day-send-form">
+                        <input type="hidden" name="month" value="<?= e($selectedMonth) ?>">
+                        <input type="hidden" name="day" value="<?= e($selectedDay) ?>">
+                        <button class="btn btn-light<?= $selectedSchedineCounts['pronta'] > 0 || $selectedSchedineCounts['inviata'] > 0 ? '' : ' is-disabled' ?> js-alloggiati-modal-trigger" type="submit" <?= ($selectedSchedineCounts['pronta'] > 0 || $selectedSchedineCounts['inviata'] > 0) ? '' : 'disabled' ?> data-modal-template-id="alloggiatiDayFileTemplate">Genera file Alloggiati del giorno</button>
+                    </form>
                     <form method="post" action="<?= e(admin_url('actions/send-alloggiati-day.php')) ?>" class="alloggiati-day-send-form">
                         <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
                         <input type="hidden" name="month" value="<?= e($selectedMonth) ?>">
@@ -532,6 +539,10 @@ require_once __DIR__ . '/includes/header.php';
                 <article class="ross-day-stat"><span>Pronte</span><strong><?= (int) $selectedSchedineCounts['pronta'] ?></strong><small>inviabili ora</small></article>
                 <article class="ross-day-stat"><span>Inviate / Errore</span><strong><?= (int) $selectedSchedineCounts['inviata'] ?> / <?= (int) $selectedSchedineCounts['errore'] ?></strong><small>stato aggiornato delle schedine</small></article>
             </div>
+            <div class="ross-day-warning">
+                <div><strong>Tracciato giornaliero pronto</strong> · Le schedine vengono esportate come file testuale a righe fisse da 168 caratteri, in linea con il tracciato Alloggiati. Le righe corrette possono essere inviate in blocco o singolarmente.</div>
+                <div><strong>Web service</strong> · <?= $alloggiatiWsReady ? 'Configurazione WS presente.' : 'Predisposizione WS pronta: completa utente, password e WSKEY in includes/alloggiati-config.php per la finalizzazione.' ?></div>
+            </div>
 
             <?php if (!$selectedSchedine): ?>
                 <div class="anagrafica-empty-state">
@@ -539,6 +550,18 @@ require_once __DIR__ . '/includes/header.php';
                     <p class="muted">Le schedine Alloggiati vengono generate per i record con data di arrivo uguale al giorno selezionato.</p>
                 </div>
             <?php else: ?>
+                <template id="alloggiatiDayFileTemplate">
+                    <div class="alloggiati-confirm">
+                        <div class="alloggiati-confirm__grid">
+                            <div><span>Giorno</span><strong><?= e((new DateTimeImmutable($selectedDay))->format('d/m/Y')) ?></strong></div>
+                            <div><span>Schedine esportabili</span><strong><?= (int) ($selectedSchedineCounts['pronta'] + $selectedSchedineCounts['inviata']) ?></strong></div>
+                            <div><span>Formato</span><strong>TXT tracciato record</strong></div>
+                            <div><span>WS</span><strong><?= $alloggiatiWsReady ? 'Predisposto' : 'Da configurare' ?></strong></div>
+                        </div>
+                        <p class="muted">Il download contiene solo le schedine valide del giorno, ordinate per record e con i componenti subito dopo il relativo capo famiglia/gruppo.</p>
+                    </div>
+                </template>
+
                 <template id="alloggiatiDayConfirmTemplate">
                     <div class="alloggiati-confirm">
                         <div class="alloggiati-confirm__grid">
@@ -547,7 +570,7 @@ require_once __DIR__ . '/includes/header.php';
                             <div><span>Schedine già inviate</span><strong><?= (int) $selectedSchedineCounts['inviata'] ?></strong></div>
                             <div><span>Schedine con errore</span><strong><?= (int) $selectedSchedineCounts['errore'] ?></strong></div>
                         </div>
-                        <p class="muted">Conferma l'invio delle schedine pronte del giorno selezionato. Le schedine già inviate non verranno toccate.</p>
+                        <p class="muted">Conferma l'invio delle schedine pronte del giorno selezionato. Il tracciato record e le richieste SOAP GenerateToken/Test/Send sono già predisposti nel backend.</p>
                     </div>
                 </template>
 
@@ -579,6 +602,28 @@ require_once __DIR__ . '/includes/header.php';
                                 <?php if (!empty($schedina['sent_at'])): ?><span class="ross-badge">Inviata <?= e(date('d/m H:i', strtotime((string) $schedina['sent_at']))) ?></span><?php endif; ?>
                             </div>
                             <div class="ross-record-row__actions" data-row-ignore>
+                                <?php if (!empty($schedina['can_generate_file'])): ?>
+                                    <form method="get" action="<?= e(admin_url('actions/generate-alloggiati-schedina.php')) ?>" class="alloggiati-single-send-form">
+                                        <input type="hidden" name="month" value="<?= e($selectedMonth) ?>">
+                                        <input type="hidden" name="day" value="<?= e($selectedDay) ?>">
+                                        <input type="hidden" name="schedina_id" value="<?= $schedinaId ?>">
+                                        <button class="btn btn-light btn-sm js-alloggiati-modal-trigger" type="submit" data-modal-template-id="alloggiatiSchedinaFile<?= $schedinaId ?>">Scarica tracciato</button>
+                                    </form>
+                                    <template id="alloggiatiSchedinaFile<?= $schedinaId ?>">
+                                        <div class="alloggiati-confirm">
+                                            <div class="alloggiati-confirm__grid">
+                                                <div><span>Ospite</span><strong><?= e((string) ($schedina['display_name'] ?? ($payload['display_name'] ?? ''))) ?></strong></div>
+                                                <div><span>Tipo</span><strong><?= e((string) ($payload['tipo_alloggiato_label'] ?? '')) ?></strong></div>
+                                                <div><span>Arrivo</span><strong><?= e((string) ($payload['arrival_date_portal'] ?? '')) ?></strong></div>
+                                                <div><span>Lunghezza riga</span><strong><?= (int) ($schedina['trace_length'] ?? 0) ?> car.</strong></div>
+                                            </div>
+                                            <p class="muted">Scaricherai il tracciato record della schedina selezionata nel formato testuale previsto da Alloggiati Web.</p>
+                                        </div>
+                                    </template>
+                                <?php else: ?>
+                                    <button class="btn btn-light btn-sm is-disabled" type="button" disabled>Tracciato non disponibile</button>
+                                <?php endif; ?>
+
                                 <?php if ($canSendSingle): ?>
                                     <form method="post" action="<?= e(admin_url('actions/send-alloggiati-schedina.php')) ?>" class="alloggiati-single-send-form">
                                         <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
@@ -592,13 +637,13 @@ require_once __DIR__ . '/includes/header.php';
                                             <div class="alloggiati-confirm__grid">
                                                 <div><span>Ospite</span><strong><?= e((string) ($schedina['display_name'] ?? ($payload['display_name'] ?? ''))) ?></strong></div>
                                                 <div><span>Tipo</span><strong><?= e((string) ($payload['tipo_alloggiato_label'] ?? '')) ?></strong></div>
-                                                <div><span>Arrivo</span><strong><?= e((string) ($payload['arrival_date_xml'] ?? '')) ?></strong></div>
+                                                <div><span>Arrivo</span><strong><?= e((string) ($payload['arrival_date_portal'] ?? '')) ?></strong></div>
                                                 <div><span>Permanenza</span><strong><?= (int) ($payload['permanence_days'] ?? 0) ?> gg</strong></div>
                                             </div>
                                             <?php if (!empty($payload['document_type_label'])): ?>
                                                 <p class="muted">Documento: <?= e((string) $payload['document_type_label']) ?> · <?= e((string) ($payload['document_number'] ?? '')) ?></p>
                                             <?php endif; ?>
-                                            <p class="muted">Conferma l'invio della schedina selezionata.</p>
+                                            <p class="muted">Conferma l'invio della schedina selezionata. Il sistema usa il tracciato record corretto e prepara anche la richiesta SOAP di Test/Send per la fase finale del WS.</p>
                                         </div>
                                     </template>
                                 <?php else: ?>

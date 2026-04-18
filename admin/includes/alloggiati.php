@@ -4,6 +4,36 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/anagrafica-options.php';
 
+function alloggiati_ws_config(): array
+{
+    $defaults = [
+        'endpoint' => 'https://alloggiatiweb.poliziadistato.it/service/service.asmx',
+        'wsdl' => 'https://alloggiatiweb.poliziadistato.it/service/service.asmx?wsdl',
+        'utente' => '',
+        'password' => '',
+        'wskey' => '',
+        'simulate_send_without_ws' => true,
+    ];
+
+    $configFile = __DIR__ . '/alloggiati-config.php';
+    if (is_file($configFile)) {
+        $config = require $configFile;
+        if (is_array($config)) {
+            return array_merge($defaults, $config);
+        }
+    }
+
+    return $defaults;
+}
+
+function alloggiati_ws_config_ready(array $config): bool
+{
+    return trim((string) ($config['endpoint'] ?? '')) !== ''
+        && trim((string) ($config['utente'] ?? '')) !== ''
+        && trim((string) ($config['password'] ?? '')) !== ''
+        && trim((string) ($config['wskey'] ?? '')) !== '';
+}
+
 function alloggiati_schedine_table_ready(PDO $pdo): bool
 {
     try {
@@ -42,6 +72,15 @@ function alloggiati_format_date(?string $value): string
     }
     $ts = strtotime($value);
     return $ts ? date('Ymd', $ts) : '';
+}
+
+function alloggiati_format_portal_date(?string $value): string
+{
+    if ($value === null || trim($value) === '') {
+        return '';
+    }
+    $ts = strtotime($value);
+    return $ts ? date('d/m/Y', $ts) : '';
 }
 
 function alloggiati_normalize_scalar($value): string
@@ -110,18 +149,24 @@ function alloggiati_build_schedina_payload(array $record, array $guest): array
         'tipo_alloggiato_label' => alloggiati_tipo_alloggiato_label($tipoAlloggiato),
         'arrival_date' => $arrivalDate,
         'arrival_date_xml' => alloggiati_format_date($arrivalDate),
+        'arrival_date_portal' => alloggiati_format_portal_date($arrivalDate),
         'permanence_days' => alloggiati_persistence_days($arrivalDate, $departureDate),
         'citizenship_code' => (string) ($guest['citizenship_code'] ?? ''),
         'birth_place_value' => alloggiati_birth_place_value($guest),
+        'birth_city_code' => (string) ($guest['birth_city_code'] ?? ''),
+        'birth_province_code' => (string) ($guest['birth_province'] ?? ''),
+        'birth_state_code' => (string) ($guest['birth_state_code'] ?? ''),
         'last_name' => (string) ($guest['last_name'] ?? ''),
         'first_name' => (string) ($guest['first_name'] ?? ''),
         'birth_date' => substr((string) ($guest['birth_date'] ?? ''), 0, 10),
         'birth_date_xml' => alloggiati_format_date((string) ($guest['birth_date'] ?? '')),
+        'birth_date_portal' => alloggiati_format_portal_date((string) ($guest['birth_date'] ?? '')),
         'gender' => (string) ($guest['gender'] ?? ''),
         'document_type_code' => (string) ($guest['document_type_code'] ?? ''),
         'document_type_label' => (string) ($guest['document_type_label'] ?? ''),
         'document_number' => (string) ($guest['document_number'] ?? ''),
         'document_issue_place_value' => alloggiati_document_issue_place_value($guest),
+        'document_issue_place_code' => (string) ($guest['document_issue_place_code'] ?? ''),
         'display_name' => trim((string) (($guest['first_name'] ?? '') . ' ' . ($guest['last_name'] ?? ''))),
     ];
 }
@@ -135,7 +180,7 @@ function alloggiati_validate_schedina_payload(array $payload): array
         'tipo_alloggiato_code' => 'Tipo alloggiato mancante.',
         'arrival_date_xml' => 'Data arrivo mancante.',
         'citizenship_code' => 'Cittadinanza mancante.',
-        'birth_place_value' => 'Luogo di nascita mancante.',
+        'birth_state_code' => 'Stato di nascita mancante.',
         'last_name' => 'Cognome mancante.',
         'first_name' => 'Nome mancante.',
         'birth_date_xml' => 'Data di nascita mancante.',
@@ -153,6 +198,16 @@ function alloggiati_validate_schedina_payload(array $payload): array
         $errors[] = 'Permanenza non valida (1-30 giorni).';
     }
 
+    $italyCode = anagrafica_default_italy_state_code();
+    if ((string) ($payload['birth_state_code'] ?? '') === $italyCode) {
+        if (alloggiati_normalize_scalar($payload['birth_city_code'] ?? '') === '') {
+            $errors[] = 'Comune di nascita mancante.';
+        }
+        if (alloggiati_normalize_scalar($payload['birth_province_code'] ?? '') === '') {
+            $errors[] = 'Provincia di nascita mancante.';
+        }
+    }
+
     if (alloggiati_document_required((string) ($payload['tipo_alloggiato_code'] ?? ''))) {
         if (alloggiati_normalize_scalar($payload['document_type_code'] ?? '') === '') {
             $errors[] = 'Tipo documento mancante.';
@@ -160,7 +215,7 @@ function alloggiati_validate_schedina_payload(array $payload): array
         if (alloggiati_normalize_scalar($payload['document_number'] ?? '') === '') {
             $errors[] = 'Numero documento mancante.';
         }
-        if (alloggiati_normalize_scalar($payload['document_issue_place_value'] ?? '') === '') {
+        if (alloggiati_normalize_scalar($payload['document_issue_place_code'] ?? '') === '') {
             $errors[] = 'Luogo rilascio documento mancante.';
         }
     }
@@ -179,7 +234,7 @@ function alloggiati_validate_schedina_payload(array $payload): array
     if ($errors) {
         return [
             'status' => 'errore',
-            'errors' => $errors,
+            'errors' => array_values(array_unique($errors)),
         ];
     }
 
@@ -252,7 +307,8 @@ function alloggiati_sync_record(PDO $pdo, int $recordId): array
         $sentAt = null;
         $lastAttemptAt = $existing['last_attempt_at'] ?? null;
         $attemptCount = (int) ($existing['attempt_count'] ?? 0);
-        $validationErrors = implode("\n", $validation['errors']);
+        $validationErrors = implode("
+", $validation['errors']);
         $lastError = $validationErrors !== '' ? $validationErrors : null;
 
         if ($existing && (string) ($existing['status'] ?? '') === 'inviata' && (string) ($existing['payload_hash'] ?? '') === $payloadHash) {
@@ -306,18 +362,33 @@ function alloggiati_sync_day(PDO $pdo, string $arrivalDate): array
     return alloggiati_fetch_day_schedine($pdo, $arrivalDate);
 }
 
+function alloggiati_attach_runtime_fields(array $row): array
+{
+    $row['payload'] = json_decode((string) ($row['payload_json'] ?? ''), true) ?: [];
+    $row['validation_errors_list'] = array_values(array_filter(array_map('trim', preg_split('/
+|
+|
+/', (string) ($row['validation_errors'] ?? '')) ?: [])));
+    $trace = alloggiati_build_trace_record($row['payload']);
+    $row['trace_record'] = $trace['record'];
+    $row['trace_errors'] = $trace['errors'];
+    $row['trace_length'] = strlen((string) $trace['record']);
+    $row['can_generate_file'] = empty($trace['errors']) && in_array((string) ($row['status'] ?? ''), ['pronta', 'inviata'], true);
+    $row['can_send_ws'] = empty($trace['errors']) && in_array((string) ($row['status'] ?? ''), ['pronta'], true);
+    return $row;
+}
+
 function alloggiati_fetch_day_schedine(PDO $pdo, string $arrivalDate): array
 {
     if (!alloggiati_schedine_table_ready($pdo)) {
         return [];
     }
 
-    $stmt = $pdo->prepare('SELECT * FROM alloggiati_schedine WHERE arrival_date = :arrival_date ORDER BY status = "errore" DESC, status = "pronta" DESC, is_group_leader DESC, id ASC');
+    $stmt = $pdo->prepare('SELECT * FROM alloggiati_schedine WHERE arrival_date = :arrival_date ORDER BY record_id ASC, is_group_leader DESC, id ASC');
     $stmt->execute(['arrival_date' => $arrivalDate]);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     foreach ($rows as &$row) {
-        $row['payload'] = json_decode((string) ($row['payload_json'] ?? ''), true) ?: [];
-        $row['validation_errors_list'] = array_values(array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', (string) ($row['validation_errors'] ?? '')) ?: [])));
+        $row = alloggiati_attach_runtime_fields($row);
     }
     unset($row);
     return $rows;
@@ -331,16 +402,19 @@ function alloggiati_fetch_schedina(PDO $pdo, int $schedinaId): ?array
     if (!$row) {
         return null;
     }
-    $row['payload'] = json_decode((string) ($row['payload_json'] ?? ''), true) ?: [];
-    $row['validation_errors_list'] = array_values(array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', (string) ($row['validation_errors'] ?? '')) ?: [])));
-    return $row;
+    return alloggiati_attach_runtime_fields($row);
 }
 
 function alloggiati_fetch_schedine_by_record(PDO $pdo, int $recordId): array
 {
     $stmt = $pdo->prepare('SELECT * FROM alloggiati_schedine WHERE record_id = :record_id ORDER BY is_group_leader DESC, id ASC');
     $stmt->execute(['record_id' => $recordId]);
-    return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    foreach ($rows as &$row) {
+        $row = alloggiati_attach_runtime_fields($row);
+    }
+    unset($row);
+    return $rows;
 }
 
 function alloggiati_day_status_counts(array $schedine): array
@@ -364,6 +438,294 @@ function alloggiati_day_status_counts(array $schedine): array
     return $counts;
 }
 
+function alloggiati_ascii_upper(string $value): string
+{
+    $value = trim(preg_replace('/\s+/u', ' ', $value) ?? '');
+    if ($value === '') {
+        return '';
+    }
+
+    if (function_exists('iconv')) {
+        $converted = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value);
+        if (is_string($converted) && $converted !== '') {
+            $value = $converted;
+        }
+    }
+
+    $value = strtoupper($value);
+    $value = preg_replace("/[^A-Z0-9 '\\-\\/]/", ' ', $value) ?? $value;
+    $value = preg_replace('/\s+/', ' ', $value) ?? $value;
+    return trim($value);
+}
+
+function alloggiati_pad_right(string $value, int $length): string
+{
+    $value = substr($value, 0, $length);
+    return str_pad($value, $length, ' ', STR_PAD_RIGHT);
+}
+
+function alloggiati_pad_left_zero(string $value, int $length): string
+{
+    $value = preg_replace('/\D+/', '', $value) ?? $value;
+    $value = substr($value, 0, $length);
+    return str_pad($value, $length, '0', STR_PAD_LEFT);
+}
+
+function alloggiati_build_trace_record(array $payload): array
+{
+    $errors = [];
+
+    $tipo = alloggiati_normalize_scalar($payload['tipo_alloggiato_code'] ?? '');
+    $arrival = alloggiati_format_portal_date((string) ($payload['arrival_date'] ?? ''));
+    $days = alloggiati_pad_left_zero((string) ((int) ($payload['permanence_days'] ?? 0)), 2);
+    $lastName = alloggiati_pad_right(alloggiati_ascii_upper((string) ($payload['last_name'] ?? '')), 50);
+    $firstName = alloggiati_pad_right(alloggiati_ascii_upper((string) ($payload['first_name'] ?? '')), 30);
+    $gender = strtoupper(alloggiati_normalize_scalar($payload['gender'] ?? ''));
+    $genderCode = $gender === 'M' ? '1' : ($gender === 'F' ? '2' : '');
+    $birthDate = alloggiati_format_portal_date((string) ($payload['birth_date'] ?? ''));
+    $birthStateCode = alloggiati_normalize_scalar($payload['birth_state_code'] ?? '');
+    $birthCityCode = alloggiati_normalize_scalar($payload['birth_city_code'] ?? '');
+    $birthProvinceCode = strtoupper(alloggiati_normalize_scalar($payload['birth_province_code'] ?? ''));
+    $citizenshipCode = alloggiati_normalize_scalar($payload['citizenship_code'] ?? '');
+    $documentTypeCode = alloggiati_normalize_scalar($payload['document_type_code'] ?? '');
+    $documentNumber = alloggiati_pad_right(alloggiati_ascii_upper((string) ($payload['document_number'] ?? '')), 20);
+    $issuePlaceCode = alloggiati_normalize_scalar($payload['document_issue_place_code'] ?? '');
+
+    if ($tipo === '') $errors[] = 'Tipo alloggiato mancante.';
+    if ($arrival === '') $errors[] = 'Data arrivo non valida.';
+    if ($birthDate === '') $errors[] = 'Data nascita non valida.';
+    if ($genderCode === '') $errors[] = 'Sesso non valido per il tracciato Alloggiati.';
+    if ($birthStateCode === '') $errors[] = 'Stato di nascita mancante.';
+    if ($citizenshipCode === '') $errors[] = 'Cittadinanza mancante.';
+
+    $italyCode = anagrafica_default_italy_state_code();
+    if ($birthStateCode === $italyCode) {
+        if ($birthCityCode === '') $errors[] = 'Comune di nascita mancante per nato in Italia.';
+        if ($birthProvinceCode === '') $errors[] = 'Provincia di nascita mancante per nato in Italia.';
+    }
+
+    if (alloggiati_document_required($tipo)) {
+        if ($documentTypeCode === '') $errors[] = 'Tipo documento mancante.';
+        if (trim($documentNumber) === '') $errors[] = 'Numero documento mancante.';
+        if ($issuePlaceCode === '') $errors[] = 'Luogo rilascio documento mancante.';
+    } else {
+        $documentTypeCode = '';
+        $documentNumber = str_repeat(' ', 20);
+        $issuePlaceCode = '';
+    }
+
+    if ($errors) {
+        return ['record' => '', 'errors' => array_values(array_unique($errors))];
+    }
+
+    $record = '';
+    $record .= alloggiati_pad_right($tipo, 2);
+    $record .= alloggiati_pad_right($arrival, 10);
+    $record .= $days;
+    $record .= $lastName;
+    $record .= $firstName;
+    $record .= $genderCode;
+    $record .= alloggiati_pad_right($birthDate, 10);
+    $record .= alloggiati_pad_right($birthStateCode === $italyCode ? $birthCityCode : '', 9);
+    $record .= alloggiati_pad_right($birthStateCode === $italyCode ? $birthProvinceCode : '', 2);
+    $record .= alloggiati_pad_right($birthStateCode, 9);
+    $record .= alloggiati_pad_right($citizenshipCode, 9);
+    $record .= alloggiati_pad_right($documentTypeCode, 5);
+    $record .= $documentNumber;
+    $record .= alloggiati_pad_right($issuePlaceCode, 9);
+
+    if (strlen($record) !== 168) {
+        return ['record' => $record, 'errors' => ['La riga schedina non rispetta i 168 caratteri previsti.']];
+    }
+
+    return ['record' => $record, 'errors' => []];
+}
+
+function alloggiati_sort_schedine_for_transmission(array $schedine): array
+{
+    usort($schedine, static function (array $a, array $b): int {
+        $aRecord = (int) ($a['record_id'] ?? 0);
+        $bRecord = (int) ($b['record_id'] ?? 0);
+        if ($aRecord !== $bRecord) {
+            return $aRecord <=> $bRecord;
+        }
+        $aLeader = (int) ($a['is_group_leader'] ?? 0);
+        $bLeader = (int) ($b['is_group_leader'] ?? 0);
+        if ($aLeader !== $bLeader) {
+            return $bLeader <=> $aLeader;
+        }
+        return ((int) ($a['id'] ?? 0)) <=> ((int) ($b['id'] ?? 0));
+    });
+    return $schedine;
+}
+
+function alloggiati_collect_day_export(PDO $pdo, string $arrivalDate): array
+{
+    $schedine = alloggiati_sort_schedine_for_transmission(alloggiati_sync_day($pdo, $arrivalDate));
+    $lines = [];
+    $rows = [];
+    $errors = [];
+
+    foreach ($schedine as $schedina) {
+        if (!empty($schedina['trace_errors'])) {
+            $errors[] = (string) ($schedina['display_name'] ?? 'Schedina') . ': ' . implode(' ', $schedina['trace_errors']);
+            continue;
+        }
+        if (!in_array((string) ($schedina['status'] ?? ''), ['pronta', 'inviata'], true)) {
+            continue;
+        }
+        $lines[] = (string) $schedina['trace_record'];
+        $rows[] = $schedina;
+    }
+
+    return [
+        'schedine' => $rows,
+        'content' => implode("
+", $lines),
+        'line_count' => count($lines),
+        'errors' => $errors,
+        'ws' => alloggiati_build_ws_previews($lines),
+    ];
+}
+
+function alloggiati_collect_single_export(PDO $pdo, int $schedinaId): array
+{
+    $schedina = alloggiati_fetch_schedina($pdo, $schedinaId);
+    if (!$schedina) {
+        return ['schedina' => null, 'content' => '', 'line_count' => 0, 'errors' => ['Schedina non trovata.'], 'ws' => alloggiati_build_ws_previews([])];
+    }
+
+    alloggiati_sync_record($pdo, (int) $schedina['record_id']);
+    $schedina = alloggiati_fetch_schedina($pdo, $schedinaId);
+    if (!$schedina) {
+        return ['schedina' => null, 'content' => '', 'line_count' => 0, 'errors' => ['Schedina non trovata dopo la sincronizzazione.'], 'ws' => alloggiati_build_ws_previews([])];
+    }
+
+    if (!empty($schedina['trace_errors'])) {
+        return ['schedina' => $schedina, 'content' => '', 'line_count' => 0, 'errors' => $schedina['trace_errors'], 'ws' => alloggiati_build_ws_previews([])];
+    }
+
+    if (!in_array((string) ($schedina['status'] ?? ''), ['pronta', 'inviata'], true)) {
+        return ['schedina' => $schedina, 'content' => '', 'line_count' => 0, 'errors' => ['La schedina non è pronta per la generazione del tracciato.'], 'ws' => alloggiati_build_ws_previews([])];
+    }
+
+    $line = (string) $schedina['trace_record'];
+    return ['schedina' => $schedina, 'content' => $line, 'line_count' => 1, 'errors' => [], 'ws' => alloggiati_build_ws_previews([$line])];
+}
+
+function alloggiati_build_download_filename_for_day(string $arrivalDate): string
+{
+    return 'alloggiati-' . str_replace('-', '', $arrivalDate) . '.txt';
+}
+
+function alloggiati_build_download_filename_for_schedina(array $schedina): string
+{
+    $guestIdswh = preg_replace('/[^A-Za-z0-9_-]+/', '-', (string) ($schedina['guest_idswh'] ?? 'schedina')) ?: 'schedina';
+    $arrival = str_replace('-', '', (string) ($schedina['arrival_date'] ?? date('Y-m-d')));
+    return 'alloggiati-' . $arrival . '-' . $guestIdswh . '.txt';
+}
+
+function alloggiati_build_ws_previews(array $traceRecords): array
+{
+    $config = alloggiati_ws_config();
+    $utente = (string) ($config['utente'] ?? 'UTENTE_ALLOGGIATI');
+    $password = (string) ($config['password'] ?? 'PASSWORD_ALLOGGIATI');
+    $wskey = (string) ($config['wskey'] ?? 'WSKEY_ALLOGGIATI');
+    $token = 'TOKEN_DA_GENERARE';
+
+    $strings = '';
+    foreach ($traceRecords as $record) {
+        $strings .= "
+      <all:string>" . htmlspecialchars($record, ENT_XML1 | ENT_COMPAT, 'UTF-8') . "</all:string>";
+    }
+
+    $generateToken = sprintf(
+        '<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:all="AlloggiatiService">' .
+        '
+  <soap:Header/>' .
+        '
+  <soap:Body>' .
+        '
+    <all:GenerateToken>' .
+        '
+      <all:Utente>%s</all:Utente>' .
+        '
+      <all:Password>%s</all:Password>' .
+        '
+      <all:WsKey>%s</all:WsKey>' .
+        '
+    </all:GenerateToken>' .
+        '
+  </soap:Body>' .
+        '
+</soap:Envelope>',
+        htmlspecialchars($utente, ENT_XML1 | ENT_COMPAT, 'UTF-8'),
+        htmlspecialchars($password, ENT_XML1 | ENT_COMPAT, 'UTF-8'),
+        htmlspecialchars($wskey, ENT_XML1 | ENT_COMPAT, 'UTF-8')
+    );
+
+    $test = sprintf(
+        '<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:all="AlloggiatiService">' .
+        '
+  <soap:Header/>' .
+        '
+  <soap:Body>' .
+        '
+    <all:Test>' .
+        '
+      <all:Utente>%s</all:Utente>' .
+        '
+      <all:token>%s</all:token>' .
+        '
+      <all:ElencoSchedine>%s' .
+        '
+      </all:ElencoSchedine>' .
+        '
+    </all:Test>' .
+        '
+  </soap:Body>' .
+        '
+</soap:Envelope>',
+        htmlspecialchars($utente, ENT_XML1 | ENT_COMPAT, 'UTF-8'),
+        htmlspecialchars($token, ENT_XML1 | ENT_COMPAT, 'UTF-8'),
+        $strings
+    );
+
+    $send = sprintf(
+        '<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:all="AlloggiatiService">' .
+        '
+  <soap:Header/>' .
+        '
+  <soap:Body>' .
+        '
+    <all:Send>' .
+        '
+      <all:Utente>%s</all:Utente>' .
+        '
+      <all:token>%s</all:token>' .
+        '
+      <all:ElencoSchedine>%s' .
+        '
+      </all:ElencoSchedine>' .
+        '
+    </all:Send>' .
+        '
+  </soap:Body>' .
+        '
+</soap:Envelope>',
+        htmlspecialchars($utente, ENT_XML1 | ENT_COMPAT, 'UTF-8'),
+        htmlspecialchars($token, ENT_XML1 | ENT_COMPAT, 'UTF-8'),
+        $strings
+    );
+
+    return [
+        'config' => $config,
+        'generate_token_xml' => $generateToken,
+        'test_xml' => $test,
+        'send_xml' => $send,
+    ];
+}
+
 function alloggiati_mark_schedina_sent(PDO $pdo, int $schedinaId): array
 {
     $schedina = alloggiati_fetch_schedina($pdo, $schedinaId);
@@ -377,8 +739,8 @@ function alloggiati_mark_schedina_sent(PDO $pdo, int $schedinaId): array
         return ['sent' => 0, 'errors' => ['Schedina non trovata dopo la sincronizzazione.'], 'arrival_date' => ''];
     }
 
-    if ((string) $schedina['status'] !== 'pronta') {
-        $errors = $schedina['validation_errors_list'] ?: ['La schedina non è pronta per l’invio.'];
+    if ((string) $schedina['status'] !== 'pronta' || !empty($schedina['trace_errors'])) {
+        $errors = $schedina['trace_errors'] ?: ($schedina['validation_errors_list'] ?: ['La schedina non è pronta per l’invio.']);
         return ['sent' => 0, 'errors' => $errors, 'arrival_date' => (string) $schedina['arrival_date']];
     }
 
@@ -393,15 +755,14 @@ function alloggiati_mark_schedina_sent(PDO $pdo, int $schedinaId): array
 
 function alloggiati_mark_day_sent(PDO $pdo, string $arrivalDate): array
 {
-    $schedine = alloggiati_sync_day($pdo, $arrivalDate);
+    $bundle = alloggiati_collect_day_export($pdo, $arrivalDate);
+    $schedine = $bundle['schedine'];
     $readyIds = [];
-    $errors = [];
+    $errors = array_values($bundle['errors'] ?? []);
 
     foreach ($schedine as $row) {
         if ((string) ($row['status'] ?? '') === 'pronta') {
             $readyIds[] = (int) $row['id'];
-        } elseif ((string) ($row['status'] ?? '') === 'errore') {
-            $errors[] = (string) ($row['display_name'] ?? 'Schedina') . ': ' . ((string) ($row['last_error'] ?? 'Errore di validazione'));
         }
     }
 
