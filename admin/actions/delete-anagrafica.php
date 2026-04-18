@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/alloggiati.php';
 require_admin();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -45,10 +46,18 @@ try {
         redirect_to($redirectUrl, 'error', 'Tabella anagrafiche non disponibile.');
     }
 
+    $pdo->beginTransaction();
+    if (alloggiati_schedine_table_ready($pdo)) {
+        $pdo->prepare('DELETE FROM alloggiati_schedine WHERE record_id = :record_id')->execute(['record_id' => $recordId]);
+    }
     $stmt = $pdo->prepare('DELETE FROM anagrafica_records WHERE id = :id');
     $stmt->execute(['id' => $recordId]);
+    $pdo->commit();
 
     redirect_to($redirectUrl, 'success', 'Anagrafica eliminata correttamente.');
 } catch (Throwable $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     redirect_to($redirectUrl, 'error', "Errore durante l'eliminazione: " . $e->getMessage());
 }

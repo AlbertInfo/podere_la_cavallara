@@ -82,7 +82,7 @@ $mobilePageKicker = admin_mobile_page_kicker($currentPath);
     <link rel="stylesheet" href="/admin/assets/css/admin-mobile.css?v=200">
     <link rel="stylesheet" href="/admin/assets/css/interhome-import.css?v=95">
     <?php if ($currentPath === 'anagrafica.php'): ?>
-        <link rel="stylesheet" href="<?= e(admin_url('assets/css/anagrafica.css')) ?>?v=80">
+        <link rel="stylesheet" href="<?= e(admin_url('assets/css/anagrafica.css')) ?>?v=81">
     <?php endif; ?>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

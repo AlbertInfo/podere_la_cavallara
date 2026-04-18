@@ -498,6 +498,64 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+
+  function initAlloggiatiModal() {
+    var modal = document.getElementById('alloggiatiConfirmModal');
+    var body = document.getElementById('alloggiatiConfirmBody');
+    var confirmButton = document.getElementById('alloggiatiConfirmSubmit');
+    if (!modal || !body || !confirmButton) return;
+
+    var activeForm = null;
+
+    function closeModal() {
+      modal.hidden = true;
+      document.body.classList.remove('is-modal-open');
+      body.innerHTML = '';
+      activeForm = null;
+    }
+
+    function openModal(html, form) {
+      activeForm = form || null;
+      body.innerHTML = html || '<p class="muted">Nessun riepilogo disponibile.</p>';
+      modal.hidden = false;
+      document.body.classList.add('is-modal-open');
+    }
+
+    $all('[data-modal-close]', modal).forEach(function (button) {
+      button.addEventListener('click', function () { closeModal(); });
+    });
+
+    modal.addEventListener('click', function (event) {
+      if (event.target === modal) closeModal();
+    });
+
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && !modal.hidden) {
+        closeModal();
+      }
+    });
+
+    confirmButton.addEventListener('click', function () {
+      if (activeForm) {
+        activeForm.submit();
+      }
+      closeModal();
+    });
+
+    $all('.js-alloggiati-modal-trigger').forEach(function (button) {
+      button.addEventListener('click', function (event) {
+        event.preventDefault();
+        var form = button.form || button.closest('form');
+        if (!form) return;
+        if (button.disabled || button.classList.contains('is-disabled')) return;
+        var templateId = button.getAttribute('data-modal-template-id');
+        var template = templateId ? document.getElementById(templateId) : null;
+        var html = template ? template.innerHTML : '';
+        openModal(html, form);
+      });
+    });
+  }
+
   function initCarousel() {
     var carousel = $('[data-day-carousel]');
     var viewport = $('[data-day-carousel-viewport]');
@@ -622,4 +680,5 @@ document.addEventListener('DOMContentLoaded', function () {
   try { initEditableRows(); } catch (err) { console.error('Editable rows init failed', err); }
   try { initConfirmations(); } catch (err) { console.error('Confirmations init failed', err); }
   try { initCarousel(); } catch (err) { console.error('Carousel init failed', err); }
+  try { initAlloggiatiModal(); } catch (err) { console.error('Alloggiati modal init failed', err); }
 });

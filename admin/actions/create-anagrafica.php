@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/anagrafica-options.php';
+require_once __DIR__ . '/../includes/alloggiati.php';
 require_admin();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -445,6 +446,10 @@ try {
         'expected_guests' => count($normalizedGuests),
         'id' => $recordId,
     ]);
+
+    if (alloggiati_schedine_table_ready($pdo)) {
+        alloggiati_sync_record($pdo, $recordId);
+    }
 
     $pdo->commit();
     clear_form_state();

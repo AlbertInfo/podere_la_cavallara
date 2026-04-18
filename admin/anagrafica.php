@@ -7,6 +7,7 @@ require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/anagrafica-options.php';
 require_once __DIR__ . '/includes/ross1000-config.php';
 require_once __DIR__ . '/includes/ross1000.php';
+require_once __DIR__ . '/includes/alloggiati.php';
 require_admin();
 
 $pageTitle = 'Sezione anagrafica';
@@ -82,6 +83,9 @@ $dayStates = [];
 $days = [];
 $selectedSnapshot = null;
 $selectedRecords = [];
+$alloggiatiTableReady = false;
+$selectedSchedine = [];
+$selectedSchedineCounts = ['total' => 0, 'bozza' => 0, 'pronta' => 0, 'inviata' => 0, 'errore' => 0];
 
 try {
     $recordTableReady = (bool) $pdo->query("SHOW TABLES LIKE 'anagrafica_records'")->fetchColumn();
@@ -127,6 +131,25 @@ try {
     $editingGuests = [];
 }
 
+
+if ($recordTableReady && isset($days[$selectedDay])) {
+    $selectedSnapshot = $days[$selectedDay] ?? null;
+    $selectedRecords = (array) ($selectedSnapshot['touching_records'] ?? []);
+}
+
+try {
+    if ($recordTableReady) {
+        $alloggiatiTableReady = alloggiati_schedine_table_ready($pdo);
+        if ($alloggiatiTableReady) {
+            $selectedSchedine = alloggiati_sync_day($pdo, $selectedDay);
+            $selectedSchedineCounts = alloggiati_day_status_counts($selectedSchedine);
+        }
+    }
+} catch (Throwable $e) {
+    $alloggiatiTableReady = false;
+    $selectedSchedine = [];
+    $selectedSchedineCounts = ['total' => 0, 'bozza' => 0, 'pronta' => 0, 'inviata' => 0, 'errore' => 0];
+}
 
 $formState = $_SESSION['_anagrafica_form_state'] ?? null;
 unset($_SESSION['_anagrafica_form_state']);
@@ -416,7 +439,7 @@ require_once __DIR__ . '/includes/header.php';
                 </div>
                 <div class="ross-day-export__buttons">
                     <a class="btn btn-primary<?= $selectedDayFinalized ? '' : ' is-disabled' ?>" href="<?= $selectedDayFinalized ? e(admin_url('actions/generate-ross1000-day.php?month=' . rawurlencode($selectedMonth) . '&day=' . rawurlencode($selectedDay))) : '#' ?>" data-day-export-link data-confirm-message="Confermare l'esportazione del file ROSS1000 del giorno selezionato?"<?= $selectedDayFinalized ? '' : ' aria-disabled="true" tabindex="-1"' ?>>Esporta ROSS1000</a>
-                    <a class="btn btn-light<?= $selectedDayFinalized ? '' : ' is-disabled' ?>" href="<?= $selectedDayFinalized ? e(admin_url('actions/generate-alloggiati-day.php?month=' . rawurlencode($selectedMonth) . '&day=' . rawurlencode($selectedDay))) : '#' ?>" data-day-export-link data-confirm-message="Confermare l'esportazione del file Alloggiati del giorno selezionato?"<?= $selectedDayFinalized ? '' : ' aria-disabled="true" tabindex="-1"' ?>>Alloggiati (prossimo step)</a>
+                    <a class="btn btn-light" href="#alloggiatiDaySection">Schedine Alloggiati</a>
                 </div>
                 <dl class="ross-day-export__meta">
                     <div><dt>ROSS</dt><dd><?= !empty($selectedDayState['exported_ross_at']) ? e(date('d/m/Y H:i', strtotime((string) $selectedDayState['exported_ross_at']))) : 'Non esportato' ?></dd></div>
@@ -477,7 +500,137 @@ require_once __DIR__ . '/includes/header.php';
         </div>
     </section>
 
-    <section class="card anagrafica-form-card<?= $forceOpenForm ? ' is-open' : '' ?>" id="anagraficaFormCard"<?= $forceOpenForm ? '' : ' hidden' ?> data-force-open="<?= $forceOpenForm ? '1' : '0' ?>" data-base-url="<?= e($basePageUrl) ?>" data-selected-day="<?= e($selectedDay) ?>">
+    
+    <section class="card ross-day-detail" id="alloggiatiDaySection">
+        <div class="ross-day-detail__head ross-surface">
+            <div>
+                <span class="eyebrow">Alloggiati Web</span>
+                <h2>Schedine del giorno di arrivo <?= e((new DateTimeImmutable($selectedDay))->format('d/m/Y')) ?></h2>
+                <p class="muted">La vista mostra le schedine generate dai record con data di arrivo uguale al giorno selezionato. Da qui puoi controllare stato, inviare tutto il giorno o una sola schedina.</p>
+            </div>
+            <div class="ross-day-detail__head-actions">
+                <?php if ($alloggiatiTableReady): ?>
+                    <form method="post" action="<?= e(admin_url('actions/send-alloggiati-day.php')) ?>" class="alloggiati-day-send-form">
+                        <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+                        <input type="hidden" name="month" value="<?= e($selectedMonth) ?>">
+                        <input type="hidden" name="day" value="<?= e($selectedDay) ?>">
+                        <button class="btn btn-primary<?= $selectedSchedineCounts['pronta'] > 0 ? '' : ' is-disabled' ?> js-alloggiati-modal-trigger" type="submit" <?= $selectedSchedineCounts['pronta'] > 0 ? '' : 'disabled' ?> data-modal-template-id="alloggiatiDayConfirmTemplate">Invia tutte le schedine del giorno</button>
+                    </form>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <?php if (!$alloggiatiTableReady): ?>
+            <div class="anagrafica-empty-state">
+                <strong>Tabella schedine Alloggiati non disponibile</strong>
+                <p class="muted">Esegui la migration <code>admin/database/2026-04-18_alloggiati_schedine.sql</code> per attivare la gestione delle schedine.</p>
+            </div>
+        <?php else: ?>
+            <div class="ross-day-stats">
+                <article class="ross-day-stat"><span>Totale schedine</span><strong><?= (int) $selectedSchedineCounts['total'] ?></strong><small>generate dal giorno di arrivo</small></article>
+                <article class="ross-day-stat"><span>Bozza</span><strong><?= (int) $selectedSchedineCounts['bozza'] ?></strong><small>arrivo futuro o non ancora inviabile</small></article>
+                <article class="ross-day-stat"><span>Pronte</span><strong><?= (int) $selectedSchedineCounts['pronta'] ?></strong><small>inviabili ora</small></article>
+                <article class="ross-day-stat"><span>Inviate / Errore</span><strong><?= (int) $selectedSchedineCounts['inviata'] ?> / <?= (int) $selectedSchedineCounts['errore'] ?></strong><small>stato aggiornato delle schedine</small></article>
+            </div>
+
+            <?php if (!$selectedSchedine): ?>
+                <div class="anagrafica-empty-state">
+                    <strong>Nessuna schedina per questo giorno</strong>
+                    <p class="muted">Le schedine Alloggiati vengono generate per i record con data di arrivo uguale al giorno selezionato.</p>
+                </div>
+            <?php else: ?>
+                <template id="alloggiatiDayConfirmTemplate">
+                    <div class="alloggiati-confirm">
+                        <div class="alloggiati-confirm__grid">
+                            <div><span>Giorno</span><strong><?= e((new DateTimeImmutable($selectedDay))->format('d/m/Y')) ?></strong></div>
+                            <div><span>Schedine pronte</span><strong><?= (int) $selectedSchedineCounts['pronta'] ?></strong></div>
+                            <div><span>Schedine già inviate</span><strong><?= (int) $selectedSchedineCounts['inviata'] ?></strong></div>
+                            <div><span>Schedine con errore</span><strong><?= (int) $selectedSchedineCounts['errore'] ?></strong></div>
+                        </div>
+                        <p class="muted">Conferma l'invio delle schedine pronte del giorno selezionato. Le schedine già inviate non verranno toccate.</p>
+                    </div>
+                </template>
+
+                <div class="alloggiati-schedine-list">
+                    <?php foreach ($selectedSchedine as $schedina): ?>
+                        <?php
+                        $payload = $schedina['payload'] ?? [];
+                        $schedinaId = (int) ($schedina['id'] ?? 0);
+                        $status = (string) ($schedina['status'] ?? 'bozza');
+                        $statusLabelMap = ['bozza' => 'Bozza', 'pronta' => 'Pronta', 'inviata' => 'Inviata', 'errore' => 'Errore'];
+                        $statusClassMap = ['bozza' => 'ross-badge', 'pronta' => 'ross-badge ross-badge--blue', 'inviata' => 'ross-badge ross-badge--green', 'errore' => 'ross-badge ross-badge--amber'];
+                        $canSendSingle = in_array($status, ['pronta', 'errore'], true);
+                        ?>
+                        <article class="ross-record-row alloggiati-schedina-row">
+                            <div class="ross-record-row__main">
+                                <strong><?= e((string) ($schedina['display_name'] ?? ($payload['display_name'] ?? 'Schedina'))) ?></strong>
+                                <div class="ross-record-row__subline">
+                                    <span><?= e((string) ($payload['tipo_alloggiato_label'] ?? '')) ?></span>
+                                    <span>Arrivo <?= e((string) ($payload['arrival_date_xml'] ?? '')) ?></span>
+                                    <span>Permanenza <?= (int) ($payload['permanence_days'] ?? 0) ?> gg</span>
+                                    <?php if (!empty($payload['document_type_label'])): ?><span><?= e((string) $payload['document_type_label']) ?> · <?= e((string) ($payload['document_number'] ?? '')) ?></span><?php endif; ?>
+                                </div>
+                                <?php if (!empty($schedina['last_error'])): ?>
+                                    <div class="alloggiati-schedina-row__error"><?= nl2br(e((string) $schedina['last_error'])) ?></div>
+                                <?php endif; ?>
+                            </div>
+                            <div class="ross-record-row__badges" data-row-ignore>
+                                <span class="<?= e($statusClassMap[$status] ?? 'ross-badge') ?>"><?= e($statusLabelMap[$status] ?? ucfirst($status)) ?></span>
+                                <?php if (!empty($schedina['sent_at'])): ?><span class="ross-badge">Inviata <?= e(date('d/m H:i', strtotime((string) $schedina['sent_at']))) ?></span><?php endif; ?>
+                            </div>
+                            <div class="ross-record-row__actions" data-row-ignore>
+                                <?php if ($canSendSingle): ?>
+                                    <form method="post" action="<?= e(admin_url('actions/send-alloggiati-schedina.php')) ?>" class="alloggiati-single-send-form">
+                                        <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+                                        <input type="hidden" name="month" value="<?= e($selectedMonth) ?>">
+                                        <input type="hidden" name="day" value="<?= e($selectedDay) ?>">
+                                        <input type="hidden" name="schedina_id" value="<?= $schedinaId ?>">
+                                        <button class="btn btn-light btn-sm js-alloggiati-modal-trigger" type="submit" data-modal-template-id="alloggiatiSchedinaConfirm<?= $schedinaId ?>"><?= $status === 'errore' ? 'Ritenta invio' : 'Invia schedina' ?></button>
+                                    </form>
+                                    <template id="alloggiatiSchedinaConfirm<?= $schedinaId ?>">
+                                        <div class="alloggiati-confirm">
+                                            <div class="alloggiati-confirm__grid">
+                                                <div><span>Ospite</span><strong><?= e((string) ($schedina['display_name'] ?? ($payload['display_name'] ?? ''))) ?></strong></div>
+                                                <div><span>Tipo</span><strong><?= e((string) ($payload['tipo_alloggiato_label'] ?? '')) ?></strong></div>
+                                                <div><span>Arrivo</span><strong><?= e((string) ($payload['arrival_date_xml'] ?? '')) ?></strong></div>
+                                                <div><span>Permanenza</span><strong><?= (int) ($payload['permanence_days'] ?? 0) ?> gg</strong></div>
+                                            </div>
+                                            <?php if (!empty($payload['document_type_label'])): ?>
+                                                <p class="muted">Documento: <?= e((string) $payload['document_type_label']) ?> · <?= e((string) ($payload['document_number'] ?? '')) ?></p>
+                                            <?php endif; ?>
+                                            <p class="muted">Conferma l'invio della schedina selezionata.</p>
+                                        </div>
+                                    </template>
+                                <?php else: ?>
+                                    <button class="btn btn-light btn-sm is-disabled" type="button" disabled><?= $status === 'inviata' ? 'Già inviata' : 'Non inviab.' ?></button>
+                                <?php endif; ?>
+                            </div>
+                        </article>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+        <?php endif; ?>
+    </section>
+
+    <div class="anagrafica-modal" id="alloggiatiConfirmModal" hidden>
+        <div class="anagrafica-modal__backdrop" data-modal-close></div>
+        <div class="anagrafica-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="alloggiatiConfirmTitle">
+            <div class="anagrafica-modal__header">
+                <div>
+                    <span class="eyebrow">Conferma invio</span>
+                    <h3 id="alloggiatiConfirmTitle">Verifica riepilogo schedine</h3>
+                </div>
+                <button class="btn btn-light btn-sm" type="button" data-modal-close>Chiudi</button>
+            </div>
+            <div class="anagrafica-modal__body" id="alloggiatiConfirmBody"></div>
+            <div class="anagrafica-modal__actions">
+                <button class="btn btn-light" type="button" data-modal-close>Annulla</button>
+                <button class="btn btn-primary" type="button" id="alloggiatiConfirmSubmit">Conferma invio</button>
+            </div>
+        </div>
+    </div>
+
+<section class="card anagrafica-form-card<?= $forceOpenForm ? ' is-open' : '' ?>" id="anagraficaFormCard"<?= $forceOpenForm ? '' : ' hidden' ?> data-force-open="<?= $forceOpenForm ? '1' : '0' ?>" data-base-url="<?= e($basePageUrl) ?>" data-selected-day="<?= e($selectedDay) ?>">
         <div class="section-title section-title--split">
             <div>
                 <h2><?= $formIsEdit ? 'Modifica anagrafica' : 'Nuova anagrafica' ?></h2>
