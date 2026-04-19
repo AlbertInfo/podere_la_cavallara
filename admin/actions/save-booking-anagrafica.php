@@ -202,7 +202,7 @@ try {
         'open' => true,
         'data' => $data,
         'field_errors' => [],
-        'messages' => ['Errore durante il salvataggio: ' . $e->getMessage()],
+        'messages' => ['Non è stato possibile salvare la prenotazione in questo momento. Controlla i dati inseriti e riprova.'],
     ];
 }
 

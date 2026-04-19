@@ -5,6 +5,80 @@ declare(strict_types=1);
 require_once __DIR__ . '/anagrafica-options.php';
 require_once __DIR__ . '/alloggiati.php';
 
+
+
+if (!function_exists('derive_guest_idswh')) {
+    function derive_guest_idswh(string $bookingIdswh, int $index): string
+    {
+        return strtoupper(substr($bookingIdswh . str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT), 0, 20));
+    }
+}
+
+if (!function_exists('derive_booking_idswh')) {
+    function derive_booking_idswh(string $recordType, string $bookingReference): string
+    {
+        $seed = $bookingReference !== '' ? $bookingReference : ($recordType . '-' . date('YmdHis'));
+        $seed = preg_replace('/[^A-Za-z0-9]/', '', strtoupper($seed));
+        if ($seed === null || $seed === '') {
+            $seed = 'ANA' . date('YmdHis');
+        }
+        return substr($seed, 0, 20);
+    }
+}
+
+function anagrafica_sync_issue_message(array $booking, ?Throwable $error = null): string
+{
+    $checkIn = substr((string) ($booking['check_in'] ?? ''), 0, 10);
+    $checkOut = substr((string) ($booking['check_out'] ?? ''), 0, 10);
+    if ($checkIn === '' || $checkOut === '') {
+        return 'Mancano le date di check-in o check-out della prenotazione.';
+    }
+
+    if (trim((string) ($booking['customer_name'] ?? '')) === '') {
+        return 'Manca il nominativo principale della prenotazione.';
+    }
+
+    if ($error instanceof Throwable) {
+        return 'Questa prenotazione richiede un controllo dei dati anagrafici prima della sincronizzazione.';
+    }
+
+    return 'La prenotazione richiede un controllo dei dati prima della sincronizzazione.';
+}
+
+function anagrafica_sync_prenotazioni_range_safe(PDO $pdo, string $from, string $to): array
+{
+    if (!anagrafica_prenotazione_link_column_ready($pdo)) {
+        return ['record_ids' => [], 'issues' => []];
+    }
+
+    $stmt = $pdo->prepare('SELECT * FROM prenotazioni WHERE check_in <= :to_date AND check_out >= :from_date ORDER BY check_in ASC, id ASC');
+    $stmt->execute(['from_date' => $from, 'to_date' => $to]);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+    $recordIds = [];
+    $issues = [];
+
+    foreach ($rows as $booking) {
+        $bookingId = (int) ($booking['id'] ?? 0);
+        if ($bookingId <= 0) {
+            continue;
+        }
+        try {
+            $recordIds[$bookingId] = anagrafica_sync_booking_to_record($pdo, $booking);
+        } catch (Throwable $e) {
+            $issues[$bookingId] = [
+                'booking_id' => $bookingId,
+                'customer_name' => trim((string) ($booking['customer_name'] ?? '')) !== '' ? (string) $booking['customer_name'] : ('Prenotazione #' . $bookingId),
+                'check_in' => substr((string) ($booking['check_in'] ?? ''), 0, 10),
+                'check_out' => substr((string) ($booking['check_out'] ?? ''), 0, 10),
+                'message' => anagrafica_sync_issue_message($booking, $e),
+            ];
+        }
+    }
+
+    return ['record_ids' => $recordIds, 'issues' => array_values($issues)];
+}
+
 function anagrafica_prenotazione_link_column_ready(PDO $pdo): bool
 {
     static $cache = null;
@@ -136,8 +210,18 @@ function anagrafica_sync_booking_to_record(PDO $pdo, array $booking): int
     ];
 
     if ($existingRecord) {
-        $update = $pdo->prepare('UPDATE anagrafica_records SET record_type = :record_type, booking_reference = :booking_reference, booking_received_date = :booking_received_date, arrival_date = :arrival_date, departure_date = :departure_date, expected_guests = :expected_guests, status = :status, updated_at = NOW() WHERE id = :id');
-        $update->execute($recordData + ['id' => (int) $existingRecord['id']]);
+        $update = $pdo->prepare('UPDATE anagrafica_records SET record_type = :record_type, booking_reference = :booking_reference, booking_received_date = :booking_received_date, arrival_date = :arrival_date, departure_date = :departure_date, expected_guests = :expected_guests, reserved_rooms = :reserved_rooms, status = :status, updated_at = NOW() WHERE id = :id');
+        $update->execute([
+            'record_type' => $recordData['record_type'],
+            'booking_reference' => $recordData['booking_reference'],
+            'booking_received_date' => $recordData['booking_received_date'],
+            'arrival_date' => $recordData['arrival_date'],
+            'departure_date' => $recordData['departure_date'],
+            'expected_guests' => $recordData['expected_guests'],
+            'reserved_rooms' => $recordData['reserved_rooms'],
+            'status' => $recordData['status'],
+            'id' => (int) $existingRecord['id'],
+        ]);
         $recordId = (int) $existingRecord['id'];
     } else {
         $insert = $pdo->prepare('INSERT INTO anagrafica_records (uuid, prenotazione_id, record_type, booking_reference, ross_prenotazione_idswh, booking_received_date, arrival_date, departure_date, expected_guests, reserved_rooms, booking_channel, daily_price, booking_provenience_state_label, booking_provenience_state_code, booking_provenience_province, booking_provenience_place_label, booking_provenience_place_code, status, created_at, updated_at) VALUES (:uuid, :prenotazione_id, :record_type, :booking_reference, :ross_prenotazione_idswh, :booking_received_date, :arrival_date, :departure_date, :expected_guests, :reserved_rooms, NULL, NULL, NULL, NULL, NULL, NULL, NULL, :status, NOW(), NOW())');

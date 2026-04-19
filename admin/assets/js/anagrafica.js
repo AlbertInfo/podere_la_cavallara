@@ -668,39 +668,130 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 
-
-function initBookingSyncModal() {
+document.addEventListener('DOMContentLoaded', function () {
   var modal = document.getElementById('bookingSyncModal');
-  if (!modal) return;
   var form = document.getElementById('bookingSyncForm');
-  var closeButtons = $all('[data-booking-modal-close]', modal);
-  var triggers = $all('[data-booking-modal-trigger]');
+  if (!modal || !form) return;
+
+  function all(selector, scope) {
+    return Array.prototype.slice.call((scope || document).querySelectorAll(selector));
+  }
+
+  function parseJson(id, fallback) {
+    var node = document.getElementById(id);
+    if (!node) return fallback;
+    try {
+      return JSON.parse(node.textContent || node.innerText || '');
+    } catch (err) {
+      return fallback;
+    }
+  }
+
+  var provinceMap = parseJson('anagraficaProvinceMap', {});
+  var comuniByProvince = parseJson('anagraficaComuniByProvince', {});
+
+  function normalizeValue(value) {
+    return String(value || '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '');
+  }
+
+  function italySelected(value) {
+    return normalizeValue(value) === 'italia';
+  }
+
+  function resolveProvinceCode(value) {
+    var normalized = normalizeValue(value);
+    if (!normalized) return '';
+    if (provinceMap[value]) return provinceMap[value];
+    var keys = Object.keys(provinceMap);
+    for (var i = 0; i < keys.length; i += 1) {
+      if (normalizeValue(keys[i]) === normalized) {
+        return provinceMap[keys[i]];
+      }
+    }
+    return '';
+  }
+
+  function ensureDatalist(input, idPrefix) {
+    if (!input) return null;
+    var listId = input.getAttribute('list');
+    if (!listId) {
+      listId = idPrefix + '-' + Math.random().toString(36).slice(2, 8);
+      input.setAttribute('list', listId);
+    }
+    var node = document.getElementById(listId);
+    if (!node) {
+      node = document.createElement('datalist');
+      node.id = listId;
+      document.body.appendChild(node);
+    }
+    return node;
+  }
+
+  function fillPlaceOptions(datalist, values) {
+    if (!datalist) return;
+    datalist.innerHTML = '';
+    (values || []).forEach(function (value) {
+      var option = document.createElement('option');
+      option.value = value;
+      datalist.appendChild(option);
+    });
+  }
+
+  function updateProvinceFilteredPlaces(scope) {
+    ['birth', 'residence'].forEach(function (role) {
+      var stateField = scope.querySelector('[data-state-role="' + role + '"]');
+      var provinceField = scope.querySelector('[data-province-role="' + role + '"]');
+      var placeField = scope.querySelector('[data-place-role="' + role + '"]');
+      if (!placeField) return;
+
+      var isItaly = italySelected(stateField ? stateField.value : '');
+      if (!isItaly) {
+        if (provinceField) provinceField.disabled = true;
+        placeField.placeholder = role === 'residence' ? 'Località estera o NUTS' : 'Stato o località estera';
+        fillPlaceOptions(ensureDatalist(placeField, 'modal-' + role + '-place'), []);
+        return;
+      }
+
+      if (provinceField) provinceField.disabled = false;
+      var provinceCode = resolveProvinceCode(provinceField ? provinceField.value : '');
+      var values = provinceCode && comuniByProvince[provinceCode] ? comuniByProvince[provinceCode] : [];
+      placeField.placeholder = provinceCode ? 'Seleziona il comune' : 'Seleziona prima la provincia';
+      fillPlaceOptions(ensureDatalist(placeField, 'modal-' + role + '-place'), values);
+    });
+  }
 
   function setModalState(open) {
     modal.hidden = !open;
+    modal.classList.toggle('is-open', open);
     document.body.classList.toggle('is-modal-open', open);
   }
 
   function fillField(name, value) {
-    var field = form ? form.querySelector('[name="' + name + '"]') : null;
+    var field = form.querySelector('[name="' + name + '"]');
     if (!field) return;
-    if (field.type === 'checkbox') {
-      field.checked = !!value;
-      return;
-    }
-    field.value = value == null ? '' : String(value);
-    if (field._flatpickr && value) {
-      try { field._flatpickr.setDate(String(value), true, 'Y-m-d'); } catch (err) {}
+    var stringValue = value == null ? '' : String(value);
+    if (field._flatpickr) {
+      try { field._flatpickr.setDate(stringValue, true, 'Y-m-d'); } catch (err) { field.value = stringValue; }
+    } else {
+      field.value = stringValue;
     }
   }
 
   function clearModalErrors() {
-    $all('.anagrafica-field', modal).forEach(function (node) { node.classList.remove('is-invalid'); });
-    $all('.anagrafica-field-error', modal).forEach(function (node) { if (!node.dataset.serverError) node.textContent = ''; });
+    all('.anagrafica-field', modal).forEach(function (node) { node.classList.remove('is-invalid'); });
+    all('.anagrafica-field-error', modal).forEach(function (node) {
+      if (!node.dataset.serverError) node.textContent = '';
+    });
   }
 
-  triggers.forEach(function (button) {
-    button.addEventListener('click', function () {
+  all('[data-booking-modal-trigger]').forEach(function (button) {
+    button.addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
       var raw = button.getAttribute('data-booking-payload');
       if (!raw) return;
       try {
@@ -710,19 +801,25 @@ function initBookingSyncModal() {
         updateProvinceFilteredPlaces(modal);
         setModalState(true);
       } catch (err) {
-        console.error(err);
+        console.error('Booking modal payload error', err);
       }
     });
   });
 
-  closeButtons.forEach(function (button) {
-    button.addEventListener('click', function () { setModalState(false); });
+  all('[data-booking-modal-close]', modal).forEach(function (button) {
+    button.addEventListener('click', function (event) {
+      event.preventDefault();
+      setModalState(false);
+    });
+  });
+
+  all('[data-state-role], [data-province-role]', modal).forEach(function (field) {
+    field.addEventListener('change', function () { updateProvinceFilteredPlaces(modal); });
+    field.addEventListener('input', function () { updateProvinceFilteredPlaces(modal); });
   });
 
   if (modal.classList.contains('is-open')) {
     setModalState(true);
     updateProvinceFilteredPlaces(modal);
   }
-}
-
-initBookingSyncModal();
+});

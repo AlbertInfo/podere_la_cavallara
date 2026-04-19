@@ -62,6 +62,8 @@ $prenotazioneLinkReady = false;
 $editingRecord = null;
 $editingGuests = [];
 $anagraficaBootstrapError = null;
+$bookingSyncIssues = [];
+$selectedBookingIssueMap = [];
 
 $selectedMonth = anagrafica_safe_month($_GET['month'] ?? null);
 $monthStart = new DateTimeImmutable($selectedMonth . '-01');
@@ -144,12 +146,14 @@ if ($recordTableReady) {
 
     try {
         if ($prenotazioneLinkReady) {
-            anagrafica_sync_prenotazioni_range($pdo, $monthStart->format('Y-m-d'), $monthEnd->format('Y-m-d'));
+            $syncResult = anagrafica_sync_prenotazioni_range_safe($pdo, $monthStart->format('Y-m-d'), $monthEnd->format('Y-m-d'));
+            $bookingSyncIssues = (array) ($syncResult['issues'] ?? []);
             $selectedBookings = anagrafica_fetch_prenotazioni_touching_day($pdo, $selectedDay);
         }
     } catch (Throwable $e) {
         $selectedBookings = [];
-        $anagraficaBootstrapError = $e->getMessage();
+        $bookingSyncIssues = [];
+        $anagraficaBootstrapError = 'sync_runtime_failure';
     }
 
     try {
@@ -207,6 +211,23 @@ if ($recordTableReady && isset($days[$selectedDay])) {
     if ($prenotazioneLinkReady) {
         $selectedBookings = anagrafica_fetch_prenotazioni_touching_day($pdo, $selectedDay);
     }
+}
+
+if ($bookingSyncIssues) {
+    foreach ($bookingSyncIssues as $issue) {
+        $issueCheckIn = substr((string) ($issue['check_in'] ?? ''), 0, 10);
+        $issueCheckOut = substr((string) ($issue['check_out'] ?? ''), 0, 10);
+        if ($issueCheckIn !== '' && $issueCheckOut !== '' && $issueCheckIn <= $selectedDay && $issueCheckOut >= $selectedDay) {
+            $selectedBookingIssueMap[(int) ($issue['booking_id'] ?? 0)] = (string) ($issue['message'] ?? 'Prenotazione da verificare.');
+        }
+    }
+    foreach ($selectedBookings as &$selectedBookingRow) {
+        $bookingId = (int) ($selectedBookingRow['id'] ?? 0);
+        if ($bookingId > 0 && isset($selectedBookingIssueMap[$bookingId])) {
+            $selectedBookingRow['sync_issue_message'] = $selectedBookingIssueMap[$bookingId];
+        }
+    }
+    unset($selectedBookingRow);
 }
 
 try {
@@ -373,8 +394,7 @@ require_once __DIR__ . '/includes/header.php';
     <?php if ($anagraficaBootstrapError): ?>
         <section class="anagrafica-alert-card">
             <h2>Verifica sincronizzazione anagrafica</h2>
-            <p class="muted">Il database risulta presente, ma una parte della sincronizzazione ha restituito un errore applicativo. Questo messaggio aiuta a distinguerlo da un problema di migration.</p>
-            <div class="code"><?= e($anagraficaBootstrapError) ?></div>
+            <p class="muted">La sincronizzazione automatica delle prenotazioni non è riuscita a completarsi in questa schermata. Ricarica la pagina; se il problema continua, usa la scheda della prenotazione per completare o correggere i dati mancanti.</p>
         </section>
     <?php endif; ?>
 
@@ -667,6 +687,7 @@ require_once __DIR__ . '/includes/header.php';
                                     <span><?= (int) ($booking['adults'] ?? 0) ?> adulti · <?= (int) ($booking['children_count'] ?? 0) ?> bambini</span>
                                     <span><?= e((string) ($booking['room_type'] ?? '')) ?></span>
                                     <span>Stato <?= e((string) ($booking['status'] ?? '')) ?></span>
+                                    <?php if (!empty($booking['sync_issue_message'])): ?><span class="text-warning"><?= e((string) $booking['sync_issue_message']) ?></span><?php endif; ?>
                                 </div>
                             </div>
                             <div class="ross-record-row__badges" data-row-ignore>
@@ -675,6 +696,7 @@ require_once __DIR__ . '/includes/header.php';
                                 <?php if (!empty($flags['present'])): ?><span class="ross-badge ross-badge--blue">Presenza</span><?php endif; ?>
                                 <?php if (!empty($booking['linked_record_id'])): ?><span class="ross-badge">Scheda collegata</span><?php endif; ?>
                                 <?php if (!empty($booking['document_ready'])): ?><span class="ross-badge ross-badge--green">Documento presente</span><?php endif; ?>
+                                <?php if (!empty($booking['sync_issue_message'])): ?><span class="ross-badge ross-badge--amber">Da completare</span><?php endif; ?>
                             </div>
                             <div class="ross-record-row__actions" data-row-ignore>
                                 <button class="btn btn-light btn-sm" type="button" data-booking-modal-trigger data-booking-payload='<?= e(json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>'>Apri scheda</button>
