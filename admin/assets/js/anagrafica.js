@@ -540,6 +540,95 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+
+function initDialogModals() {
+  var activeModal = null;
+
+  function setModalState(modal, open) {
+    if (!modal) return;
+    modal.hidden = !open;
+    modal.classList.toggle('is-open', !!open);
+    document.body.classList.toggle('is-modal-open', !!open);
+    activeModal = open ? modal : null;
+  }
+
+  $all('[data-dialog-open]').forEach(function (trigger) {
+    trigger.addEventListener('click', function (event) {
+      event.preventDefault();
+      var id = trigger.getAttribute('data-dialog-open');
+      var modal = id ? document.getElementById(id) : null;
+      if (!modal) return;
+      setModalState(modal, true);
+    });
+  });
+
+  $all('[data-dialog-close]').forEach(function (trigger) {
+    trigger.addEventListener('click', function (event) {
+      event.preventDefault();
+      var modal = trigger.closest('.anagrafica-modal');
+      if (modal) setModalState(modal, false);
+    });
+  });
+
+  $all('.anagrafica-modal').forEach(function (modal) {
+    modal.addEventListener('click', function (event) {
+      if (event.target === modal || event.target.classList.contains('anagrafica-modal__backdrop')) {
+        setModalState(modal, false);
+      }
+    });
+  });
+
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape' && activeModal) {
+      setModalState(activeModal, false);
+    }
+  });
+}
+
+function initMonthPickerAutoSubmit() {
+  var monthInput = $('[data-month-picker-input]');
+  if (!monthInput || !monthInput.form) return;
+  monthInput.addEventListener('change', function () {
+    monthInput.form.submit();
+  });
+}
+
+function initMonthRangeConfigurator() {
+  var modal = document.getElementById('rossMonthSettingsModal');
+  if (!modal) return;
+
+  var list = $('[data-month-ranges]', modal);
+  var addButton = $('[data-add-month-range]', modal);
+  var template = document.getElementById('rossMonthRangeTemplate');
+  if (!list || !addButton || !template) return;
+
+  function bindRow(row) {
+    var removeButton = $('[data-remove-month-range]', row);
+    if (removeButton) {
+      removeButton.addEventListener('click', function () {
+        row.parentNode.removeChild(row);
+      });
+    }
+  }
+
+  function addRow(defaultState) {
+    var fragment = template.content.cloneNode(true);
+    var row = $('[data-month-range-row]', fragment);
+    if (!row) return;
+    var state = row.querySelector('select[name="range_state[]"]');
+    var fromSelect = row.querySelector('select[name="range_from[]"]');
+    var toSelect = row.querySelector('select[name="range_to[]"]');
+    if (state && defaultState) state.value = defaultState;
+    if (fromSelect && toSelect) toSelect.value = fromSelect.value;
+    list.appendChild(row);
+    bindRow(row);
+  }
+
+  addButton.addEventListener('click', function () {
+    addRow('closed');
+  });
+}
+
   function initCarousel() {
     var carousel = $('[data-day-carousel]');
     var viewport = $('[data-day-carousel-viewport]');
@@ -663,6 +752,9 @@ document.addEventListener('DOMContentLoaded', function () {
   try { initFormPanel(); } catch (err) { console.error('Form panel init failed', err); }
   try { initEditableRows(); } catch (err) { console.error('Editable rows init failed', err); }
   try { initConfirmations(); } catch (err) { console.error('Confirmations init failed', err); }
+  try { initDialogModals(); } catch (err) { console.error('Dialog modals init failed', err); }
+  try { initMonthPickerAutoSubmit(); } catch (err) { console.error('Month picker init failed', err); }
+  try { initMonthRangeConfigurator(); } catch (err) { console.error('Month configurator init failed', err); }
   try { initCarousel(); } catch (err) { console.error('Carousel init failed', err); }
   try { initAlloggiatiModal(); } catch (err) { console.error('Alloggiati modal init failed', err); }
 });

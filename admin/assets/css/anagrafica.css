@@ -1064,3 +1064,211 @@ body.is-modal-open {
     grid-template-columns: 1fr;
   }
 }
+
+
+.ross-month-actions {
+  display: grid;
+  gap: .6rem;
+  justify-items: end;
+  width: 100%;
+}
+
+.ross-month-actions small {
+  max-width: 34rem;
+  text-align: right;
+  color: var(--ross-muted);
+  line-height: 1.45;
+}
+
+.ross-month-modal__body {
+  display: grid;
+  gap: 1rem;
+}
+
+.ross-month-modal__intro {
+  padding: 1rem 1.1rem;
+  border-radius: 20px;
+}
+
+.ross-month-modal__ranges {
+  display: grid;
+  gap: .9rem;
+}
+
+.ross-month-range-list {
+  display: grid;
+  gap: .75rem;
+}
+
+.ross-month-range-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: .75rem;
+  align-items: end;
+  padding: .9rem;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.95));
+}
+
+.ross-month-range-row label {
+  display: grid;
+  gap: .35rem;
+}
+
+.ross-month-range-row label span {
+  font-size: .8rem;
+  font-weight: 700;
+  color: #475569;
+}
+
+.ross-month-range-row select {
+  min-height: 44px;
+  padding: .68rem .84rem;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  background: #fff;
+}
+
+.ross-month-modal__hint {
+  margin: 0;
+}
+
+.ross-month-overview-modal__body {
+  display: grid;
+  gap: .85rem;
+}
+
+.ross-month-overview__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+
+.ross-month-overview__legend span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 .8rem;
+  border-radius: 999px;
+  font-size: .78rem;
+  font-weight: 700;
+  border: 1px solid rgba(148,163,184,.18);
+  background: #fff;
+  color: #334155;
+}
+
+.ross-month-overview__legend .is-busy { background: rgba(22,163,74,.12); color: #166534; }
+.ross-month-overview__legend .is-zero { background: rgba(245,158,11,.12); color: #92400e; }
+.ross-month-overview__legend .is-closed { background: rgba(100,116,139,.14); color: #334155; }
+.ross-month-overview__legend .is-finalized { background: rgba(49,88,224,.12); color: #1d4ed8; }
+
+.ross-month-overview__weekdays,
+.ross-month-overview__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: .6rem;
+}
+
+.ross-month-overview__weekdays span {
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: #64748b;
+  font-weight: 800;
+  text-align: center;
+}
+
+.ross-month-overview__day {
+  display: grid;
+  gap: .55rem;
+  min-height: 128px;
+  padding: .8rem;
+  border-radius: 18px;
+  border: 1px solid rgba(148,163,184,.18);
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.95));
+  color: var(--ross-text);
+  text-decoration: none;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+
+.ross-month-overview__day:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 28px rgba(15,23,42,.08);
+}
+
+.ross-month-overview__day.is-outside {
+  opacity: .42;
+  pointer-events: none;
+}
+
+.ross-month-overview__day.is-busy { border-color: rgba(22,163,74,.24); }
+.ross-month-overview__day.is-zero { border-color: rgba(245,158,11,.24); }
+.ross-month-overview__day.is-closed { border-color: rgba(100,116,139,.24); background: linear-gradient(180deg, rgba(248,250,252,.98), rgba(241,245,249,.96)); }
+.ross-month-overview__day.is-selected { box-shadow: 0 0 0 3px rgba(49,88,224,.10); }
+.ross-month-overview__day.is-today strong { color: var(--ross-accent-strong); }
+
+.ross-month-overview__day-top {
+  display: flex;
+  justify-content: space-between;
+  gap: .5rem;
+  align-items: baseline;
+}
+
+.ross-month-overview__day-top strong {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.ross-month-overview__day-top span {
+  font-size: .74rem;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.ross-month-overview__day dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .4rem;
+  margin: 0;
+}
+
+.ross-month-overview__day dl div {
+  padding: .45rem .5rem;
+  border-radius: 12px;
+  background: rgba(15,23,42,.04);
+}
+
+.ross-month-overview__day dt {
+  margin: 0;
+  font-size: .65rem;
+  text-transform: uppercase;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.ross-month-overview__day dd {
+  margin: .08rem 0 0;
+  font-size: .92rem;
+  font-weight: 800;
+}
+
+@media (max-width: 980px) {
+  .ross-month-actions {
+    justify-items: stretch;
+  }
+
+  .ross-month-actions small {
+    max-width: none;
+    text-align: left;
+  }
+
+  .ross-month-range-row {
+    grid-template-columns: 1fr;
+  }
+
+  .ross-month-overview__weekdays,
+  .ross-month-overview__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

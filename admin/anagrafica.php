@@ -100,29 +100,13 @@ $selectedSchedine = [];
 $selectedSchedineCounts = ['total' => 0, 'bozza' => 0, 'pronta' => 0, 'inviata' => 0, 'errore' => 0];
 $alloggiatiWsConfig = alloggiati_ws_config();
 $alloggiatiWsReady = alloggiati_ws_config_ready($alloggiatiWsConfig);
-$monthDayCount = count($days);
+$monthDayCount = 0;
 $monthOpenCount = 0;
 $monthClosedCount = 0;
 $monthFinalizedCount = 0;
-foreach ($days as $snapshotCount) {
-    if (!empty($snapshotCount['is_open'])) {
-        $monthOpenCount++;
-    } else {
-        $monthClosedCount++;
-    }
-    if (!empty($snapshotCount['day_state']['is_finalized'])) {
-        $monthFinalizedCount++;
-    }
-}
-$monthPendingCount = max(0, $monthDayCount - $monthFinalizedCount);
-$alloggiatiDayExportableCount = (int) ($selectedSchedineCounts['pronta'] + $selectedSchedineCounts['inviata']);
+$monthPendingCount = 0;
+$alloggiatiDayExportableCount = 0;
 $alloggiatiDayDocumentCount = 0;
-foreach ($selectedSchedine as $schedinaCount) {
-    $payloadCount = is_array($schedinaCount['payload'] ?? null) ? $schedinaCount['payload'] : [];
-    if (trim((string) ($payloadCount['document_number'] ?? '')) !== '') {
-        $alloggiatiDayDocumentCount++;
-    }
-}
 
 try {
     $recordTableReady = (bool) $pdo->query("SHOW TABLES LIKE 'anagrafica_records'")->fetchColumn();
@@ -242,6 +226,61 @@ try {
     $alloggiatiTableReady = false;
     $selectedSchedine = [];
     $selectedSchedineCounts = ['total' => 0, 'bozza' => 0, 'pronta' => 0, 'inviata' => 0, 'errore' => 0];
+}
+
+
+$monthDayCount = count($days);
+$monthOpenCount = 0;
+$monthClosedCount = 0;
+$monthFinalizedCount = 0;
+foreach ($days as $snapshotCount) {
+    if (!empty($snapshotCount['is_open'])) {
+        $monthOpenCount++;
+    } else {
+        $monthClosedCount++;
+    }
+    if (!empty($snapshotCount['day_state']['is_finalized'])) {
+        $monthFinalizedCount++;
+    }
+}
+$monthPendingCount = max(0, $monthDayCount - $monthFinalizedCount);
+$alloggiatiDayExportableCount = (int) ($selectedSchedineCounts['pronta'] + $selectedSchedineCounts['inviata']);
+$alloggiatiDayDocumentCount = 0;
+foreach ($selectedSchedine as $schedinaCount) {
+    $payloadCount = is_array($schedinaCount['payload'] ?? null) ? $schedinaCount['payload'] : [];
+    if (trim((string) ($payloadCount['document_number'] ?? '')) !== '') {
+        $alloggiatiDayDocumentCount++;
+    }
+}
+
+$monthDayNumbers = range(1, (int) $monthEnd->format('j'));
+$overviewGridStart = $monthStart;
+while ($overviewGridStart->format('N') !== '1') {
+    $overviewGridStart = $overviewGridStart->modify('-1 day');
+}
+$overviewGridEnd = $monthEnd;
+while ($overviewGridEnd->format('N') !== '7') {
+    $overviewGridEnd = $overviewGridEnd->modify('+1 day');
+}
+$monthOverviewWeeks = [];
+$weekBuffer = [];
+$overviewCursor = $overviewGridStart;
+while ($overviewCursor <= $overviewGridEnd) {
+    $dateKey = $overviewCursor->format('Y-m-d');
+    $weekBuffer[] = [
+        'date' => $dateKey,
+        'day_number' => (int) $overviewCursor->format('j'),
+        'in_month' => $overviewCursor->format('Y-m') === $selectedMonth,
+        'is_today' => $dateKey === $today,
+        'is_selected' => $dateKey === $selectedDay,
+        'snapshot' => $days[$dateKey] ?? null,
+        'url' => admin_url('anagrafica.php?month=' . rawurlencode($selectedMonth) . '&day=' . rawurlencode($dateKey)),
+    ];
+    if (count($weekBuffer) === 7) {
+        $monthOverviewWeeks[] = $weekBuffer;
+        $weekBuffer = [];
+    }
+    $overviewCursor = $overviewCursor->modify('+1 day');
 }
 
 $formState = $_SESSION['_anagrafica_form_state'] ?? null;
@@ -502,6 +541,151 @@ require_once __DIR__ . '/includes/header.php';
             </button>
         </div>
     </section>
+
+
+<div class="anagrafica-modal" id="rossMonthSettingsModal" hidden>
+    <div class="anagrafica-modal__backdrop" data-dialog-close></div>
+    <div class="anagrafica-modal__dialog anagrafica-modal__dialog--wide ross-month-modal" role="dialog" aria-modal="true" aria-labelledby="rossMonthSettingsTitle">
+        <div class="anagrafica-modal__header">
+            <div>
+                <span class="eyebrow">Configurazione mese</span>
+                <h3 id="rossMonthSettingsTitle">Configura apertura e chiusura di <?= e(anagrafica_month_label($monthStart)) ?></h3>
+            </div>
+            <button class="btn btn-light btn-sm" type="button" data-dialog-close>Chiudi</button>
+        </div>
+        <form class="anagrafica-modal__body ross-month-modal__body" method="post" action="<?= e(admin_url('actions/generate-ross1000-month.php')) ?>" id="rossMonthSettingsForm">
+            <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+            <input type="hidden" name="month" value="<?= e($selectedMonth) ?>">
+            <div class="ross-month-modal__intro ross-surface">
+                <div class="alloggiati-confirm__grid">
+                    <div><span>Mese</span><strong><?= e(anagrafica_month_label($monthStart)) ?></strong></div>
+                    <div><span>Giorni nel mese</span><strong><?= (int) $monthDayCount ?></strong></div>
+                    <div><span>Giorni già chiusi</span><strong><?= (int) $monthFinalizedCount ?></strong></div>
+                    <div><span>Camere standard</span><strong><?= (int) ($config['camere_disponibili'] ?? 0) ?></strong></div>
+                    <div><span>Letti standard</span><strong><?= (int) ($config['letti_disponibili'] ?? 0) ?></strong></div>
+                    <div><span>Default mese</span><strong>Aperto</strong></div>
+                </div>
+                <p class="muted">Per default il mese viene trattato come aperto. Aggiungi uno o più intervalli per segnare periodi chiusi oppure riaprire periodi specifici prima dell'export XML.</p>
+            </div>
+
+            <div class="ross-month-modal__ranges">
+                <div class="section-title section-title--split">
+                    <div>
+                        <h4>Intervalli del mese</h4>
+                        <p class="muted">Esempio: imposta <strong>Chiuso</strong> dal 12 al 18 del mese. I giorni già chiusi in modo definitivo non vengono sovrascritti.</p>
+                    </div>
+                    <button class="btn btn-light btn-sm" type="button" data-add-month-range>Aggiungi intervallo</button>
+                </div>
+                <div class="ross-month-range-list" data-month-ranges></div>
+                <p class="muted ross-month-modal__hint">Se non aggiungi intervalli, il mese verrà esportato mantenendo tutti i giorni aperti con la disponibilità standard.</p>
+            </div>
+        </form>
+        <div class="anagrafica-modal__actions">
+            <button class="btn btn-light" type="button" data-dialog-close>Annulla</button>
+            <button class="btn btn-primary" type="submit" form="rossMonthSettingsForm">Applica configurazione ed esporta XML</button>
+        </div>
+    </div>
+</div>
+
+<template id="rossMonthRangeTemplate">
+    <div class="ross-month-range-row" data-month-range-row>
+        <label>
+            <span>Stato</span>
+            <select name="range_state[]">
+                <option value="closed">Chiuso</option>
+                <option value="open">Aperto</option>
+            </select>
+        </label>
+        <label>
+            <span>Dal giorno</span>
+            <select name="range_from[]">
+                <?php foreach ($monthDayNumbers as $dayNumber): ?>
+                    <option value="<?= (int) $dayNumber ?>"><?= sprintf('%02d', (int) $dayNumber) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </label>
+        <label>
+            <span>Al giorno</span>
+            <select name="range_to[]">
+                <?php foreach ($monthDayNumbers as $dayNumber): ?>
+                    <option value="<?= (int) $dayNumber ?>"><?= sprintf('%02d', (int) $dayNumber) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </label>
+        <button class="btn btn-light btn-sm ross-month-range-row__remove" type="button" data-remove-month-range>Rimuovi</button>
+    </div>
+</template>
+
+<div class="anagrafica-modal" id="rossMonthOverviewModal" hidden>
+    <div class="anagrafica-modal__backdrop" data-dialog-close></div>
+    <div class="anagrafica-modal__dialog anagrafica-modal__dialog--wide ross-month-overview-modal" role="dialog" aria-modal="true" aria-labelledby="rossMonthOverviewTitle">
+        <div class="anagrafica-modal__header">
+            <div>
+                <span class="eyebrow">Panoramica mensile</span>
+                <h3 id="rossMonthOverviewTitle"><?= e(anagrafica_month_label($monthStart)) ?></h3>
+            </div>
+            <button class="btn btn-light btn-sm" type="button" data-dialog-close>Chiudi</button>
+        </div>
+        <div class="anagrafica-modal__body ross-month-overview-modal__body">
+            <div class="ross-month-overview__legend">
+                <span class="is-busy">Aperto con occupazione</span>
+                <span class="is-zero">Aperto senza occupazione</span>
+                <span class="is-closed">Chiuso</span>
+                <span class="is-finalized">Giorno chiuso</span>
+            </div>
+            <div class="ross-month-overview__weekdays">
+                <span>Lun</span><span>Mar</span><span>Mer</span><span>Gio</span><span>Ven</span><span>Sab</span><span>Dom</span>
+            </div>
+            <div class="ross-month-overview__grid">
+                <?php foreach ($monthOverviewWeeks as $week): ?>
+                    <?php foreach ($week as $dayCell): ?>
+                        <?php
+                        $cellSnapshot = is_array($dayCell['snapshot'] ?? null) ? $dayCell['snapshot'] : null;
+                        $cellClass = 'ross-month-overview__day';
+                        if (!$dayCell['in_month']) {
+                            $cellClass .= ' is-outside';
+                        } elseif (!$cellSnapshot || empty($cellSnapshot['is_open'])) {
+                            $cellClass .= ' is-closed';
+                        } elseif ((int) ($cellSnapshot['occupied_rooms'] ?? 0) > 0) {
+                            $cellClass .= ' is-busy';
+                        } else {
+                            $cellClass .= ' is-zero';
+                        }
+                        if (!empty($dayCell['is_selected'])) {
+                            $cellClass .= ' is-selected';
+                        }
+                        if (!empty($dayCell['is_today'])) {
+                            $cellClass .= ' is-today';
+                        }
+                        if (!empty($cellSnapshot['day_state']['is_finalized'])) {
+                            $cellClass .= ' is-finalized';
+                        }
+                        ?>
+                        <a class="<?= e($cellClass) ?>" href="<?= e($dayCell['url']) ?>">
+                            <div class="ross-month-overview__day-top">
+                                <strong><?= sprintf('%02d', (int) $dayCell['day_number']) ?></strong>
+                                <?php if ($dayCell['in_month']): ?>
+                                    <span><?= !empty($cellSnapshot['is_open']) ? 'Aperta' : 'Chiusa' ?></span>
+                                <?php endif; ?>
+                            </div>
+                            <?php if ($dayCell['in_month'] && $cellSnapshot): ?>
+                                <dl>
+                                    <div><dt>Cam.</dt><dd><?= (int) ($cellSnapshot['occupied_rooms'] ?? 0) ?></dd></div>
+                                    <div><dt>Pers.</dt><dd><?= (int) ($cellSnapshot['present_guests'] ?? 0) ?></dd></div>
+                                    <div><dt>Arr.</dt><dd><?= (int) ($cellSnapshot['arrivals_guests'] ?? 0) ?></dd></div>
+                                    <div><dt>Part.</dt><dd><?= (int) ($cellSnapshot['departures_guests'] ?? 0) ?></dd></div>
+                                </dl>
+                            <?php endif; ?>
+                        </a>
+                    <?php endforeach; ?>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <div class="anagrafica-modal__actions">
+            <button class="btn btn-light" type="button" data-dialog-close>Chiudi</button>
+        </div>
+    </div>
+</div>
 
     <section class="card ross-day-detail">
         <div class="ross-day-detail__head ross-surface">
