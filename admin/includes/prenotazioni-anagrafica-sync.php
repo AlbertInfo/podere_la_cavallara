@@ -338,10 +338,120 @@ function anagrafica_sync_prenotazioni_range(PDO $pdo, string $from, string $to):
     return $recordIds;
 }
 
+
+function anagrafica_fetch_record_guests(PDO $pdo, int $recordId): array
+{
+    if ($recordId <= 0) {
+        return [];
+    }
+    $stmt = $pdo->prepare('SELECT * FROM anagrafica_guests WHERE record_id = :record_id ORDER BY is_group_leader DESC, id ASC');
+    $stmt->execute(['record_id' => $recordId]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+}
+
+function anagrafica_build_booking_modal_payload(PDO $pdo, array $booking): array
+{
+    $bookingId = (int) ($booking['id'] ?? 0);
+    $linkedRecordId = (int) ($booking['linked_record_id'] ?? 0);
+    $recordType = (string) ($booking['record_type'] ?? (anagrafica_booking_total_guests($booking) > 1 ? 'group' : 'single'));
+    $bookingReference = (string) ($booking['booking_reference'] ?? anagrafica_booking_reference($booking));
+    $bookingReceived = (string) ($booking['booking_received_date'] ?? anagrafica_booking_received_date($booking));
+    $arrival = substr((string) ($booking['arrival_date'] ?? $booking['check_in'] ?? ''), 0, 10);
+    $departure = substr((string) ($booking['departure_date'] ?? $booking['check_out'] ?? ''), 0, 10);
+    $reservedRooms = max(1, (int) ($booking['reserved_rooms'] ?? 1));
+
+    $guests = [];
+    if ($linkedRecordId > 0) {
+        foreach (anagrafica_fetch_record_guests($pdo, $linkedRecordId) as $guest) {
+            $guests[] = [
+                'first_name' => (string) ($guest['first_name'] ?? ''),
+                'last_name' => (string) ($guest['last_name'] ?? ''),
+                'gender' => (string) ($guest['gender'] ?? 'M'),
+                'birth_date' => substr((string) ($guest['birth_date'] ?? ''), 0, 10),
+                'citizenship_label' => (string) ($guest['citizenship_label'] ?? ''),
+                'birth_state_label' => (string) ($guest['birth_state_label'] ?? ''),
+                'birth_province' => (string) ($guest['birth_province'] ?? ''),
+                'birth_place_label' => (string) ($guest['birth_place_label'] ?? ''),
+                'residence_state_label' => (string) ($guest['residence_state_label'] ?? ''),
+                'residence_province' => (string) ($guest['residence_province'] ?? ''),
+                'residence_place_label' => (string) ($guest['residence_place_label'] ?? ''),
+                'document_type_label' => (string) ($guest['document_type_label'] ?? ''),
+                'document_number' => (string) ($guest['document_number'] ?? ''),
+                'document_issue_place' => (string) ($guest['document_issue_place'] ?? ''),
+                'tourism_type' => (string) ($guest['tourism_type'] ?? ''),
+                'transport_type' => (string) ($guest['transport_type'] ?? ''),
+            ];
+        }
+    }
+
+    if (!$guests) {
+        $leaderName = trim((string) ($booking['customer_name'] ?? ''));
+        $firstName = '';
+        $lastName = '';
+        if ($leaderName !== '') {
+            [$firstName, $lastName] = anagrafica_split_full_name($leaderName);
+        }
+        $guests[] = [
+            'first_name' => (string) ($booking['leader_first_name'] ?? $firstName),
+            'last_name' => (string) ($booking['leader_last_name'] ?? $lastName),
+            'gender' => (string) ($booking['leader_gender'] ?? 'M'),
+            'birth_date' => substr((string) ($booking['leader_birth_date'] ?? ''), 0, 10),
+            'citizenship_label' => (string) ($booking['leader_citizenship_label'] ?? ''),
+            'birth_state_label' => (string) ($booking['leader_birth_state_label'] ?? ''),
+            'birth_province' => (string) ($booking['leader_birth_province'] ?? ''),
+            'birth_place_label' => (string) ($booking['leader_birth_place_label'] ?? ''),
+            'residence_state_label' => (string) ($booking['leader_residence_state_label'] ?? ''),
+            'residence_province' => (string) ($booking['leader_residence_province'] ?? ''),
+            'residence_place_label' => (string) ($booking['leader_residence_place_label'] ?? ''),
+            'document_type_label' => (string) ($booking['leader_document_type_label'] ?? ''),
+            'document_number' => (string) ($booking['leader_document_number'] ?? ''),
+            'document_issue_place' => (string) ($booking['leader_document_issue_place'] ?? ''),
+            'tourism_type' => '',
+            'transport_type' => '',
+        ];
+        $totalGuests = max(1, anagrafica_booking_total_guests($booking));
+        for ($i = 1; $i < $totalGuests; $i += 1) {
+            $guests[] = [
+                'first_name' => '',
+                'last_name' => '',
+                'gender' => 'M',
+                'birth_date' => '',
+                'citizenship_label' => '',
+                'birth_state_label' => '',
+                'birth_province' => '',
+                'birth_place_label' => '',
+                'residence_state_label' => '',
+                'residence_province' => '',
+                'residence_place_label' => '',
+                'tourism_type' => '',
+                'transport_type' => '',
+            ];
+        }
+    }
+
+    return [
+        'prenotazione_id' => $bookingId,
+        'linked_record_id' => $linkedRecordId,
+        'record_type' => $recordType,
+        'booking_reference' => $bookingReference,
+        'booking_received_date' => $bookingReceived,
+        'arrival_date' => $arrival,
+        'departure_date' => $departure,
+        'reserved_rooms' => $reservedRooms,
+        'guests' => $guests,
+    ];
+}
+
 function anagrafica_fetch_prenotazioni_touching_day(PDO $pdo, string $day): array
 {
     $sql = "
         SELECT p.*, ar.id AS linked_record_id,
+               ar.record_type AS record_type,
+               ar.booking_reference AS booking_reference,
+               ar.booking_received_date AS booking_received_date,
+               ar.arrival_date AS arrival_date,
+               ar.departure_date AS departure_date,
+               ar.reserved_rooms AS reserved_rooms,
                leader.first_name AS leader_first_name,
                leader.last_name AS leader_last_name,
                leader.document_type_label AS leader_document_type_label,
@@ -379,6 +489,7 @@ function anagrafica_fetch_prenotazioni_touching_day(PDO $pdo, string $day): arra
         ];
         $row['total_guests'] = anagrafica_booking_total_guests($row);
         $row['document_ready'] = trim((string) ($row['leader_document_number'] ?? '')) !== '';
+        $row['modal_payload'] = anagrafica_build_booking_modal_payload($pdo, $row);
     }
     unset($row);
     return $rows;

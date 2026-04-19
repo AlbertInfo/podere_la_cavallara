@@ -1272,3 +1272,27 @@ body.is-modal-open {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+
+.ross-month-actions__buttons {
+  display: flex;
+  gap: .65rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.booking-sync-dialog .anagrafica-modal__body {
+  max-height: min(78vh, 980px);
+  overflow: auto;
+}
+
+.booking-sync-dialog .anagrafica-repeater {
+  display: grid;
+  gap: .8rem;
+}
+
+@media (max-width: 980px) {
+  .ross-month-actions__buttons {
+    justify-content: stretch;
+  }
+}
