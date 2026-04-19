@@ -25,6 +25,39 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
+  function triggerPendingDownload() {
+    var node = document.getElementById('pendingBrowserDownload');
+    if (!node) return;
+
+    var base64 = node.getAttribute('data-content') || '';
+    var filename = node.getAttribute('data-filename') || 'download.txt';
+    var mime = node.getAttribute('data-mime') || 'application/octet-stream';
+    if (!base64) return;
+
+    try {
+      var binary = window.atob(base64);
+      var length = binary.length;
+      var bytes = new Uint8Array(length);
+      for (var i = 0; i < length; i += 1) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      var blob = new Blob([bytes], { type: mime });
+      var url = window.URL.createObjectURL(blob);
+      var link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.setTimeout(function () {
+        window.URL.revokeObjectURL(url);
+      }, 1500);
+    } catch (err) {
+      console.error('Download automatico non riuscito', err);
+    }
+  }
+
+
   function formatDateForFlatpickr(input, isoDate) {
     if (!input) return;
     if (input._flatpickr) {
@@ -637,27 +670,49 @@ function initMonthRangeConfigurator() {
     var nextButton = $('[data-day-carousel-next]');
     if (!carousel || !viewport || !strip) return;
 
-    var dragState = { down: false, moved: false, startX: 0, startScroll: 0 };
+    var pointer = {
+      down: false,
+      dragged: false,
+      startX: 0,
+      scrollLeft: 0,
+      pointerId: null
+    };
 
-    function firstCard() { return $('.ross-day-card', strip); }
+    function firstCard() {
+      return $('.ross-day-card', strip);
+    }
+
     function getStep() {
       var card = firstCard();
-      if (!card) return Math.max(220, Math.round(viewport.clientWidth * 0.72));
+      if (!card) return Math.max(220, Math.round(viewport.clientWidth * 0.75));
       var gap = parseFloat(window.getComputedStyle(strip).gap || '0') || 0;
       return Math.round(card.getBoundingClientRect().width + gap);
     }
+
     function updateControls() {
       var max = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
-      if (prevButton) prevButton.disabled = viewport.scrollLeft <= 4;
-      if (nextButton) nextButton.disabled = viewport.scrollLeft >= (max - 4);
-    }
-    function scrollStep(direction) {
-      viewport.scrollBy({ left: getStep() * direction, behavior: 'smooth' });
-      window.setTimeout(updateControls, 220);
+      if (prevButton) prevButton.disabled = viewport.scrollLeft <= 2;
+      if (nextButton) nextButton.disabled = viewport.scrollLeft >= (max - 2);
     }
 
-    if (prevButton) prevButton.addEventListener('click', function (event) { event.preventDefault(); scrollStep(-1); });
-    if (nextButton) nextButton.addEventListener('click', function (event) { event.preventDefault(); scrollStep(1); });
+    function scrollStep(direction) {
+      viewport.scrollBy({ left: getStep() * direction, behavior: 'smooth' });
+      window.setTimeout(updateControls, 250);
+    }
+
+    if (prevButton) {
+      prevButton.addEventListener('click', function (event) {
+        event.preventDefault();
+        scrollStep(-1);
+      });
+    }
+
+    if (nextButton) {
+      nextButton.addEventListener('click', function (event) {
+        event.preventDefault();
+        scrollStep(1);
+      });
+    }
 
     viewport.addEventListener('wheel', function (event) {
       if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
@@ -668,36 +723,50 @@ function initMonthRangeConfigurator() {
 
     viewport.addEventListener('pointerdown', function (event) {
       if (event.pointerType === 'mouse' && event.button !== 0) return;
-      dragState.down = true;
-      dragState.moved = false;
-      dragState.startX = event.clientX;
-      dragState.startScroll = viewport.scrollLeft;
+      pointer.down = true;
+      pointer.dragged = false;
+      pointer.startX = event.clientX;
+      pointer.scrollLeft = viewport.scrollLeft;
+      pointer.pointerId = event.pointerId;
       carousel.classList.add('is-drag-ready');
     });
+
     viewport.addEventListener('pointermove', function (event) {
-      if (!dragState.down) return;
-      var delta = event.clientX - dragState.startX;
-      if (Math.abs(delta) > 5) {
-        dragState.moved = true;
+      if (!pointer.down) return;
+      var delta = event.clientX - pointer.startX;
+      if (Math.abs(delta) > 6) {
+        pointer.dragged = true;
         carousel.classList.add('is-dragging');
-        viewport.scrollLeft = dragState.startScroll - delta;
+        viewport.scrollLeft = pointer.scrollLeft - delta;
         updateControls();
       }
     });
-    function stopDrag() {
-      dragState.down = false;
-      window.setTimeout(function () { dragState.moved = false; }, 0);
+
+    function stopPointer() {
+      pointer.down = false;
+      window.setTimeout(function () {
+        pointer.dragged = false;
+      }, 0);
       carousel.classList.remove('is-dragging');
       carousel.classList.remove('is-drag-ready');
     }
-    viewport.addEventListener('pointerup', stopDrag);
-    viewport.addEventListener('pointercancel', stopDrag);
-    viewport.addEventListener('mouseleave', function () { if (dragState.down) stopDrag(); });
+
+    viewport.addEventListener('pointerup', stopPointer);
+    viewport.addEventListener('pointercancel', stopPointer);
+    viewport.addEventListener('mouseleave', function () {
+      if (pointer.down) stopPointer();
+    });
 
     $all('.ross-day-card', strip).forEach(function (card) {
       card.addEventListener('click', function (event) {
-        if (dragState.moved) {
+        if (pointer.dragged) {
           event.preventDefault();
+          return;
+        }
+        event.preventDefault();
+        var href = card.getAttribute('href');
+        if (href) {
+          window.location.href = href;
         }
       });
     });
@@ -731,45 +800,9 @@ function initBookingSyncModal() {
   var form = document.getElementById('bookingSyncForm');
   var triggers = Array.prototype.slice.call(document.querySelectorAll('[data-booking-modal-trigger]'));
   var closeButtons = Array.prototype.slice.call(modal.querySelectorAll('[data-booking-modal-close]'));
-  var recordType = document.getElementById('bookingRecordType');
-  var addButton = document.getElementById('bookingAddGuestButton');
-  var repeater = document.getElementById('bookingGuestRepeater');
-  var template = document.getElementById('bookingGuestTemplate');
-  var cloneIndex = repeater ? repeater.querySelectorAll('[data-guest-card]').length + 1 : 1;
 
-  function createDatePicker(field, extraOptions) {
-    if (!field || typeof window.flatpickr === 'undefined' || field._flatpickr) return null;
-    var role = field.getAttribute('data-date-role') || '';
-    var options = Object.assign({
-      locale: (window.flatpickr.l10ns && window.flatpickr.l10ns.it) ? window.flatpickr.l10ns.it : 'default',
-      dateFormat: 'd/m/Y',
-      allowInput: true,
-      disableMobile: true
-    }, extraOptions || {});
-    if (role === 'birth') options.maxDate = 'today';
-    return window.flatpickr(field, options);
-  }
-
-  function syncDateConstraints(scope) {
-    scope = scope || modal;
-    var arrivalField = form ? form.querySelector('[name="arrival_date"]') : null;
-    var departureField = form ? form.querySelector('[name="departure_date"]') : null;
-    if (arrivalField && departureField && arrivalField._flatpickr && departureField._flatpickr) {
-      var arrivalDate = arrivalField._flatpickr.selectedDates[0] || null;
-      var departureDate = departureField._flatpickr.selectedDates[0] || null;
-      arrivalField._flatpickr.set('maxDate', departureDate || null);
-      departureField._flatpickr.set('minDate', arrivalDate || null);
-    }
-  }
-
-  function initDates(scope) {
-    Array.prototype.slice.call((scope || modal).querySelectorAll('.booking-js-date')).forEach(function (field) {
-      createDatePicker(field, {
-        onReady: [function () { syncDateConstraints(scope || modal); }],
-        onChange: [function () { syncDateConstraints(scope || modal); }]
-      });
-    });
-    syncDateConstraints(scope || modal);
+  function qsa(selector, scope) {
+    return Array.prototype.slice.call((scope || document).querySelectorAll(selector));
   }
 
   function setModalState(open) {
@@ -778,116 +811,33 @@ function initBookingSyncModal() {
     document.body.classList.toggle('is-modal-open', !!open);
   }
 
-  function clearErrors() {
-    Array.prototype.slice.call(modal.querySelectorAll('.anagrafica-field')).forEach(function (node) {
-      node.classList.remove('is-invalid');
-    });
-  }
-
-  function refreshGuestCounters() {
-    if (!repeater) return;
-    Array.prototype.slice.call(repeater.querySelectorAll('[data-guest-card]')).forEach(function (card, index) {
-      var node = card.querySelector('[data-guest-number]');
-      if (node) node.textContent = String(index + 2);
-    });
-  }
-
-  function bindRemoveButtons(scope) {
-    Array.prototype.slice.call((scope || repeater).querySelectorAll('[data-remove-guest]')).forEach(function (button) {
-      if (button.dataset.bound === '1') return;
-      button.dataset.bound = '1';
-      button.addEventListener('click', function () {
-        var card = button.closest('[data-guest-card]');
-        if (card) {
-          card.remove();
-          refreshGuestCounters();
-        }
-      });
-    });
-  }
-
-  function updateGroupState() {
-    var isGroup = recordType && recordType.value !== 'single';
-    if (addButton) {
-      addButton.disabled = !isGroup;
-      addButton.classList.toggle('is-disabled', !isGroup);
-    }
-    if (repeater) {
-      repeater.style.display = isGroup ? 'grid' : 'none';
-    }
-    if (!isGroup && repeater) {
-      repeater.innerHTML = '';
-      cloneIndex = 1;
-    }
-    refreshGuestCounters();
-  }
-
-  function wireCloneLists(card, index) {
-    Array.prototype.slice.call(card.querySelectorAll('[data-list-template]')).forEach(function (field) {
-      var kind = field.getAttribute('data-list-template');
-      var listId = 'booking-' + kind + '-place-options-' + index;
-      var datalist = document.createElement('datalist');
-      datalist.id = listId;
-      field.setAttribute('list', listId);
-      field.parentNode.appendChild(datalist);
-    });
-  }
-
-  function addGuestCard(payload) {
-    if (!template || !repeater) return;
-    var fragment = template.content.cloneNode(true);
-    var card = fragment.querySelector('[data-guest-card]');
-    if (!card) return;
-    Array.prototype.slice.call(card.querySelectorAll('[data-name]')).forEach(function (field) {
-      var name = field.getAttribute('data-name');
-      field.name = 'guests[' + cloneIndex + '][' + name + ']';
-      if (payload && Object.prototype.hasOwnProperty.call(payload, name)) {
-        field.value = payload[name] || '';
-      }
-    });
-    wireCloneLists(card, cloneIndex);
-    repeater.appendChild(card);
-    bindRemoveButtons(card);
-    initDates(card);
-    if (typeof updateProvinceFilteredPlaces === 'function') updateProvinceFilteredPlaces(modal);
-    cloneIndex += 1;
-    refreshGuestCounters();
-  }
-
   function fillField(name, value) {
     if (!form) return;
     var field = form.querySelector('[name="' + name + '"]');
     if (!field) return;
+    if (field.type === 'checkbox') {
+      field.checked = !!value;
+      return;
+    }
     field.value = value == null ? '' : String(value);
     if (field._flatpickr && value) {
       try { field._flatpickr.setDate(String(value), true, 'Y-m-d'); } catch (err) {}
     }
   }
 
-  function populateFromPayload(payload) {
-    if (!payload || !form) return;
-    fillField('prenotazione_id', payload.prenotazione_id || '');
-    fillField('linked_record_id', payload.linked_record_id || '');
-    fillField('record_type', payload.record_type || 'single');
-    fillField('booking_reference', payload.booking_reference || '');
-    fillField('booking_received_date', payload.booking_received_date || '');
-    fillField('arrival_date', payload.arrival_date || '');
-    fillField('departure_date', payload.departure_date || '');
-    fillField('reserved_rooms', payload.reserved_rooms || 1);
+  function updatePlaces(scope) {
+    if (typeof updateProvinceFilteredPlaces === 'function') {
+      try { updateProvinceFilteredPlaces(scope || modal); } catch (err) {}
+    }
+  }
 
-    var guests = Array.isArray(payload.guests) ? payload.guests : [];
-    var leader = guests.length ? guests[0] : {};
-    Object.keys(leader).forEach(function (key) {
-      fillField('guests[0][' + key + ']', leader[key]);
+  function clearClientErrors() {
+    qsa('.anagrafica-field', modal).forEach(function (node) {
+      node.classList.remove('is-invalid');
     });
-
-    if (repeater) repeater.innerHTML = '';
-    cloneIndex = 1;
-    guests.slice(1).forEach(function (guest) { addGuestCard(guest); });
-    updateGroupState();
-    clearErrors();
-    initDates(modal);
-    if (typeof updateProvinceFilteredPlaces === 'function') updateProvinceFilteredPlaces(modal);
+    qsa('.anagrafica-field-error', modal).forEach(function (node) {
+      if (!node.dataset.serverError) node.textContent = '';
+    });
   }
 
   triggers.forEach(function (button) {
@@ -896,7 +846,10 @@ function initBookingSyncModal() {
       var raw = button.getAttribute('data-booking-payload');
       if (!raw) return;
       try {
-        populateFromPayload(JSON.parse(raw));
+        var payload = JSON.parse(raw);
+        Object.keys(payload).forEach(function (key) { fillField(key, payload[key]); });
+        clearClientErrors();
+        updatePlaces(modal);
         setModalState(true);
       } catch (err) {
         console.error('Booking modal payload parse failed', err);
@@ -923,19 +876,8 @@ function initBookingSyncModal() {
     }
   });
 
-  if (addButton) addButton.addEventListener('click', function () { addGuestCard(); });
-  if (recordType) recordType.addEventListener('change', updateGroupState);
-
-  Array.prototype.slice.call(modal.querySelectorAll('[data-state-role], [data-province-role]')).forEach(function (field) {
-    field.addEventListener('change', function () { if (typeof updateProvinceFilteredPlaces === 'function') updateProvinceFilteredPlaces(modal); });
-    field.addEventListener('input', function () { if (typeof updateProvinceFilteredPlaces === 'function') updateProvinceFilteredPlaces(modal); });
-  });
-
-  bindRemoveButtons();
-  initDates(modal);
-  updateGroupState();
   if (modal.classList.contains('is-open') || !modal.hidden) {
-    if (typeof updateProvinceFilteredPlaces === 'function') updateProvinceFilteredPlaces(modal);
+    updatePlaces(modal);
     setModalState(true);
   }
 }

@@ -108,11 +108,15 @@ try {
 
     $xml = ross1000_build_xml($payload);
     $filename = 'ross1000-' . $month . '.xml';
-    header('Content-Type: application/xml; charset=UTF-8');
-    header('Content-Disposition: attachment; filename="' . $filename . '"');
-    header('Content-Length: ' . strlen($xml));
-    echo $xml;
-    exit;
+
+    $_SESSION['_pending_download'] = [
+        'scope' => 'anagrafica',
+        'filename' => $filename,
+        'mime' => 'application/xml; charset=UTF-8',
+        'content_base64' => base64_encode($xml),
+    ];
+
+    redirect_month($month, 'success', 'Configurazione mese applicata. Il file ROSS1000 è pronto per il download.');
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
