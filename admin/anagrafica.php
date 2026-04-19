@@ -58,8 +58,10 @@ function anagrafica_weekday_label(string $date): string
 
 $recordTableReady = false;
 $dayStatusTableReady = false;
+$prenotazioneLinkReady = false;
 $editingRecord = null;
 $editingGuests = [];
+$anagraficaBootstrapError = null;
 
 $selectedMonth = anagrafica_safe_month($_GET['month'] ?? null);
 $monthStart = new DateTimeImmutable($selectedMonth . '-01');
@@ -122,14 +124,42 @@ foreach ($selectedSchedine as $schedinaCount) {
 
 try {
     $recordTableReady = (bool) $pdo->query("SHOW TABLES LIKE 'anagrafica_records'")->fetchColumn();
-    $dayStatusTableReady = ross1000_day_status_table_ready($pdo);
+} catch (Throwable $e) {
+    $recordTableReady = false;
+    $anagraficaBootstrapError = $e->getMessage();
+}
 
-    if ($recordTableReady) {
-        if (anagrafica_prenotazione_link_column_ready($pdo)) {
+if ($recordTableReady) {
+    try {
+        $dayStatusTableReady = ross1000_day_status_table_ready($pdo);
+    } catch (Throwable $e) {
+        $dayStatusTableReady = false;
+    }
+
+    try {
+        $prenotazioneLinkReady = anagrafica_prenotazione_link_column_ready($pdo);
+    } catch (Throwable $e) {
+        $prenotazioneLinkReady = false;
+    }
+
+    try {
+        if ($prenotazioneLinkReady) {
             anagrafica_sync_prenotazioni_range($pdo, $monthStart->format('Y-m-d'), $monthEnd->format('Y-m-d'));
             $selectedBookings = anagrafica_fetch_prenotazioni_touching_day($pdo, $selectedDay);
         }
+    } catch (Throwable $e) {
+        $selectedBookings = [];
+        $anagraficaBootstrapError = $e->getMessage();
+    }
+
+    try {
         $monthRecords = ross1000_fetch_records_for_range($pdo, $monthStart->format('Y-m-d'), $monthEnd->format('Y-m-d'));
+    } catch (Throwable $e) {
+        $monthRecords = [];
+        $anagraficaBootstrapError = $anagraficaBootstrapError ?: $e->getMessage();
+    }
+
+    try {
         $dayStates = ross1000_get_day_states_for_range($pdo, $monthStart->format('Y-m-d'), $monthEnd->format('Y-m-d'), $config);
 
         $cursor = $monthStart;
@@ -142,8 +172,16 @@ try {
 
         $selectedSnapshot = $days[$selectedDay] ?? null;
         $selectedRecords = (array) ($selectedSnapshot['touching_records'] ?? []);
+    } catch (Throwable $e) {
+        $dayStates = [];
+        $days = [];
+        $selectedSnapshot = null;
+        $selectedRecords = [];
+        $anagraficaBootstrapError = $anagraficaBootstrapError ?: $e->getMessage();
+    }
 
-        if ($editRecordId > 0) {
+    if ($editRecordId > 0) {
+        try {
             $stmt = $pdo->prepare('SELECT * FROM anagrafica_records WHERE id = :id LIMIT 1');
             $stmt->execute(['id' => $editRecordId]);
             $editingRecord = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
@@ -154,25 +192,19 @@ try {
                 $editingGuests = $guestStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
                 $selectedDay = substr((string) ($editingRecord['arrival_date'] ?? $selectedDay), 0, 10) ?: $selectedDay;
             }
+        } catch (Throwable $e) {
+            $editingRecord = null;
+            $editingGuests = [];
+            $anagraficaBootstrapError = $anagraficaBootstrapError ?: $e->getMessage();
         }
     }
-} catch (Throwable $e) {
-    $recordTableReady = false;
-    $dayStatusTableReady = false;
-    $monthRecords = [];
-    $dayStates = [];
-    $days = [];
-    $selectedSnapshot = null;
-    $selectedRecords = [];
-    $editingRecord = null;
-    $editingGuests = [];
 }
 
 
 if ($recordTableReady && isset($days[$selectedDay])) {
     $selectedSnapshot = $days[$selectedDay] ?? null;
     $selectedRecords = (array) ($selectedSnapshot['touching_records'] ?? []);
-    if (anagrafica_prenotazione_link_column_ready($pdo)) {
+    if ($prenotazioneLinkReady) {
         $selectedBookings = anagrafica_fetch_prenotazioni_touching_day($pdo, $selectedDay);
     }
 }
@@ -338,7 +370,15 @@ require_once __DIR__ . '/includes/header.php';
         </div>
     </section>
 
-    <?php if (!$recordTableReady): ?>
+    <?php if ($anagraficaBootstrapError): ?>
+        <section class="anagrafica-alert-card">
+            <h2>Verifica sincronizzazione anagrafica</h2>
+            <p class="muted">Il database risulta presente, ma una parte della sincronizzazione ha restituito un errore applicativo. Questo messaggio aiuta a distinguerlo da un problema di migration.</p>
+            <div class="code"><?= e($anagraficaBootstrapError) ?></div>
+        </section>
+    <?php endif; ?>
+
+    <?php if (!$recordTableReady || !$dayStatusTableReady): ?>
         <section class="anagrafica-alert-card">
             <h2>Attivazione database richiesta</h2>
             <p class="muted">Prima di usare la pianificazione giornaliera esegui le migration SQL della sezione anagrafica e del calendario giornaliero ROSS1000.</p>
@@ -573,7 +613,7 @@ require_once __DIR__ . '/includes/header.php';
                 </div>
                 <span class="ross-badge ross-badge--blue"><?= count($selectedBookings) ?> prenotazioni</span>
             </div>
-            <?php if (!anagrafica_prenotazione_link_column_ready($pdo)): ?>
+            <?php if (!$prenotazioneLinkReady): ?>
                 <div class="anagrafica-empty-state">
                     <strong>Compatibilità prenotazioni non attiva</strong>
                     <p class="muted">Esegui la migration <code>admin/database/2026-04-19_prenotazioni_anagrafica_sync.sql</code> per collegare la sezione anagrafica alla tabella prenotazioni.</p>
