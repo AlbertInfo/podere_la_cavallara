@@ -666,3 +666,63 @@ document.addEventListener('DOMContentLoaded', function () {
   try { initCarousel(); } catch (err) { console.error('Carousel init failed', err); }
   try { initAlloggiatiModal(); } catch (err) { console.error('Alloggiati modal init failed', err); }
 });
+
+
+
+function initBookingSyncModal() {
+  var modal = document.getElementById('bookingSyncModal');
+  if (!modal) return;
+  var form = document.getElementById('bookingSyncForm');
+  var closeButtons = $all('[data-booking-modal-close]', modal);
+  var triggers = $all('[data-booking-modal-trigger]');
+
+  function setModalState(open) {
+    modal.hidden = !open;
+    document.body.classList.toggle('is-modal-open', open);
+  }
+
+  function fillField(name, value) {
+    var field = form ? form.querySelector('[name="' + name + '"]') : null;
+    if (!field) return;
+    if (field.type === 'checkbox') {
+      field.checked = !!value;
+      return;
+    }
+    field.value = value == null ? '' : String(value);
+    if (field._flatpickr && value) {
+      try { field._flatpickr.setDate(String(value), true, 'Y-m-d'); } catch (err) {}
+    }
+  }
+
+  function clearModalErrors() {
+    $all('.anagrafica-field', modal).forEach(function (node) { node.classList.remove('is-invalid'); });
+    $all('.anagrafica-field-error', modal).forEach(function (node) { if (!node.dataset.serverError) node.textContent = ''; });
+  }
+
+  triggers.forEach(function (button) {
+    button.addEventListener('click', function () {
+      var raw = button.getAttribute('data-booking-payload');
+      if (!raw) return;
+      try {
+        var payload = JSON.parse(raw);
+        Object.keys(payload).forEach(function (key) { fillField(key, payload[key]); });
+        clearModalErrors();
+        updateProvinceFilteredPlaces(modal);
+        setModalState(true);
+      } catch (err) {
+        console.error(err);
+      }
+    });
+  });
+
+  closeButtons.forEach(function (button) {
+    button.addEventListener('click', function () { setModalState(false); });
+  });
+
+  if (modal.classList.contains('is-open')) {
+    setModalState(true);
+    updateProvinceFilteredPlaces(modal);
+  }
+}
+
+initBookingSyncModal();

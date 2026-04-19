@@ -1034,3 +1034,33 @@ body.is-modal-open {
 .alloggiati-confirm__list li + li {
   margin-top: .25rem;
 }
+
+
+.anagrafica-modal__dialog--wide {
+  width: min(96vw, 1080px);
+}
+
+.booking-sync-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.ross-record-row--booking .ross-record-row__actions {
+  justify-content: flex-end;
+}
+
+.booking-sync-modal__body {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (max-width: 960px) {
+  .booking-sync-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .booking-sync-grid {
+    grid-template-columns: 1fr;
+  }
+}

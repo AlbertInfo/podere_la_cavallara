@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/alloggiati.php';
+require_once __DIR__ . '/../includes/prenotazioni-anagrafica-sync.php';
 require_admin();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -47,11 +48,20 @@ try {
     }
 
     $pdo->beginTransaction();
+    $linkedBookingId = 0;
+    if (anagrafica_prenotazione_link_column_ready($pdo)) {
+        $stmtLink = $pdo->prepare('SELECT prenotazione_id FROM anagrafica_records WHERE id = :id LIMIT 1');
+        $stmtLink->execute(['id' => $recordId]);
+        $linkedBookingId = (int) ($stmtLink->fetchColumn() ?: 0);
+    }
     if (alloggiati_schedine_table_ready($pdo)) {
         $pdo->prepare('DELETE FROM alloggiati_schedine WHERE record_id = :record_id')->execute(['record_id' => $recordId]);
     }
     $stmt = $pdo->prepare('DELETE FROM anagrafica_records WHERE id = :id');
     $stmt->execute(['id' => $recordId]);
+    if ($linkedBookingId > 0) {
+        $pdo->prepare('DELETE FROM prenotazioni WHERE id = :id LIMIT 1')->execute(['id' => $linkedBookingId]);
+    }
     $pdo->commit();
 
     redirect_to($redirectUrl, 'success', 'Anagrafica eliminata correttamente.');
