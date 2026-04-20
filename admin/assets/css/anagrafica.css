@@ -1296,3 +1296,18 @@ body.is-modal-open {
     justify-content: stretch;
   }
 }
+
+.ross-month-toolbar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .65rem;
+  align-items: center;
+}
+
+.booking-sync-modal .anagrafica-modal__dialog {
+  max-width: 1120px;
+}
+
+.booking-sync-modal__body .anagrafica-section + .anagrafica-section {
+  margin-top: 1rem;
+}

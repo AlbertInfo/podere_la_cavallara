@@ -782,6 +782,304 @@ function initMonthRangeConfigurator() {
     updateControls();
   }
 
+
+  function initBookingSyncModal() {
+    var modal = document.getElementById('bookingSyncModal');
+    var form = document.getElementById('bookingSyncForm');
+    if (!modal || !form) return;
+
+    var triggers = $all('[data-booking-modal-trigger]');
+    var closeButtons = $all('[data-booking-modal-close]', modal);
+    var recordType = document.getElementById('bookingRecordType');
+    var addButton = document.getElementById('bookingAddGuestButton');
+    var repeater = document.getElementById('bookingGuestRepeater');
+    var template = document.getElementById('bookingGuestTemplate');
+    var hiddenPrenotazioneId = form.querySelector('input[name="prenotazione_id"]');
+    var hiddenRecordId = form.querySelector('input[name="linked_record_id"]');
+    var arrivalField = $('[data-date-role="arrival"]', form);
+    var departureField = $('[data-date-role="departure"]', form);
+    var bookingReceivedField = $('[data-date-role="booking-received"]', form);
+    var cloneIndex = repeater ? $all('[data-guest-card]', repeater).length + 1 : 1;
+
+    function setModalState(open) {
+      modal.hidden = !open;
+      modal.classList.toggle('is-open', !!open);
+      document.body.classList.toggle('is-modal-open', !!open);
+    }
+
+    function createDatePicker(field, extraOptions) {
+      if (!field || typeof window.flatpickr === 'undefined' || field._flatpickr) return null;
+      var role = field.getAttribute('data-date-role') || '';
+      var options = Object.assign({
+        locale: (window.flatpickr.l10ns && window.flatpickr.l10ns.it) ? window.flatpickr.l10ns.it : 'default',
+        dateFormat: 'd/m/Y',
+        allowInput: true,
+        disableMobile: true
+      }, extraOptions || {});
+      if (role === 'birth') options.maxDate = 'today';
+      return window.flatpickr(field, options);
+    }
+
+    function syncDateConstraints(scope) {
+      scope = scope || form;
+      if (arrivalField && departureField && arrivalField._flatpickr && departureField._flatpickr) {
+        var arrivalDate = arrivalField._flatpickr.selectedDates[0] || null;
+        var departureDate = departureField._flatpickr.selectedDates[0] || null;
+        arrivalField._flatpickr.set('maxDate', departureDate || null);
+        departureField._flatpickr.set('minDate', arrivalDate || null);
+      }
+    }
+
+    function initDates(scope) {
+      $all('.js-date', scope || form).forEach(function (field) {
+        createDatePicker(field, {
+          onReady: [function () { syncDateConstraints(scope || form); }],
+          onChange: [function () { syncDateConstraints(scope || form); }]
+        });
+      });
+      syncDateConstraints(scope || form);
+    }
+
+    function bindRemoveButtons(scope) {
+      $all('[data-remove-guest]', scope || repeater).forEach(function (button) {
+        if (button.dataset.bound === '1') return;
+        button.dataset.bound = '1';
+        button.addEventListener('click', function () {
+          var card = button.closest('[data-guest-card]');
+          if (card) {
+            card.remove();
+            refreshGuestCounters();
+          }
+        });
+      });
+    }
+
+    function refreshGuestCounters() {
+      if (!repeater) return;
+      var cards = $all('[data-guest-card]', repeater);
+      cards.forEach(function (card, index) {
+        var numberNode = $('[data-guest-number]', card);
+        if (numberNode) numberNode.textContent = String(index + 2);
+      });
+    }
+
+    function clearRepeater() {
+      if (!repeater) return;
+      $all('[data-guest-card]', repeater).forEach(function (card) { card.remove(); });
+      cloneIndex = 1;
+    }
+
+    function wireCloneLists(card, index) {
+      $all('[data-list-template]', card).forEach(function (field) {
+        var kind = field.getAttribute('data-list-template');
+        var listId = kind + '-booking-place-options-' + index + '-' + Math.random().toString(36).slice(2, 8);
+        var datalist = document.createElement('datalist');
+        datalist.id = listId;
+        field.setAttribute('list', listId);
+        field.parentNode.appendChild(datalist);
+      });
+    }
+
+    function setGuestValues(card, guest) {
+      guest = guest || {};
+      $all('[data-name]', card).forEach(function (field) {
+        var key = field.getAttribute('data-name');
+        if (!key) return;
+        var value = guest[key];
+        if (field.tagName === 'SELECT') {
+          field.value = value == null ? '' : String(value);
+        } else if ((field.getAttribute('data-date-role') || '') !== '') {
+          if (field._flatpickr && value) {
+            try { field._flatpickr.setDate(String(value), true, 'Y-m-d'); } catch (err) { field.value = value || ''; }
+          } else {
+            field.value = value || '';
+          }
+        } else {
+          field.value = value == null ? '' : String(value);
+        }
+      });
+      updateProvinceFilteredPlaces(card);
+    }
+
+    function addGuestCard(guest) {
+      if (!template || !repeater) return;
+      var fragment = template.content.cloneNode(true);
+      var card = $('[data-guest-card]', fragment);
+      if (!card) return;
+
+      $all('[data-name]', card).forEach(function (field) {
+        var dataName = field.getAttribute('data-name');
+        field.name = 'guests[' + cloneIndex + '][' + dataName + ']';
+      });
+
+      wireCloneLists(card, cloneIndex);
+      repeater.appendChild(card);
+      initDates(card);
+      installLiveValidation(card);
+      bindRemoveButtons(card);
+      setGuestValues(card, guest || {});
+      cloneIndex += 1;
+      refreshGuestCounters();
+      updateProvinceFilteredPlaces(form);
+    }
+
+    function setLeaderValues(guest) {
+      guest = guest || {};
+      var fields = {
+        'first_name': 'guests[0][first_name]',
+        'last_name': 'guests[0][last_name]',
+        'gender': 'guests[0][gender]',
+        'birth_date': 'guests[0][birth_date]',
+        'citizenship_label': 'guests[0][citizenship_label]',
+        'birth_state_label': 'guests[0][birth_state_label]',
+        'birth_province': 'guests[0][birth_province]',
+        'birth_place_label': 'guests[0][birth_place_label]',
+        'residence_state_label': 'guests[0][residence_state_label]',
+        'residence_province': 'guests[0][residence_province]',
+        'residence_place_label': 'guests[0][residence_place_label]',
+        'document_type_label': 'guests[0][document_type_label]',
+        'document_number': 'guests[0][document_number]',
+        'document_issue_place': 'guests[0][document_issue_place]',
+        'tourism_type': 'guests[0][tourism_type]',
+        'transport_type': 'guests[0][transport_type]'
+      };
+      Object.keys(fields).forEach(function (key) {
+        var field = form.querySelector('[name="' + fields[key] + '"]');
+        if (!field) return;
+        var value = guest[key];
+        if ((field.getAttribute('data-date-role') || '') !== '') {
+          if (field._flatpickr && value) {
+            try { field._flatpickr.setDate(String(value), true, 'Y-m-d'); } catch (err) { field.value = value || ''; }
+          } else {
+            field.value = value || '';
+          }
+        } else {
+          field.value = value == null ? '' : String(value);
+        }
+      });
+      updateProvinceFilteredPlaces(form);
+    }
+
+    function updateGroupState() {
+      var isGroup = recordType && recordType.value !== 'single';
+      if (addButton) {
+        addButton.disabled = !isGroup;
+        addButton.classList.toggle('is-disabled', !isGroup);
+      }
+      if (repeater) {
+        repeater.style.display = isGroup ? 'grid' : 'none';
+        if (!isGroup) {
+          clearRepeater();
+        }
+      }
+      refreshGuestCounters();
+    }
+
+    function clearClientErrors() {
+      $all('.anagrafica-field', modal).forEach(function (node) { node.classList.remove('is-invalid'); });
+      $all('.anagrafica-field-error', modal).forEach(function (node) {
+        if (!node.dataset.serverError) node.textContent = '';
+      });
+      $all('input, select, textarea', modal).forEach(function (field) { field.setCustomValidity(''); });
+    }
+
+    function fillTopLevel(payload) {
+      var map = {
+        'record_type': recordType,
+        'booking_reference': form.querySelector('[name="booking_reference"]'),
+        'booking_received_date': bookingReceivedField,
+        'arrival_date': arrivalField,
+        'departure_date': departureField,
+        'reserved_rooms': form.querySelector('[name="reserved_rooms"]')
+      };
+      Object.keys(map).forEach(function (key) {
+        var field = map[key];
+        if (!field) return;
+        var value = payload[key];
+        if ((field.getAttribute('data-date-role') || '') !== '') {
+          if (field._flatpickr && value) {
+            try { field._flatpickr.setDate(String(value), true, 'Y-m-d'); } catch (err) { field.value = value || ''; }
+          } else {
+            field.value = value || '';
+          }
+        } else {
+          field.value = value == null ? '' : String(value);
+        }
+      });
+      if (hiddenPrenotazioneId) hiddenPrenotazioneId.value = payload.prenotazione_id || '';
+      if (hiddenRecordId) hiddenRecordId.value = payload.linked_record_id || '';
+    }
+
+    function loadPayload(payload) {
+      payload = payload || {};
+      clearClientErrors();
+      clearRepeater();
+      fillTopLevel(payload);
+
+      var guests = Array.isArray(payload.guests) ? payload.guests.slice() : [];
+      if (!guests.length) guests = [{}];
+      setLeaderValues(guests[0] || {});
+      for (var i = 1; i < guests.length; i += 1) {
+        addGuestCard(guests[i]);
+      }
+      updateGroupState();
+      updateProvinceFilteredPlaces(form);
+      setModalState(true);
+    }
+
+    triggers.forEach(function (button) {
+      button.addEventListener('click', function (event) {
+        event.preventDefault();
+        var raw = button.getAttribute('data-booking-payload');
+        if (!raw) return;
+        try {
+          loadPayload(JSON.parse(raw));
+        } catch (err) {
+          console.error('Booking modal payload parse failed', err);
+        }
+      });
+    });
+
+    closeButtons.forEach(function (button) {
+      button.addEventListener('click', function (event) {
+        event.preventDefault();
+        setModalState(false);
+      });
+    });
+
+    modal.addEventListener('click', function (event) {
+      if (event.target === modal || event.target.classList.contains('anagrafica-modal__backdrop')) {
+        setModalState(false);
+      }
+    });
+
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && !modal.hidden) {
+        setModalState(false);
+      }
+    });
+
+    if (addButton) addButton.addEventListener('click', function () { addGuestCard({}); });
+    if (recordType) recordType.addEventListener('change', updateGroupState);
+
+    $all('[data-state-role], [data-province-role]', form).forEach(function (field) {
+      field.addEventListener('change', function () { updateProvinceFilteredPlaces(form); });
+      field.addEventListener('input', function () { updateProvinceFilteredPlaces(form); });
+    });
+
+    initDates(form);
+    installLiveValidation(form);
+    bindRemoveButtons();
+    updateGroupState();
+    updateProvinceFilteredPlaces(form);
+
+    if (modal.classList.contains('is-open') || !modal.hidden) {
+      initDates(form);
+      updateProvinceFilteredPlaces(form);
+      setModalState(true);
+    }
+  }
+
   try { initFormPanel(); } catch (err) { console.error('Form panel init failed', err); }
   try { initEditableRows(); } catch (err) { console.error('Editable rows init failed', err); }
   try { initConfirmations(); } catch (err) { console.error('Confirmations init failed', err); }
@@ -790,98 +1088,8 @@ function initMonthRangeConfigurator() {
   try { initMonthRangeConfigurator(); } catch (err) { console.error('Month configurator init failed', err); }
   try { initCarousel(); } catch (err) { console.error('Carousel init failed', err); }
   try { initAlloggiatiModal(); } catch (err) { console.error('Alloggiati modal init failed', err); }
-});
-
-
-function initBookingSyncModal() {
-  var modal = document.getElementById('bookingSyncModal');
-  if (!modal) return;
-
-  var form = document.getElementById('bookingSyncForm');
-  var triggers = Array.prototype.slice.call(document.querySelectorAll('[data-booking-modal-trigger]'));
-  var closeButtons = Array.prototype.slice.call(modal.querySelectorAll('[data-booking-modal-close]'));
-
-  function qsa(selector, scope) {
-    return Array.prototype.slice.call((scope || document).querySelectorAll(selector));
-  }
-
-  function setModalState(open) {
-    modal.hidden = !open;
-    modal.classList.toggle('is-open', !!open);
-    document.body.classList.toggle('is-modal-open', !!open);
-  }
-
-  function fillField(name, value) {
-    if (!form) return;
-    var field = form.querySelector('[name="' + name + '"]');
-    if (!field) return;
-    if (field.type === 'checkbox') {
-      field.checked = !!value;
-      return;
-    }
-    field.value = value == null ? '' : String(value);
-    if (field._flatpickr && value) {
-      try { field._flatpickr.setDate(String(value), true, 'Y-m-d'); } catch (err) {}
-    }
-  }
-
-  function updatePlaces(scope) {
-    if (typeof updateProvinceFilteredPlaces === 'function') {
-      try { updateProvinceFilteredPlaces(scope || modal); } catch (err) {}
-    }
-  }
-
-  function clearClientErrors() {
-    qsa('.anagrafica-field', modal).forEach(function (node) {
-      node.classList.remove('is-invalid');
-    });
-    qsa('.anagrafica-field-error', modal).forEach(function (node) {
-      if (!node.dataset.serverError) node.textContent = '';
-    });
-  }
-
-  triggers.forEach(function (button) {
-    button.addEventListener('click', function (event) {
-      event.preventDefault();
-      var raw = button.getAttribute('data-booking-payload');
-      if (!raw) return;
-      try {
-        var payload = JSON.parse(raw);
-        Object.keys(payload).forEach(function (key) { fillField(key, payload[key]); });
-        clearClientErrors();
-        updatePlaces(modal);
-        setModalState(true);
-      } catch (err) {
-        console.error('Booking modal payload parse failed', err);
-      }
-    });
-  });
-
-  closeButtons.forEach(function (button) {
-    button.addEventListener('click', function (event) {
-      event.preventDefault();
-      setModalState(false);
-    });
-  });
-
-  modal.addEventListener('click', function (event) {
-    if (event.target === modal || event.target.classList.contains('anagrafica-modal__backdrop')) {
-      setModalState(false);
-    }
-  });
-
-  document.addEventListener('keydown', function (event) {
-    if (event.key === 'Escape' && !modal.hidden) {
-      setModalState(false);
-    }
-  });
-
-  if (modal.classList.contains('is-open') || !modal.hidden) {
-    updatePlaces(modal);
-    setModalState(true);
-  }
-}
-
-document.addEventListener('DOMContentLoaded', function () {
   try { initBookingSyncModal(); } catch (err) { console.error('Booking sync modal init failed', err); }
+  try { triggerPendingDownload(); } catch (err) { console.error('Pending download init failed', err); }
 });
+
+

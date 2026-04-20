@@ -361,35 +361,22 @@ $bookingModalFieldClass = static function (string $field) use ($bookingModalErro
     return isset($bookingModalErrors[$field]) ? ' is-invalid' : '';
 };
 
-$bookingModalForm = [
+$bookingModalRecord = [
     'prenotazione_id' => (int) ($bookingModalData['prenotazione_id'] ?? 0),
     'linked_record_id' => (int) ($bookingModalData['linked_record_id'] ?? 0),
-    'customer_name' => (string) ($bookingModalData['customer_name'] ?? ''),
-    'customer_email' => (string) ($bookingModalData['customer_email'] ?? ''),
-    'customer_phone' => (string) ($bookingModalData['customer_phone'] ?? ''),
-    'room_type' => (string) ($bookingModalData['room_type'] ?? ''),
-    'check_in' => anagrafica_form_date($bookingModalData['check_in'] ?? ''),
-    'check_out' => anagrafica_form_date($bookingModalData['check_out'] ?? ''),
-    'adults' => (string) ($bookingModalData['adults'] ?? 1),
-    'children_count' => (string) ($bookingModalData['children_count'] ?? 0),
-    'status' => (string) ($bookingModalData['status'] ?? 'confermata'),
-    'notes' => (string) ($bookingModalData['notes'] ?? ''),
-    'first_name' => (string) ($bookingModalData['first_name'] ?? ''),
-    'last_name' => (string) ($bookingModalData['last_name'] ?? ''),
-    'gender' => (string) ($bookingModalData['gender'] ?? 'M'),
-    'birth_date' => anagrafica_form_date($bookingModalData['birth_date'] ?? ''),
-    'citizenship_label' => (string) ($bookingModalData['citizenship_label'] ?? ''),
-    'birth_state_label' => (string) ($bookingModalData['birth_state_label'] ?? ''),
-    'birth_province' => (string) ($bookingModalData['birth_province'] ?? ''),
-    'birth_place_label' => (string) ($bookingModalData['birth_place_label'] ?? ''),
-    'residence_state_label' => (string) ($bookingModalData['residence_state_label'] ?? ''),
-    'residence_province' => (string) ($bookingModalData['residence_province'] ?? ''),
-    'residence_place_label' => (string) ($bookingModalData['residence_place_label'] ?? ''),
-    'document_type_label' => (string) ($bookingModalData['document_type_label'] ?? ''),
-    'document_number' => (string) ($bookingModalData['document_number'] ?? ''),
-    'document_issue_province' => (string) ($bookingModalData['document_issue_province'] ?? ''),
-    'document_issue_place' => (string) ($bookingModalData['document_issue_place'] ?? ''),
+    'record_type' => (string) ($bookingModalData['record_type'] ?? 'single'),
+    'booking_reference' => (string) ($bookingModalData['booking_reference'] ?? ''),
+    'booking_received_date' => anagrafica_form_date($bookingModalData['booking_received_date'] ?? ''),
+    'arrival_date' => anagrafica_form_date($bookingModalData['arrival_date'] ?? ''),
+    'departure_date' => anagrafica_form_date($bookingModalData['departure_date'] ?? ''),
+    'reserved_rooms' => (string) ($bookingModalData['reserved_rooms'] ?? 1),
 ];
+$bookingModalGuests = array_values(array_filter($bookingModalData['guests'] ?? [], 'is_array'));
+if (!$bookingModalGuests) {
+    $bookingModalGuests[] = [];
+}
+$bookingModalLeaderGuest = $bookingModalGuests[0] ?? [];
+$bookingModalAdditionalGuests = $bookingModalGuests ? array_slice($bookingModalGuests, 1) : [];
 
 $forceOpenForm = isset($_GET['new']) || $formIsEdit || (bool) $oldFormData;
 $basePageUrl = admin_url('anagrafica.php?month=' . rawurlencode($selectedMonth) . '&day=' . rawurlencode($selectedDay));
@@ -424,6 +411,9 @@ $comuniByProvince = anagrafica_comune_labels_by_province();
 
 require_once __DIR__ . '/includes/header.php';
 ?>
+<?php if ($pendingDownload): ?>
+    <div id="pendingBrowserDownload" hidden data-content="<?= e((string) ($pendingDownload['content_base64'] ?? '')) ?>" data-filename="<?= e((string) ($pendingDownload['filename'] ?? 'download.txt')) ?>" data-mime="<?= e((string) ($pendingDownload['mime'] ?? 'application/octet-stream')) ?>"></div>
+<?php endif; ?>
 <div class="booking-page anagrafica-shell">
     <section class="booking-hero anagrafica-hero">
         <div class="booking-hero-copy">
@@ -468,32 +458,17 @@ require_once __DIR__ . '/includes/header.php';
                     <a class="btn btn-light btn-sm" href="<?= e($prevMonthUrl) ?>" aria-label="Mese precedente">‹</a>
                     <label class="ross-month-picker__field">
                         <span>Mese</span>
-                        <input type="month" name="month" value="<?= e($selectedMonth) ?>" max="2099-12">
+                        <input type="month" name="month" value="<?= e($selectedMonth) ?>" max="2099-12" data-month-picker-input>
                     </label>
-                    <button class="btn btn-primary btn-sm" type="submit">Apri mese</button>
                     <a class="btn btn-light btn-sm" href="<?= e($nextMonthUrl) ?>" aria-label="Mese successivo">›</a>
                 </form>
-                <form class="ross-month-quick-export" method="post" action="<?= e(admin_url('actions/generate-ross1000-month.php')) ?>" data-month-export-form>
-                    <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
-                    <input type="hidden" name="month" value="<?= e($selectedMonth) ?>">
-                    <button class="btn btn-primary btn-sm ross-month-quick-export__button<?= $rossConfigReady ? '' : ' is-disabled' ?> js-confirm-modal-trigger" type="submit" <?= $rossConfigReady ? '' : 'disabled' ?> data-modal-template-id="rossMonthConfirmTemplate">
-                        <span>Apri tutto il mese + esporta ROSS1000</span>
-                    </button>
-                    <small>Precompila i giorni non chiusi come aperti con la disponibilità standard e scarica l'XML mensile.</small>
-                </form>
-                <template id="rossMonthConfirmTemplate">
-                    <div class="alloggiati-confirm">
-                        <div class="alloggiati-confirm__grid">
-                            <div><span>Mese</span><strong><?= e(anagrafica_month_label($monthStart)) ?></strong></div>
-                            <div><span>Giorni nel mese</span><strong><?= (int) $monthDayCount ?></strong></div>
-                            <div><span>Giorni già chiusi</span><strong><?= (int) $monthFinalizedCount ?></strong></div>
-                            <div><span>Giorni da precompilare</span><strong><?= (int) $monthPendingCount ?></strong></div>
-                            <div><span>Camere standard</span><strong><?= (int) ($config['camere_disponibili'] ?? 0) ?></strong></div>
-                            <div><span>Letti standard</span><strong><?= (int) ($config['letti_disponibili'] ?? 0) ?></strong></div>
-                        </div>
-                        <p class="muted">L'azione lascia invariati i giorni già chiusi, precompila i restanti come aperti con disponibilità standard e scarica l'XML mensile ROSS1000.</p>
-                    </div>
-                </template>
+                <div class="ross-month-toolbar__actions">
+                    <button class="btn btn-primary btn-sm" type="button" data-dialog-open="rossMonthSettingsModal">Configura mese + esporta ROSS1000</button>
+                    <button class="btn btn-light btn-sm" type="button" data-dialog-open="rossMonthOverviewModal">Panoramica mese</button>
+                </div>
+                <div class="ross-month-quick-export">
+                    <small>Il mese cambia direttamente con il selettore o con le frecce. Usa la configurazione mensile per impostare intervalli aperti/chiusi prima dell'export XML.</small>
+                </div>
             </div>
         </div>
 
@@ -840,35 +815,7 @@ require_once __DIR__ . '/includes/header.php';
                         <?php
                         $bookingId = (int) ($booking['id'] ?? 0);
                         $flags = (array) ($booking['flags'] ?? []);
-                        $payload = [
-                            'prenotazione_id' => $bookingId,
-                            'linked_record_id' => (int) ($booking['linked_record_id'] ?? 0),
-                            'customer_name' => (string) ($booking['customer_name'] ?? ''),
-                            'customer_email' => (string) ($booking['customer_email'] ?? ''),
-                            'customer_phone' => (string) ($booking['customer_phone'] ?? ''),
-                            'room_type' => (string) ($booking['room_type'] ?? ''),
-                            'check_in' => (string) ($booking['check_in'] ?? ''),
-                            'check_out' => (string) ($booking['check_out'] ?? ''),
-                            'adults' => (int) ($booking['adults'] ?? 0),
-                            'children_count' => (int) ($booking['children_count'] ?? 0),
-                            'status' => (string) ($booking['status'] ?? 'confermata'),
-                            'notes' => (string) ($booking['notes'] ?? ''),
-                            'first_name' => (string) ($booking['leader_first_name'] ?? ''),
-                            'last_name' => (string) ($booking['leader_last_name'] ?? ''),
-                            'gender' => (string) ($booking['leader_gender'] ?? 'M'),
-                            'birth_date' => (string) ($booking['leader_birth_date'] ?? ''),
-                            'citizenship_label' => (string) ($booking['leader_citizenship_label'] ?? ''),
-                            'birth_state_label' => (string) ($booking['leader_birth_state_label'] ?? ''),
-                            'birth_province' => (string) ($booking['leader_birth_province'] ?? ''),
-                            'birth_place_label' => (string) ($booking['leader_birth_place_label'] ?? ''),
-                            'residence_state_label' => (string) ($booking['leader_residence_state_label'] ?? ''),
-                            'residence_province' => (string) ($booking['leader_residence_province'] ?? ''),
-                            'residence_place_label' => (string) ($booking['leader_residence_place_label'] ?? ''),
-                            'document_type_label' => (string) ($booking['leader_document_type_label'] ?? ''),
-                            'document_number' => (string) ($booking['leader_document_number'] ?? ''),
-                            'document_issue_province' => '',
-                            'document_issue_place' => (string) ($booking['leader_document_issue_place'] ?? ''),
-                        ];
+                        $payload = (array) ($booking['modal_payload'] ?? []);
                         ?>
                         <article class="ross-record-row ross-record-row--booking" tabindex="0" data-booking-row>
                             <div class="ross-record-row__main">
@@ -899,19 +846,21 @@ require_once __DIR__ . '/includes/header.php';
         </div>
     </section>
 
+
     <div class="anagrafica-modal anagrafica-modal--booking<?= $bookingModalOpen ? ' is-open' : '' ?>" id="bookingSyncModal"<?= $bookingModalOpen ? '' : ' hidden' ?>>
         <div class="anagrafica-modal__backdrop" data-booking-modal-close></div>
-        <div class="anagrafica-modal__dialog anagrafica-modal__dialog--wide" role="dialog" aria-modal="true" aria-labelledby="bookingSyncModalTitle">
+        <div class="anagrafica-modal__dialog anagrafica-modal__dialog--wide booking-sync-modal" role="dialog" aria-modal="true" aria-labelledby="bookingSyncModalTitle">
             <form method="post" action="<?= e(admin_url('actions/save-booking-anagrafica.php')) ?>" id="bookingSyncForm" novalidate>
                 <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
                 <input type="hidden" name="month" value="<?= e($selectedMonth) ?>">
                 <input type="hidden" name="day" value="<?= e($selectedDay) ?>">
-                <input type="hidden" name="prenotazione_id" value="<?= (int) $bookingModalForm['prenotazione_id'] ?>">
-                <input type="hidden" name="linked_record_id" value="<?= (int) $bookingModalForm['linked_record_id'] ?>">
+                <input type="hidden" name="prenotazione_id" value="<?= (int) $bookingModalRecord['prenotazione_id'] ?>">
+                <input type="hidden" name="linked_record_id" value="<?= (int) $bookingModalRecord['linked_record_id'] ?>">
                 <div class="anagrafica-modal__header">
                     <div>
                         <span class="eyebrow">Prenotazione sincronizzata</span>
-                        <h3 id="bookingSyncModalTitle">Modifica prenotazione e documenti</h3>
+                        <h3 id="bookingSyncModalTitle">Trasforma la prenotazione in anagrafica completa</h3>
+                        <p class="muted">Il form riprende la stessa struttura della nuova anagrafica: tipologia record, capogruppo e componenti aggiuntivi.</p>
                     </div>
                     <button class="btn btn-light btn-sm" type="button" data-booking-modal-close>Chiudi</button>
                 </div>
@@ -922,45 +871,110 @@ require_once __DIR__ . '/includes/header.php';
                             <ul><?php foreach ($bookingModalMessages as $msg): ?><li><?= e((string) $msg) ?></li><?php endforeach; ?></ul>
                         </div>
                     <?php endif; ?>
-                    <section class="anagrafica-section">
-                        <div class="section-title"><h3>Soggiorno</h3><p class="muted">I dati salvati qui aggiornano direttamente la tabella prenotazioni e l'anagrafica collegata.</p></div>
-                        <div class="anagrafica-grid anagrafica-grid--compact booking-sync-grid">
-                            <label class="anagrafica-field<?= $bookingModalFieldClass('customer_name') ?>"><span>Nome prenotazione *</span><input type="text" name="customer_name" value="<?= e($bookingModalForm['customer_name']) ?>" required><small class="anagrafica-field-error"><?= e($bookingModalErrorFor('customer_name')) ?></small></label>
-                            <label class="anagrafica-field"><span>Email</span><input type="email" name="customer_email" value="<?= e($bookingModalForm['customer_email']) ?>"></label>
-                            <label class="anagrafica-field"><span>Telefono</span><input type="text" name="customer_phone" value="<?= e($bookingModalForm['customer_phone']) ?>"></label>
-                            <label class="anagrafica-field<?= $bookingModalFieldClass('room_type') ?>"><span>Alloggio *</span><input type="text" name="room_type" value="<?= e($bookingModalForm['room_type']) ?>" required><small class="anagrafica-field-error"><?= e($bookingModalErrorFor('room_type')) ?></small></label>
-                            <label class="anagrafica-field<?= $bookingModalFieldClass('check_in') ?>"><span>Check-in *</span><input class="js-date" data-date-role="arrival" type="text" name="check_in" value="<?= e($bookingModalForm['check_in']) ?>" required><small class="anagrafica-field-error"><?= e($bookingModalErrorFor('check_in')) ?></small></label>
-                            <label class="anagrafica-field<?= $bookingModalFieldClass('check_out') ?>"><span>Check-out *</span><input class="js-date" data-date-role="departure" type="text" name="check_out" value="<?= e($bookingModalForm['check_out']) ?>" required><small class="anagrafica-field-error"><?= e($bookingModalErrorFor('check_out')) ?></small></label>
-                            <label class="anagrafica-field<?= $bookingModalFieldClass('adults') ?>"><span>Adulti *</span><input type="number" min="1" name="adults" value="<?= e($bookingModalForm['adults']) ?>" required><small class="anagrafica-field-error"><?= e($bookingModalErrorFor('adults')) ?></small></label>
-                            <label class="anagrafica-field"><span>Bambini</span><input type="number" min="0" name="children_count" value="<?= e($bookingModalForm['children_count']) ?>"></label>
-                            <label class="anagrafica-field"><span>Stato prenotazione</span><select name="status"><option value="confermata"<?= $bookingModalForm['status'] === 'confermata' ? ' selected' : '' ?>>Confermata</option><option value="in_attesa"<?= $bookingModalForm['status'] === 'in_attesa' ? ' selected' : '' ?>>In attesa</option><option value="annullata"<?= $bookingModalForm['status'] === 'annullata' ? ' selected' : '' ?>>Annullata</option></select></label>
-                            <label class="anagrafica-field full"><span>Note</span><input type="text" name="notes" value="<?= e($bookingModalForm['notes']) ?>"></label>
+
+                    <div class="anagrafica-section">
+                        <div class="anagrafica-section__header">
+                            <div>
+                                <h3>Dati soggiorno</h3>
+                                <p class="muted">La scheda aggiorna la prenotazione collegata e crea/aggiorna l'anagrafica utile per ROSS1000 e Alloggiati.</p>
+                            </div>
                         </div>
-                    </section>
-                    <section class="anagrafica-section" data-guest-scope>
-                        <div class="section-title"><h3>Dati anagrafici e documento del referente</h3><p class="muted">Servono per completare l'esportazione verso ROSS1000 e Alloggiati Web.</p></div>
-                        <div class="anagrafica-grid anagrafica-grid--compact booking-sync-grid">
-                            <label class="anagrafica-field<?= $bookingModalFieldClass('first_name') ?>"><span>Nome *</span><input type="text" name="first_name" value="<?= e($bookingModalForm['first_name']) ?>" required><small class="anagrafica-field-error"><?= e($bookingModalErrorFor('first_name')) ?></small></label>
-                            <label class="anagrafica-field<?= $bookingModalFieldClass('last_name') ?>"><span>Cognome *</span><input type="text" name="last_name" value="<?= e($bookingModalForm['last_name']) ?>" required><small class="anagrafica-field-error"><?= e($bookingModalErrorFor('last_name')) ?></small></label>
-                            <label class="anagrafica-field"><span>Sesso</span><select name="gender"><option value="M"<?= $bookingModalForm['gender'] === 'M' ? ' selected' : '' ?>>Maschio</option><option value="F"<?= $bookingModalForm['gender'] === 'F' ? ' selected' : '' ?>>Femmina</option></select></label>
-                            <label class="anagrafica-field<?= $bookingModalFieldClass('birth_date') ?>"><span>Data nascita *</span><input class="js-date" data-date-role="birth" type="text" name="birth_date" value="<?= e($bookingModalForm['birth_date']) ?>" required><small class="anagrafica-field-error"><?= e($bookingModalErrorFor('birth_date')) ?></small></label>
-                            <label class="anagrafica-field<?= $bookingModalFieldClass('citizenship_label') ?>"><span>Cittadinanza *</span><input list="state-options" type="text" name="citizenship_label" value="<?= e($bookingModalForm['citizenship_label']) ?>" required><small class="anagrafica-field-error"><?= e($bookingModalErrorFor('citizenship_label')) ?></small></label>
-                            <label class="anagrafica-field<?= $bookingModalFieldClass('birth_state_label') ?>"><span>Stato nascita *</span><input list="state-options" data-state-role="birth" type="text" name="birth_state_label" value="<?= e($bookingModalForm['birth_state_label']) ?>" required><small class="anagrafica-field-error"><?= e($bookingModalErrorFor('birth_state_label')) ?></small></label>
-                            <label class="anagrafica-field<?= $bookingModalFieldClass('birth_province') ?>"><span>Provincia nascita</span><input list="province-options" data-province-role="birth" type="text" name="birth_province" value="<?= e($bookingModalForm['birth_province']) ?>"><small class="anagrafica-field-error"><?= e($bookingModalErrorFor('birth_province')) ?></small></label>
-                            <label class="anagrafica-field<?= $bookingModalFieldClass('birth_place_label') ?>"><span>Comune nascita</span><input list="place-options" data-place-role="birth" type="text" name="birth_place_label" value="<?= e($bookingModalForm['birth_place_label']) ?>"><small class="anagrafica-field-error"><?= e($bookingModalErrorFor('birth_place_label')) ?></small></label>
-                            <label class="anagrafica-field<?= $bookingModalFieldClass('residence_state_label') ?>"><span>Stato residenza *</span><input list="state-options" data-state-role="residence" type="text" name="residence_state_label" value="<?= e($bookingModalForm['residence_state_label']) ?>" required><small class="anagrafica-field-error"><?= e($bookingModalErrorFor('residence_state_label')) ?></small></label>
-                            <label class="anagrafica-field<?= $bookingModalFieldClass('residence_province') ?>"><span>Provincia residenza</span><input list="province-options" data-province-role="residence" type="text" name="residence_province" value="<?= e($bookingModalForm['residence_province']) ?>"><small class="anagrafica-field-error"><?= e($bookingModalErrorFor('residence_province')) ?></small></label>
-                            <label class="anagrafica-field<?= $bookingModalFieldClass('residence_place_label') ?>"><span>Comune/località residenza</span><input list="place-options" data-place-role="residence" type="text" name="residence_place_label" value="<?= e($bookingModalForm['residence_place_label']) ?>"><small class="anagrafica-field-error"><?= e($bookingModalErrorFor('residence_place_label')) ?></small></label>
-                            <label class="anagrafica-field<?= $bookingModalFieldClass('document_type_label') ?>"><span>Tipo documento</span><input list="document-options" type="text" name="document_type_label" value="<?= e($bookingModalForm['document_type_label']) ?>"><small class="anagrafica-field-error"><?= e($bookingModalErrorFor('document_type_label')) ?></small></label>
-                            <label class="anagrafica-field<?= $bookingModalFieldClass('document_number') ?>"><span>Numero documento</span><input type="text" name="document_number" value="<?= e($bookingModalForm['document_number']) ?>"><small class="anagrafica-field-error"><?= e($bookingModalErrorFor('document_number')) ?></small></label>
-                            <label class="anagrafica-field"><span>Provincia rilascio</span><input list="province-options" type="text" name="document_issue_province" value="<?= e($bookingModalForm['document_issue_province']) ?>"></label>
-                            <label class="anagrafica-field<?= $bookingModalFieldClass('document_issue_place') ?>"><span>Luogo rilascio documento</span><input list="place-options" type="text" name="document_issue_place" value="<?= e($bookingModalForm['document_issue_place']) ?>"><small class="anagrafica-field-error"><?= e($bookingModalErrorFor('document_issue_place')) ?></small></label>
+
+                        <div class="anagrafica-grid anagrafica-grid--compact">
+                            <label class="anagrafica-field<?= e($bookingModalFieldClass('record_type')) ?>">
+                                <span>Tipologia record</span>
+                                <select name="record_type" id="bookingRecordType">
+                                    <?php foreach ($recordTypeOptions as $value => $label): ?>
+                                        <option value="<?= e($value) ?>" <?= $bookingModalRecord['record_type'] === $value ? 'selected' : '' ?>><?= e($label) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <?php if ($bookingModalErrorFor('record_type') !== ''): ?><small class="anagrafica-field-error"><?= e($bookingModalErrorFor('record_type')) ?></small><?php endif; ?>
+                            </label>
+
+                            <label class="anagrafica-field<?= e($bookingModalFieldClass('booking_reference')) ?>">
+                                <span>Riferimento prenotazione</span>
+                                <input type="text" name="booking_reference" value="<?= e((string) $bookingModalRecord['booking_reference']) ?>">
+                                <?php if ($bookingModalErrorFor('booking_reference') !== ''): ?><small class="anagrafica-field-error"><?= e($bookingModalErrorFor('booking_reference')) ?></small><?php endif; ?>
+                            </label>
+
+                            <label class="anagrafica-field<?= e($bookingModalFieldClass('booking_received_date')) ?>">
+                                <span>Data registrazione prenotazione</span>
+                                <input type="text" name="booking_received_date" class="js-date" data-date-role="booking-received" value="<?= e((string) $bookingModalRecord['booking_received_date']) ?>" placeholder="Seleziona la data" autocomplete="off" required>
+                                <?php if ($bookingModalErrorFor('booking_received_date') !== ''): ?><small class="anagrafica-field-error"><?= e($bookingModalErrorFor('booking_received_date')) ?></small><?php endif; ?>
+                            </label>
+
+                            <label class="anagrafica-field<?= e($bookingModalFieldClass('arrival_date')) ?>">
+                                <span>Data arrivo prevista</span>
+                                <input type="text" name="arrival_date" class="js-date" data-date-role="arrival" value="<?= e((string) $bookingModalRecord['arrival_date']) ?>" placeholder="Seleziona la data" autocomplete="off" required>
+                                <?php if ($bookingModalErrorFor('arrival_date') !== ''): ?><small class="anagrafica-field-error"><?= e($bookingModalErrorFor('arrival_date')) ?></small><?php endif; ?>
+                            </label>
+
+                            <label class="anagrafica-field<?= e($bookingModalFieldClass('departure_date')) ?>">
+                                <span>Data partenza prevista</span>
+                                <input type="text" name="departure_date" class="js-date" data-date-role="departure" value="<?= e((string) $bookingModalRecord['departure_date']) ?>" placeholder="Seleziona la data" autocomplete="off" required>
+                                <?php if ($bookingModalErrorFor('departure_date') !== ''): ?><small class="anagrafica-field-error"><?= e($bookingModalErrorFor('departure_date')) ?></small><?php endif; ?>
+                            </label>
+
+                            <label class="anagrafica-field<?= e($bookingModalFieldClass('reserved_rooms')) ?>">
+                                <span>Numero camere prenotate</span>
+                                <input type="number" min="1" name="reserved_rooms" value="<?= e((string) $bookingModalRecord['reserved_rooms']) ?>" required>
+                                <?php if ($bookingModalErrorFor('reserved_rooms') !== ''): ?><small class="anagrafica-field-error"><?= e($bookingModalErrorFor('reserved_rooms')) ?></small><?php endif; ?>
+                            </label>
                         </div>
-                    </section>
+                    </div>
+
+                    <div class="anagrafica-section">
+                        <div class="anagrafica-section__header">
+                            <div>
+                                <h3>Capogruppo / primo ospite</h3>
+                                <p class="muted">Documento richiesto solo per ospite singolo o capogruppo/capofamiglia.</p>
+                            </div>
+                        </div>
+                        <?php
+                        $fieldClassBackup = $fieldClass;
+                        $errorForBackup = $errorFor;
+                        $fieldClass = $bookingModalFieldClass;
+                        $errorFor = $bookingModalErrorFor;
+                        $guestIndex = 0;
+                        $guestData = $bookingModalLeaderGuest;
+                        $isRepeaterGuest = false;
+                        $guestNumber = 1;
+                        require __DIR__ . '/includes/anagrafica_guest_fields.partial.php';
+                        $fieldClass = $fieldClassBackup;
+                        $errorFor = $errorForBackup;
+                        ?>
+                    </div>
+
+                    <div class="anagrafica-section">
+                        <div class="anagrafica-section__header">
+                            <div>
+                                <h3>Componenti aggiuntivi</h3>
+                                <p class="muted">Per famiglia o gruppo aggiungi un componente alla volta. Per i componenti non servono i dati del documento.</p>
+                            </div>
+                            <button class="btn btn-light" type="button" id="bookingAddGuestButton">Aggiungi componente</button>
+                        </div>
+                        <div class="anagrafica-repeater" id="bookingGuestRepeater">
+                            <?php foreach ($bookingModalAdditionalGuests as $guestLoopIndex => $guestLoop): ?>
+                                <?php
+                                $fieldClassBackup = $fieldClass;
+                                $errorForBackup = $errorFor;
+                                $fieldClass = $bookingModalFieldClass;
+                                $errorFor = $bookingModalErrorFor;
+                                $guestIndex = $guestLoopIndex + 1;
+                                $guestData = $guestLoop;
+                                $isRepeaterGuest = true;
+                                $guestNumber = $guestLoopIndex + 2;
+                                require __DIR__ . '/includes/anagrafica_guest_fields.partial.php';
+                                $fieldClass = $fieldClassBackup;
+                                $errorFor = $errorForBackup;
+                                ?>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
                 </div>
                 <div class="anagrafica-modal__actions">
                     <button class="btn btn-light" type="button" data-booking-modal-close>Annulla</button>
-                    <?php if ((int) $bookingModalForm['prenotazione_id'] > 0): ?>
+                    <?php if ((int) $bookingModalRecord['prenotazione_id'] > 0): ?>
                         <button class="btn btn-light btn-danger-soft" formaction="<?= e(admin_url('actions/delete-booking-anagrafica.php')) ?>" formmethod="post" onclick="return window.confirm('Eliminare prenotazione e scheda collegata?');">Elimina prenotazione</button>
                     <?php endif; ?>
                     <button class="btn btn-primary" type="submit">Salva prenotazione</button>
@@ -968,6 +982,33 @@ require_once __DIR__ . '/includes/header.php';
             </form>
         </div>
     </div>
+
+    <template id="bookingGuestTemplate">
+        <div class="anagrafica-guest-card" data-guest-card data-guest-scope>
+            <div class="anagrafica-guest-card__top">
+                <div>
+                    <strong>Componente <span data-guest-number></span></strong>
+                    <p class="muted">Compila solo i dati essenziali per ROSS1000 e Alloggiati Web.</p>
+                </div>
+                <button class="btn btn-light btn-sm" type="button" data-remove-guest>Rimuovi</button>
+            </div>
+            <div class="anagrafica-grid">
+                <label class="anagrafica-field"><span>Nome</span><input type="text" data-name="first_name" maxlength="100" required></label>
+                <label class="anagrafica-field"><span>Cognome</span><input type="text" data-name="last_name" maxlength="100" required></label>
+                <label class="anagrafica-field"><span>Sesso</span><select data-name="gender" required><option value="">Seleziona</option><option value="M">Maschio</option><option value="F">Femmina</option></select></label>
+                <label class="anagrafica-field"><span>Data di nascita</span><input type="text" class="js-date" data-date-role="birth" data-name="birth_date" placeholder="Seleziona la data" autocomplete="off" required></label>
+                <label class="anagrafica-field"><span>Cittadinanza</span><input list="state-options" data-name="citizenship_label" placeholder="Seleziona uno stato" required></label>
+                <label class="anagrafica-field"><span>Stato di nascita</span><input list="state-options" data-state-role="birth" data-name="birth_state_label" placeholder="Seleziona uno stato" required></label>
+                <label class="anagrafica-field"><span>Provincia nascita (se Italia)</span><input list="province-options" data-province-role="birth" data-name="birth_province" placeholder="Seleziona provincia"></label>
+                <label class="anagrafica-field"><span>Comune nascita</span><input data-list-template="birth" data-place-role="birth" data-name="birth_place_label" placeholder="Se scegli Italia, seleziona il comune"></label>
+                <label class="anagrafica-field"><span>Stato di residenza</span><input list="state-options" data-state-role="residence" data-name="residence_state_label" placeholder="Seleziona uno stato" required></label>
+                <label class="anagrafica-field"><span>Provincia residenza (se Italia)</span><input list="province-options" data-province-role="residence" data-name="residence_province" placeholder="Seleziona provincia"></label>
+                <label class="anagrafica-field"><span>Comune / località residenza</span><input data-list-template="residence" data-place-role="residence" data-name="residence_place_label" placeholder="Comune italiano, NUTS o località" required></label>
+                <label class="anagrafica-field"><span>Tipo turismo</span><select data-name="tourism_type" required><option value="">Seleziona</option><?php foreach ($tourismTypes as $value): ?><option value="<?= e($value) ?>"><?= e($value) ?></option><?php endforeach; ?></select></label>
+                <label class="anagrafica-field"><span>Mezzo di trasporto</span><select data-name="transport_type" required><option value="">Seleziona</option><?php foreach ($transportTypes as $value): ?><option value="<?= e($value) ?>"><?= e($value) ?></option><?php endforeach; ?></select></label>
+            </div>
+        </div>
+    </template>
 
     <datalist id="document-options">
         <?php foreach ($documentTypes as $docCode => $docLabel): ?>
