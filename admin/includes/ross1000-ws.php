@@ -42,12 +42,71 @@ function ross1000_ws_build_envelope(array $payload): string
         . '</soapenv:Envelope>';
 }
 
+function ross1000_ws_extract_fault_message(string $body): string
+{
+    $patterns = [
+        '/<faultstring[^>]*>(.*?)<\/faultstring>/is',
+        '/<soap:Reason>.*?<soap:Text[^>]*>(.*?)<\/soap:Text>.*?<\/soap:Reason>/is',
+        '/<faultcode[^>]*>(.*?)<\/faultcode>/is',
+    ];
+
+    foreach ($patterns as $pattern) {
+        if (preg_match($pattern, $body, $match)) {
+            $text = trim(html_entity_decode(strip_tags((string) $match[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            if ($text !== '') {
+                return $text;
+            }
+        }
+    }
+
+    return '';
+}
+
+function ross1000_ws_body_excerpt(string $body, int $maxLength = 500): string
+{
+    $text = trim(preg_replace('/\s+/u', ' ', strip_tags($body)) ?? '');
+    if ($text === '') {
+        $text = trim($body);
+    }
+    if ($text === '') {
+        return '';
+    }
+    if (function_exists('mb_substr')) {
+        return mb_strlen($text) > $maxLength ? mb_substr($text, 0, $maxLength) . '…' : $text;
+    }
+    return strlen($text) > $maxLength ? substr($text, 0, $maxLength) . '…' : $text;
+}
+
 function ross1000_ws_response_success(string $body): bool
 {
+    if (trim($body) === '') {
+        return false;
+    }
     if (stripos($body, '<Fault>') !== false || stripos($body, '<soap:Fault') !== false || stripos($body, '<faultstring>') !== false) {
         return false;
     }
-    return trim($body) !== '';
+    return stripos($body, '<Envelope') !== false || stripos($body, ':Envelope') !== false || stripos($body, '<Body') !== false;
+}
+
+function ross1000_ws_error_message(array $response): string
+{
+    $statusCode = (int) ($response['status_code'] ?? 0);
+    $body = (string) ($response['body'] ?? '');
+    $fault = ross1000_ws_extract_fault_message($body);
+    if ($fault !== '') {
+        return sprintf('Fault SOAP ROSS1000 (HTTP %d): %s', $statusCode, $fault);
+    }
+
+    $excerpt = ross1000_ws_body_excerpt($body);
+    if ($statusCode < 200 || $statusCode >= 300) {
+        return $excerpt !== ''
+            ? sprintf('Risposta HTTP %d dal servizio ROSS1000: %s', $statusCode, $excerpt)
+            : sprintf('Risposta HTTP %d dal servizio ROSS1000.', $statusCode);
+    }
+
+    return $excerpt !== ''
+        ? 'ROSS1000 ha restituito una risposta non valida: ' . $excerpt
+        : 'ROSS1000 ha restituito una risposta non valida.';
 }
 
 function ross1000_ws_send(PDO $pdo, array $payload, string $scopeType, string $scopeRef): array
@@ -88,7 +147,11 @@ function ross1000_ws_send(PDO $pdo, array $payload, string $scopeType, string $s
         'timeout' => 45,
     ]);
 
-    $success = ($response['status_code'] ?? 0) >= 200 && ($response['status_code'] ?? 0) < 300 && ross1000_ws_response_success((string) ($response['body'] ?? ''));
+    $success = ($response['status_code'] ?? 0) >= 200
+        && ($response['status_code'] ?? 0) < 300
+        && ross1000_ws_response_success((string) ($response['body'] ?? ''));
+
+    $errorMessage = $success ? '' : ross1000_ws_error_message($response);
 
     webservice_log($pdo, [
         'service_name' => 'ross1000',
@@ -98,13 +161,20 @@ function ross1000_ws_send(PDO $pdo, array $payload, string $scopeType, string $s
         'is_simulated' => false,
         'success' => $success,
         'request_payload' => $requestXml,
-        'response_payload' => (string) ($response['body'] ?? ''),
-        'error_message' => $success ? '' : 'Risposta WS ROSS1000 non valida o fault SOAP.',
+        'response_payload' => 'HTTP ' . (int) ($response['status_code'] ?? 0) . "
+" . (string) ($response['body'] ?? ''),
+        'error_message' => $errorMessage,
     ]);
 
     if (!$success) {
-        throw new RuntimeException('ROSS1000 ha restituito una risposta non valida. Controlla i log del web service.');
+        throw new RuntimeException($errorMessage !== '' ? $errorMessage : 'ROSS1000 ha restituito una risposta non valida. Controlla i log del web service.');
     }
 
-    return ['success' => true, 'simulated' => false, 'request_xml' => $requestXml, 'response_body' => (string) ($response['body'] ?? '')];
+    return [
+        'success' => true,
+        'simulated' => false,
+        'request_xml' => $requestXml,
+        'response_body' => (string) ($response['body'] ?? ''),
+        'status_code' => (int) ($response['status_code'] ?? 0),
+    ];
 }

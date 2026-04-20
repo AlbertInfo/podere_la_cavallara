@@ -51,6 +51,7 @@ try {
         $ranges[] = ['state' => $state, 'from' => $fromDay, 'to' => $toDay];
     }
 
+    // 1) Salva configurazione mese e commit, così la UI resta aggiornata anche se il WS fallisce.
     $pdo->beginTransaction();
     ross1000_prefill_open_month($pdo, $month, $config, true);
     if ($ranges) {
@@ -76,13 +77,22 @@ try {
             }
         }
     }
+    $pdo->commit();
 
+    // 2) Chiamata WS fuori transazione, così i log non vengono rollbackati.
     $payload = ross1000_build_month_payload($pdo, $month);
-    ross1000_ws_send($pdo, $payload, 'month', $month);
+    $wsResult = ross1000_ws_send($pdo, $payload, 'month', $month);
+
+    // 3) Solo se il WS è andato a buon fine, marca il mese come esportato.
+    $pdo->beginTransaction();
     $stmt = $pdo->prepare("UPDATE ross1000_day_status SET exported_ross_at = NOW(), updated_at = NOW() WHERE day_date BETWEEN :from_date AND :to_date");
     $stmt->execute(['from_date' => $fromDate, 'to_date' => $toDate]);
     $pdo->commit();
-    set_flash('success', 'Invio ROSS1000 del mese completato correttamente.');
+
+    $message = !empty($wsResult['simulated'])
+        ? 'Invio ROSS1000 del mese simulato correttamente.'
+        : 'Invio ROSS1000 del mese completato correttamente.';
+    set_flash('success', $message);
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
