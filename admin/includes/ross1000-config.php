@@ -20,8 +20,8 @@ function ross1000_property_config(): array
 
         // Da usare in una fase successiva se vorrai inviare via web service.
         'wsdl' => 'https://lazioturismo.ross1000.it/ws/checkinV2?wsdl',
-        'username' => '',
-        'password' => '',
+        'username' => 'VT524165',
+        'password' => 'Ric23292329',
         'simulate_send_without_ws' => false,
     ];
 }
