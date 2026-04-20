@@ -22,6 +22,7 @@ function ross1000_property_config(): array
         'wsdl' => 'https://lazioturismo.ross1000.it/ws/checkinV2?wsdl',
         'username' => '',
         'password' => '',
+        'simulate_send_without_ws' => true,
     ];
 }
 

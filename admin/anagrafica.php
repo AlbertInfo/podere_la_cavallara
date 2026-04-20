@@ -7,6 +7,7 @@ require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/anagrafica-options.php';
 require_once __DIR__ . '/includes/ross1000-config.php';
 require_once __DIR__ . '/includes/ross1000.php';
+require_once __DIR__ . '/includes/ross1000-ws.php';
 require_once __DIR__ . '/includes/alloggiati.php';
 require_once __DIR__ . '/includes/prenotazioni-anagrafica-sync.php';
 require_admin();
@@ -83,6 +84,7 @@ $deletedRecordId = max(0, (int) ($_GET['deleted'] ?? 0));
 $rowHighlightId = max($createdRecordId, $updatedRecordId);
 
 $config = ross1000_property_config();
+$rossWsReady = ross1000_ws_config_ready($config);
 $monthRecords = [];
 $dayStates = [];
 $days = [];
@@ -564,7 +566,8 @@ require_once __DIR__ . '/includes/header.php';
         </form>
         <div class="anagrafica-modal__actions">
             <button class="btn btn-light" type="button" data-dialog-close>Annulla</button>
-            <button class="btn btn-primary" type="submit" form="rossMonthSettingsForm">Applica configurazione ed esporta XML</button>
+            <button class="btn btn-light" type="submit" form="rossMonthSettingsForm">Applica configurazione ed esporta XML</button>
+            <button class="btn btn-primary" type="submit" form="rossMonthSettingsForm" formaction="<?= e(admin_url('actions/send-ross1000-month.php')) ?>">Applica configurazione e invia WS</button>
         </div>
     </div>
 </div>
@@ -768,7 +771,8 @@ require_once __DIR__ . '/includes/header.php';
                     <p class="muted">Quando il giorno è chiuso definitivamente puoi esportare il file giornaliero.</p>
                 </div>
                 <div class="ross-day-export__buttons">
-                    <a class="btn btn-primary<?= $selectedDayFinalized ? '' : ' is-disabled' ?> js-confirm-modal-trigger" href="<?= $selectedDayFinalized ? e(admin_url('actions/generate-ross1000-day.php?month=' . rawurlencode($selectedMonth) . '&day=' . rawurlencode($selectedDay))) : '#' ?>" data-day-export-link data-modal-template-id="rossDayExportTemplate"<?= $selectedDayFinalized ? '' : ' aria-disabled="true" tabindex="-1"' ?>>Esporta ROSS1000</a>
+                    <a class="btn btn-light<?= $selectedDayFinalized ? '' : ' is-disabled' ?> js-confirm-modal-trigger" href="<?= $selectedDayFinalized ? e(admin_url('actions/generate-ross1000-day.php?month=' . rawurlencode($selectedMonth) . '&day=' . rawurlencode($selectedDay))) : '#' ?>" data-day-export-link data-modal-template-id="rossDayExportTemplate"<?= $selectedDayFinalized ? '' : ' aria-disabled="true" tabindex="-1"' ?>>Esporta ROSS1000</a>
+                    <a class="btn btn-primary<?= $selectedDayFinalized ? '' : ' is-disabled' ?> js-confirm-modal-trigger" href="<?= $selectedDayFinalized ? e(admin_url('actions/send-ross1000-day.php?month=' . rawurlencode($selectedMonth) . '&day=' . rawurlencode($selectedDay))) : '#' ?>" data-day-export-link data-modal-template-id="rossDaySendTemplate"<?= $selectedDayFinalized ? '' : ' aria-disabled="true" tabindex="-1"' ?>>Invia ROSS1000 WS</a>
                     <a class="btn btn-light" href="#alloggiatiDaySection">Schedine Alloggiati</a>
                 </div>
                 <dl class="ross-day-export__meta">
@@ -1085,7 +1089,7 @@ require_once __DIR__ . '/includes/header.php';
                             <div><span>Schedine già inviate</span><strong><?= (int) $selectedSchedineCounts['inviata'] ?></strong></div>
                             <div><span>Schedine con errore</span><strong><?= (int) $selectedSchedineCounts['errore'] ?></strong></div>
                             <div><span>Documenti valorizzati</span><strong><?= (int) $alloggiatiDayDocumentCount ?></strong></div>
-                            <div><span>WS</span><strong><?= $alloggiatiWsReady ? 'Predisposto' : 'Da configurare' ?></strong></div>
+                            <div><span>WS</span><strong><?= $alloggiatiWsReady ? 'Configurato' : (!empty($alloggiatiWsConfig['simulate_send_without_ws']) ? 'Simulazione' : 'Da configurare') ?></strong></div>
                         </div>
                         <p class="muted">Conferma l'invio delle schedine pronte del giorno selezionato. Il tracciato record e le richieste SOAP GenerateToken/Test/Send sono già predisposti nel backend.</p>
                     </div>

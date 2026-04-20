@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/alloggiati.php';
+require_once __DIR__ . '/../includes/alloggiati-ws.php';
 require_once __DIR__ . '/../includes/ross1000.php';
 require_admin();
 
@@ -36,7 +36,7 @@ try {
     }
 
     $pdo->beginTransaction();
-    $result = alloggiati_mark_schedina_sent($pdo, $schedinaId);
+    $result = alloggiati_ws_send_schedina($pdo, $schedinaId);
     if (($result['sent'] ?? 0) > 0 && ross1000_day_status_table_ready($pdo)) {
         $state = ross1000_get_day_state($pdo, $day);
         $state['exported_alloggiati_at'] = date('Y-m-d H:i:s');
@@ -45,7 +45,8 @@ try {
     $pdo->commit();
 
     if (($result['sent'] ?? 0) > 0) {
-        redirect_alloggiati_schedina($month, $day, 'success', 'Schedina Alloggiati inviata correttamente.');
+        $modeMsg = (($result['mode'] ?? '') === 'simulation') ? ' (simulazione attiva)' : '';
+        redirect_alloggiati_schedina($month, $day, 'success', 'Schedina Alloggiati inviata correttamente' . $modeMsg . '.');
     }
     redirect_alloggiati_schedina($month, $day, 'error', implode(' ', $result['errors'] ?? []) ?: 'La schedina selezionata non è pronta per l’invio.');
 } catch (Throwable $e) {
