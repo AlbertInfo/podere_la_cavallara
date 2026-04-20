@@ -7,8 +7,9 @@ require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/anagrafica-options.php';
 require_once __DIR__ . '/includes/ross1000-config.php';
 require_once __DIR__ . '/includes/ross1000.php';
-require_once __DIR__ . '/includes/ross1000-ws.php';
 require_once __DIR__ . '/includes/alloggiati.php';
+require_once __DIR__ . '/includes/ross1000-ws.php';
+require_once __DIR__ . '/includes/alloggiati-ws.php';
 require_once __DIR__ . '/includes/prenotazioni-anagrafica-sync.php';
 require_admin();
 
@@ -84,7 +85,6 @@ $deletedRecordId = max(0, (int) ($_GET['deleted'] ?? 0));
 $rowHighlightId = max($createdRecordId, $updatedRecordId);
 
 $config = ross1000_property_config();
-$rossWsReady = ross1000_ws_config_ready($config);
 $monthRecords = [];
 $dayStates = [];
 $days = [];
@@ -102,6 +102,8 @@ $selectedSchedine = [];
 $selectedSchedineCounts = ['total' => 0, 'bozza' => 0, 'pronta' => 0, 'inviata' => 0, 'errore' => 0];
 $alloggiatiWsConfig = alloggiati_ws_config();
 $alloggiatiWsReady = alloggiati_ws_config_ready($alloggiatiWsConfig);
+$rossWsConfig = ross1000_ws_runtime_config();
+$rossWsReady = ross1000_ws_config_ready($rossWsConfig);
 $monthDayCount = 0;
 $monthOpenCount = 0;
 $monthClosedCount = 0;
@@ -567,8 +569,21 @@ require_once __DIR__ . '/includes/header.php';
         <div class="anagrafica-modal__actions">
             <button class="btn btn-light" type="button" data-dialog-close>Annulla</button>
             <button class="btn btn-light" type="submit" form="rossMonthSettingsForm">Applica configurazione ed esporta XML</button>
-            <button class="btn btn-primary" type="submit" form="rossMonthSettingsForm" formaction="<?= e(admin_url('actions/send-ross1000-month.php')) ?>">Applica configurazione e invia WS</button>
+            <button class="btn btn-primary js-confirm-modal-trigger" type="submit" form="rossMonthSettingsForm" formaction="<?= e(admin_url('actions/send-ross1000-month.php')) ?>" data-modal-template-id="rossMonthSendTemplate">Applica configurazione e invia WS</button>
         </div>
+        <template id="rossMonthSendTemplate">
+            <div class="alloggiati-confirm">
+                <div class="alloggiati-confirm__grid">
+                    <div><span>Mese</span><strong><?= e(anagrafica_month_label($monthStart)) ?></strong></div>
+                    <div><span>Giorni nel mese</span><strong><?= (int) $monthDayCount ?></strong></div>
+                    <div><span>Giorni già chiusi</span><strong><?= (int) $monthFinalizedCount ?></strong></div>
+                    <div><span>Camere standard</span><strong><?= (int) ($config['camere_disponibili'] ?? 0) ?></strong></div>
+                    <div><span>Letti standard</span><strong><?= (int) ($config['letti_disponibili'] ?? 0) ?></strong></div>
+                    <div><span>WS ROSS</span><strong><?= $rossWsReady ? (!empty($rossWsConfig['simulate_send_without_ws']) ? 'Simulazione' : 'Live pronto') : 'Da configurare' ?></strong></div>
+                </div>
+                <p class="muted">Conferma l'invio web service del mese configurato. Il sistema invierà a ROSS1000 una movimentazione completa del mese selezionato.</p>
+            </div>
+        </template>
     </div>
 </div>
 
@@ -772,7 +787,7 @@ require_once __DIR__ . '/includes/header.php';
                 </div>
                 <div class="ross-day-export__buttons">
                     <a class="btn btn-light<?= $selectedDayFinalized ? '' : ' is-disabled' ?> js-confirm-modal-trigger" href="<?= $selectedDayFinalized ? e(admin_url('actions/generate-ross1000-day.php?month=' . rawurlencode($selectedMonth) . '&day=' . rawurlencode($selectedDay))) : '#' ?>" data-day-export-link data-modal-template-id="rossDayExportTemplate"<?= $selectedDayFinalized ? '' : ' aria-disabled="true" tabindex="-1"' ?>>Esporta ROSS1000</a>
-                    <a class="btn btn-primary<?= $selectedDayFinalized ? '' : ' is-disabled' ?> js-confirm-modal-trigger" href="<?= $selectedDayFinalized ? e(admin_url('actions/send-ross1000-day.php?month=' . rawurlencode($selectedMonth) . '&day=' . rawurlencode($selectedDay))) : '#' ?>" data-day-export-link data-modal-template-id="rossDaySendTemplate"<?= $selectedDayFinalized ? '' : ' aria-disabled="true" tabindex="-1"' ?>>Invia ROSS1000 WS</a>
+                    <a class="btn btn-primary<?= $selectedDayFinalized ? '' : ' is-disabled' ?> js-confirm-modal-trigger" href="<?= $selectedDayFinalized ? e(admin_url('actions/send-ross1000-day.php?month=' . rawurlencode($selectedMonth) . '&day=' . rawurlencode($selectedDay))) : '#' ?>" data-day-export-link data-modal-template-id="rossDayWsTemplate"<?= $selectedDayFinalized ? '' : ' aria-disabled="true" tabindex="-1"' ?>>Invia ROSS1000 WS</a>
                     <a class="btn btn-light" href="#alloggiatiDaySection">Schedine Alloggiati</a>
                 </div>
                 <dl class="ross-day-export__meta">
@@ -790,6 +805,19 @@ require_once __DIR__ . '/includes/header.php';
                             <div><span>Letti disponibili</span><strong><?= (int) $selectedDayAvailableBeds ?></strong></div>
                         </div>
                         <p class="muted">Scaricherai il file XML ROSS1000 del giorno selezionato con la fotografia completa della giornata.</p>
+                    </div>
+                </template>
+                <template id="rossDayWsTemplate">
+                    <div class="alloggiati-confirm">
+                        <div class="alloggiati-confirm__grid">
+                            <div><span>Giorno</span><strong><?= e((new DateTimeImmutable($selectedDay))->format('d/m/Y')) ?></strong></div>
+                            <div><span>Camere occupate</span><strong><?= (int) ($selectedSnapshot['occupied_rooms'] ?? 0) ?></strong></div>
+                            <div><span>Persone presenti</span><strong><?= (int) ($selectedSnapshot['present_guests'] ?? 0) ?></strong></div>
+                            <div><span>Arrivi / Partenze</span><strong><?= (int) ($selectedSnapshot['arrivals_guests'] ?? 0) ?> / <?= (int) ($selectedSnapshot['departures_guests'] ?? 0) ?></strong></div>
+                            <div><span>Camere disponibili</span><strong><?= (int) $selectedDayAvailableRooms ?></strong></div>
+                            <div><span>WS ROSS</span><strong><?= $rossWsReady ? (!empty($rossWsConfig['simulate_send_without_ws']) ? 'Simulazione' : 'Live pronto') : 'Da configurare' ?></strong></div>
+                        </div>
+                        <p class="muted">Conferma l'invio web service del giorno selezionato. Verrà trasmessa la fotografia completa della giornata a ROSS1000.</p>
                     </div>
                 </template>
             </div>
@@ -1060,7 +1088,7 @@ require_once __DIR__ . '/includes/header.php';
             </div>
             <div class="ross-day-warning">
                 <div><strong>Tracciato giornaliero pronto</strong> · Le schedine vengono esportate come file testuale a righe fisse da 168 caratteri, in linea con il tracciato Alloggiati. Le righe corrette possono essere inviate in blocco o singolarmente.</div>
-                <div><strong>Web service</strong> · <?= $alloggiatiWsReady ? 'Configurazione WS presente.' : 'Predisposizione WS pronta: completa utente, password e WSKEY in includes/alloggiati-config.php per la finalizzazione.' ?></div>
+                <div><strong>Web service</strong> · <?= $alloggiatiWsReady ? (!empty($alloggiatiWsConfig['simulate_send_without_ws']) ? 'Modalità simulazione attiva.' : 'Configurazione WS live presente.') : 'Compila utente, password e WSKEY in includes/alloggiati-config.php.' ?></div>
             </div>
 
             <?php if (!$selectedSchedine): ?>
@@ -1089,7 +1117,7 @@ require_once __DIR__ . '/includes/header.php';
                             <div><span>Schedine già inviate</span><strong><?= (int) $selectedSchedineCounts['inviata'] ?></strong></div>
                             <div><span>Schedine con errore</span><strong><?= (int) $selectedSchedineCounts['errore'] ?></strong></div>
                             <div><span>Documenti valorizzati</span><strong><?= (int) $alloggiatiDayDocumentCount ?></strong></div>
-                            <div><span>WS</span><strong><?= $alloggiatiWsReady ? 'Configurato' : (!empty($alloggiatiWsConfig['simulate_send_without_ws']) ? 'Simulazione' : 'Da configurare') ?></strong></div>
+                            <div><span>WS</span><strong><?= $alloggiatiWsReady ? (!empty($alloggiatiWsConfig['simulate_send_without_ws']) ? 'Simulazione' : 'Live pronto') : 'Da configurare' ?></strong></div>
                         </div>
                         <p class="muted">Conferma l'invio delle schedine pronte del giorno selezionato. Il tracciato record e le richieste SOAP GenerateToken/Test/Send sono già predisposti nel backend.</p>
                     </div>

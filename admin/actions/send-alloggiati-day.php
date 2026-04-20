@@ -43,11 +43,15 @@ try {
     }
     $pdo->commit();
 
-    if (($result['sent'] ?? 0) > 0 && empty($result['errors'])) {
-        $modeMsg = (($result['mode'] ?? '') === 'simulation') ? ' (simulazione attiva)' : '';
-        redirect_alloggiati_day($month, $day, 'success', 'Schedine Alloggiati inviate correttamente: ' . (int) $result['sent'] . $modeMsg . '.');
+    $sent = (int) ($result['sent'] ?? 0);
+    $errors = array_values(array_filter($result['errors'] ?? []));
+    if ($sent > 0 && !$errors) {
+        redirect_alloggiati_day($month, $day, 'success', 'Schedine Alloggiati del giorno inviate correttamente: ' . $sent . '.');
     }
-    redirect_alloggiati_day($month, $day, 'error', implode(' ', $result['errors'] ?? []) ?: 'Nessuna schedina pronta da inviare.');
+    if ($sent > 0) {
+        redirect_alloggiati_day($month, $day, 'warning', 'Schedine inviate: ' . $sent . '. Alcune schede richiedono attenzione.');
+    }
+    redirect_alloggiati_day($month, $day, 'error', implode(' ', $errors) ?: 'Nessuna schedina pronta da inviare.');
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();

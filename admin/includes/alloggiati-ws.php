@@ -6,338 +6,271 @@ require_once __DIR__ . '/alloggiati.php';
 require_once __DIR__ . '/ws-http.php';
 require_once __DIR__ . '/webservice-log.php';
 
-function alloggiati_ws_simulation_enabled(array $config): bool
+function alloggiati_ws_extract_simple_value(string $xml, string $tag): string
 {
-    return !empty($config['simulate_send_without_ws']);
+    if (preg_match('/<' . preg_quote($tag, '/') . '>(.*?)<\/' . preg_quote($tag, '/') . '>/si', $xml, $m)) {
+        return html_entity_decode(trim((string) $m[1]), ENT_QUOTES | ENT_XML1, 'UTF-8');
+    }
+    return '';
 }
 
-function alloggiati_ws_generate_token_request(array $config): string
+function alloggiati_ws_extract_row_results(string $xml): array
 {
-    $preview = alloggiati_build_ws_previews([]);
-    return (string) ($preview['generate_token_xml'] ?? '');
-}
-
-function alloggiati_ws_list_request(array $traceRecords, string $method, string $token): string
-{
-    $preview = alloggiati_build_ws_previews($traceRecords);
-    $xml = $method === 'Send' ? (string) ($preview['send_xml'] ?? '') : (string) ($preview['test_xml'] ?? '');
-    return str_replace('TOKEN_DA_GENERARE', htmlspecialchars($token, ENT_XML1 | ENT_COMPAT, 'UTF-8'), $xml);
-}
-
-function alloggiati_ws_generate_token(array $config): array
-{
-    if (!alloggiati_ws_config_ready($config)) {
-        return [
-            'success' => false,
-            'token' => '',
-            'expires' => '',
-            'request_xml' => '',
-            'response_xml' => '',
-            'error' => 'Configura utente, password e WSKEY del servizio Alloggiati Web.',
+    $results = [];
+    if (!preg_match_all('/<EsitoOperazioneServizio>(.*?)<\/EsitoOperazioneServizio>/si', $xml, $matches)) {
+        return $results;
+    }
+    foreach ($matches[1] as $chunk) {
+        $ok = strtolower(alloggiati_ws_extract_simple_value($chunk, 'esito')) === 'true';
+        $results[] = [
+            'success' => $ok,
+            'error_code' => alloggiati_ws_extract_simple_value($chunk, 'ErroreCod'),
+            'error_description' => alloggiati_ws_extract_simple_value($chunk, 'ErroreDes'),
+            'error_detail' => alloggiati_ws_extract_simple_value($chunk, 'ErroreDettaglio'),
         ];
     }
+    return $results;
+}
 
-    $requestXml = alloggiati_ws_generate_token_request($config);
-    $response = ws_http_post_xml((string) $config['endpoint'], $requestXml, [
-        'Content-Type: application/soap+xml; charset=utf-8',
-        'Accept: application/soap+xml, text/xml, */*',
+function alloggiati_ws_envelope_generate_token(array $config): string
+{
+    return '<?xml version="1.0" encoding="UTF-8"?>'
+        . '<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:all="AlloggiatiService">'
+        . '<soap:Header/>'
+        . '<soap:Body>'
+        . '<all:GenerateToken>'
+        . '<all:Utente>' . htmlspecialchars((string) $config['utente'], ENT_XML1 | ENT_COMPAT, 'UTF-8') . '</all:Utente>'
+        . '<all:Password>' . htmlspecialchars((string) $config['password'], ENT_XML1 | ENT_COMPAT, 'UTF-8') . '</all:Password>'
+        . '<all:WsKey>' . htmlspecialchars((string) $config['wskey'], ENT_XML1 | ENT_COMPAT, 'UTF-8') . '</all:WsKey>'
+        . '</all:GenerateToken>'
+        . '</soap:Body>'
+        . '</soap:Envelope>';
+}
+
+function alloggiati_ws_envelope_lines(string $method, array $config, string $token, array $lines): string
+{
+    $items = '';
+    foreach ($lines as $line) {
+        $items .= '<all:string>' . htmlspecialchars($line, ENT_XML1 | ENT_COMPAT, 'UTF-8') . '</all:string>';
+    }
+
+    return '<?xml version="1.0" encoding="UTF-8"?>'
+        . '<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:all="AlloggiatiService">'
+        . '<soap:Header/>'
+        . '<soap:Body>'
+        . '<all:' . $method . '>'
+        . '<all:Utente>' . htmlspecialchars((string) $config['utente'], ENT_XML1 | ENT_COMPAT, 'UTF-8') . '</all:Utente>'
+        . '<all:token>' . htmlspecialchars($token, ENT_XML1 | ENT_COMPAT, 'UTF-8') . '</all:token>'
+        . '<all:ElencoSchedine>' . $items . '</all:ElencoSchedine>'
+        . '</all:' . $method . '>'
+        . '</soap:Body>'
+        . '</soap:Envelope>';
+}
+
+function alloggiati_ws_post(string $endpoint, string $xml): array
+{
+    return ws_http_post_xml($endpoint, $xml, [
+        'headers' => [
+            'Content-Type: application/soap+xml; charset=utf-8',
+            'Accept: application/soap+xml, text/xml',
+        ],
+        'timeout' => 45,
+    ]);
+}
+
+function alloggiati_ws_generate_token_live(PDO $pdo, array $config): array
+{
+    $requestXml = alloggiati_ws_envelope_generate_token($config);
+    $response = alloggiati_ws_post((string) $config['endpoint'], $requestXml);
+    $body = (string) ($response['body'] ?? '');
+    $token = alloggiati_ws_extract_simple_value($body, 'token');
+    $success = $token !== '' && stripos($body, '<Fault>') === false;
+
+    webservice_log($pdo, [
+        'service_name' => 'alloggiati',
+        'action_name' => 'GenerateToken',
+        'scope_type' => 'auth',
+        'scope_ref' => '',
+        'is_simulated' => false,
+        'success' => $success,
+        'request_payload' => $requestXml,
+        'response_payload' => $body,
+        'error_message' => $success ? '' : 'GenerateToken non riuscito.',
     ]);
 
-    if (!$response['success']) {
-        return [
-            'success' => false,
-            'token' => '',
-            'expires' => '',
-            'request_xml' => $requestXml,
-            'response_xml' => (string) $response['body'],
-            'error' => trim((string) ($response['error'] ?: ('HTTP ' . $response['status_code']))),
-        ];
+    if (!$success) {
+        throw new RuntimeException('GenerateToken non riuscito. Controlla credenziali, WSKEY e log del web service Alloggiati.');
     }
 
-    $xpath = ws_xml_xpath((string) $response['body']);
-    if (!$xpath) {
-        return [
-            'success' => false,
-            'token' => '',
-            'expires' => '',
-            'request_xml' => $requestXml,
-            'response_xml' => (string) $response['body'],
-            'error' => 'Risposta non valida da GenerateToken.',
-        ];
-    }
-
-    $token = ws_xml_value($xpath, '//*[local-name()="GenerateTokenResult"]/*[local-name()="token"]');
-    $expires = ws_xml_value($xpath, '//*[local-name()="GenerateTokenResult"]/*[local-name()="expires"]');
-    $esito = strtolower(ws_xml_value($xpath, '//*[local-name()="result"]/*[local-name()="esito"]'));
-    $errorDes = ws_xml_value($xpath, '//*[local-name()="result"]/*[local-name()="ErroreDes" or local-name()="errorDes"]');
-    $errorDet = ws_xml_value($xpath, '//*[local-name()="result"]/*[local-name()="ErroreDettaglio" or local-name()="erroreDettaglio"]');
-
-    if ($token === '' || ($esito !== '' && $esito !== 'true')) {
-        return [
-            'success' => false,
-            'token' => '',
-            'expires' => $expires,
-            'request_xml' => $requestXml,
-            'response_xml' => (string) $response['body'],
-            'error' => trim($errorDes . ' ' . $errorDet) ?: 'GenerateToken non riuscito.',
-        ];
-    }
-
-    return [
-        'success' => true,
-        'token' => $token,
-        'expires' => $expires,
-        'request_xml' => $requestXml,
-        'response_xml' => (string) $response['body'],
-        'error' => '',
-    ];
+    return ['token' => $token, 'response_body' => $body];
 }
 
-function alloggiati_ws_call_list(array $config, array $traceRecords, string $method, string $token): array
+function alloggiati_ws_run_method(PDO $pdo, string $method, array $config, string $token, array $lines, string $scopeType, string $scopeRef): array
 {
-    $requestXml = alloggiati_ws_list_request($traceRecords, $method, $token);
-    $response = ws_http_post_xml((string) $config['endpoint'], $requestXml, [
-        'Content-Type: application/soap+xml; charset=utf-8',
-        'Accept: application/soap+xml, text/xml, */*',
+    $requestXml = alloggiati_ws_envelope_lines($method, $config, $token, $lines);
+    $response = alloggiati_ws_post((string) $config['endpoint'], $requestXml);
+    $body = (string) ($response['body'] ?? '');
+    $success = stripos($body, '<Fault>') === false && stripos($body, '<esito>true</esito>') !== false;
+
+    webservice_log($pdo, [
+        'service_name' => 'alloggiati',
+        'action_name' => $method,
+        'scope_type' => $scopeType,
+        'scope_ref' => $scopeRef,
+        'is_simulated' => false,
+        'success' => $success,
+        'request_payload' => $requestXml,
+        'response_payload' => $body,
+        'error_message' => $success ? '' : ($method . ' ha restituito errori.'),
     ]);
 
-    if (!$response['success']) {
-        return [
-            'success' => false,
-            'request_xml' => $requestXml,
-            'response_xml' => (string) $response['body'],
-            'overall_error' => trim((string) ($response['error'] ?: ('HTTP ' . $response['status_code']))),
-            'details' => [],
-        ];
-    }
-
-    $xpath = ws_xml_xpath((string) $response['body']);
-    if (!$xpath) {
-        return [
-            'success' => false,
-            'request_xml' => $requestXml,
-            'response_xml' => (string) $response['body'],
-            'overall_error' => 'Risposta XML non valida da ' . $method . '.',
-            'details' => [],
-        ];
-    }
-
-    $resultNode = $method === 'Send' ? 'SendResult' : 'TestResult';
-    $esito = strtolower(ws_xml_value($xpath, '//*[local-name()="' . $resultNode . '"]/*[local-name()="esito"]'));
-    $errorDes = ws_xml_value($xpath, '//*[local-name()="' . $resultNode . '"]/*[local-name()="ErroreDes" or local-name()="errorDes"]');
-    $errorDet = ws_xml_value($xpath, '//*[local-name()="' . $resultNode . '"]/*[local-name()="ErroreDettaglio" or local-name()="erroreDettaglio"]');
-
-    $details = [];
-    $detailNodes = @$xpath->query('//*[local-name()="result"]/*[local-name()="Dettaglio"]/*[local-name()="EsitoOperazioneServizio"]');
-    if ($detailNodes) {
-        foreach ($detailNodes as $detailNode) {
-            $values = [];
-            foreach ($detailNode->childNodes as $childNode) {
-                if ($childNode instanceof DOMElement) {
-                    $values[$childNode->localName] = trim((string) $childNode->textContent);
-                }
-            }
-            $details[] = [
-                'success' => strtolower((string) ($values['esito'] ?? '')) === 'true',
-                'error_code' => (string) ($values['ErroreCod'] ?? $values['errorCod'] ?? ''),
-                'error_desc' => (string) ($values['ErroreDes'] ?? $values['errorDes'] ?? ''),
-                'error_detail' => (string) ($values['ErroreDettaglio'] ?? $values['erroreDettaglio'] ?? ''),
-            ];
-        }
-    }
-
     return [
-        'success' => $esito === 'true',
+        'success' => $success,
         'request_xml' => $requestXml,
-        'response_xml' => (string) $response['body'],
-        'overall_error' => trim($errorDes . ' ' . $errorDet),
-        'details' => $details,
+        'response_body' => $body,
+        'row_results' => alloggiati_ws_extract_row_results($body),
     ];
-}
-
-function alloggiati_ws_mark_schedine(PDO $pdo, array $schedine, array $details, bool $markSent): array
-{
-    $sent = 0;
-    $errors = [];
-
-    foreach ($schedine as $index => $schedina) {
-        $schedinaId = (int) ($schedina['id'] ?? 0);
-        $detail = $details[$index] ?? null;
-        $ok = $detail ? !empty($detail['success']) : $markSent;
-        $errorMessage = '';
-        if ($detail && !$ok) {
-            $errorMessage = trim(((string) ($detail['error_desc'] ?? '')) . ' ' . ((string) ($detail['error_detail'] ?? '')));
-        }
-
-        if ($ok) {
-            $stmt = $pdo->prepare('UPDATE alloggiati_schedine SET status = :status, sent_at = NOW(), last_attempt_at = NOW(), attempt_count = attempt_count + 1, last_error = NULL, validation_errors = NULL, updated_at = NOW() WHERE id = :id');
-            $stmt->execute(['status' => 'inviata', 'id' => $schedinaId]);
-            $sent++;
-        } else {
-            $stmt = $pdo->prepare('UPDATE alloggiati_schedine SET status = :status, last_attempt_at = NOW(), attempt_count = attempt_count + 1, last_error = :last_error, updated_at = NOW() WHERE id = :id');
-            $stmt->execute(['status' => 'errore', 'last_error' => $errorMessage ?: 'Invio non riuscito.', 'id' => $schedinaId]);
-            $errors[] = ((string) ($schedina['display_name'] ?? 'Schedina')) . ': ' . ($errorMessage ?: 'Invio non riuscito.');
-        }
-    }
-
-    return ['sent' => $sent, 'errors' => $errors];
 }
 
 function alloggiati_ws_send_day(PDO $pdo, string $arrivalDate): array
 {
     $bundle = alloggiati_collect_day_export($pdo, $arrivalDate);
-    $schedine = array_values(array_filter((array) ($bundle['schedine'] ?? []), static function (array $row): bool {
-        return (string) ($row['status'] ?? '') === 'pronta';
-    }));
-    $traceRecords = array_map(static fn(array $row): string => (string) ($row['trace_record'] ?? ''), $schedine);
+    $schedine = [];
+    $lines = [];
+    foreach (($bundle['schedine'] ?? []) as $row) {
+        if ((string) ($row['status'] ?? '') === 'pronta') {
+            $schedine[] = $row;
+            $lines[] = (string) ($row['trace_record'] ?? '');
+        }
+    }
 
-    if (!$schedine || !$traceRecords) {
-        return ['sent' => 0, 'errors' => ['Nessuna schedina pronta da inviare per il giorno selezionato.'], 'mode' => 'none'];
+    if (!$schedine) {
+        return ['sent' => 0, 'errors' => array_values($bundle['errors'] ?? ['Nessuna schedina pronta da inviare.'])];
     }
 
     $config = alloggiati_ws_config();
-    if (alloggiati_ws_simulation_enabled($config)) {
-        $result = alloggiati_ws_mark_schedine($pdo, $schedine, [], true);
-        webservice_log_event($pdo, [
+    if (!alloggiati_ws_config_ready($config)) {
+        throw new RuntimeException('Configura utente, password e WSKEY del web service Alloggiati.');
+    }
+
+    if (!empty($config['simulate_send_without_ws'])) {
+        webservice_log($pdo, [
             'service_name' => 'alloggiati',
+            'action_name' => 'Send',
             'scope_type' => 'day',
             'scope_ref' => $arrivalDate,
-            'action_name' => 'simulate_send_day',
-            'status' => 'simulated',
-            'request_payload' => implode("\n", $traceRecords),
-            'response_payload' => '',
+            'is_simulated' => true,
+            'success' => true,
+            'request_payload' => implode("
+", $lines),
+            'response_payload' => 'SIMULATED_OK',
             'error_message' => '',
         ]);
-        return $result + ['mode' => 'simulation'];
+        $ids = array_map(static fn(array $r): int => (int) $r['id'], $schedine);
+        if ($ids) {
+            $placeholders = implode(',', array_fill(0, count($ids), '?'));
+            $stmt = $pdo->prepare("UPDATE alloggiati_schedine SET status = 'inviata', sent_at = NOW(), last_attempt_at = NOW(), attempt_count = attempt_count + 1, last_error = NULL, validation_errors = NULL, updated_at = NOW() WHERE id IN ($placeholders)");
+            $stmt->execute($ids);
+        }
+        return ['sent' => count($ids), 'errors' => []];
     }
 
-    $tokenData = alloggiati_ws_generate_token($config);
-    webservice_log_event($pdo, [
-        'service_name' => 'alloggiati',
-        'scope_type' => 'day',
-        'scope_ref' => $arrivalDate,
-        'action_name' => 'GenerateToken',
-        'status' => $tokenData['success'] ? 'sent' : 'failed',
-        'request_payload' => (string) ($tokenData['request_xml'] ?? ''),
-        'response_payload' => (string) ($tokenData['response_xml'] ?? ''),
-        'error_message' => (string) ($tokenData['error'] ?? ''),
-    ]);
-    if (!$tokenData['success']) {
-        return ['sent' => 0, 'errors' => [(string) $tokenData['error']], 'mode' => 'ws'];
+    $tokenInfo = alloggiati_ws_generate_token_live($pdo, $config);
+    $test = alloggiati_ws_run_method($pdo, 'Test', $config, (string) $tokenInfo['token'], $lines, 'day', $arrivalDate);
+    $testResults = $test['row_results'];
+
+    $errors = [];
+    $sendableRows = [];
+    $sendableLines = [];
+    foreach ($schedine as $index => $row) {
+        $rowResult = $testResults[$index] ?? ['success' => true, 'error_detail' => ''];
+        if (!empty($rowResult['success'])) {
+            $sendableRows[] = $row;
+            $sendableLines[] = $lines[$index];
+        } else {
+            $message = trim(($rowResult['error_description'] ?? '') . ' ' . ($rowResult['error_detail'] ?? '')) ?: 'Schedina non valida.';
+            $errors[] = ($row['display_name'] ?? 'Schedina') . ': ' . $message;
+            $stmt = $pdo->prepare("UPDATE alloggiati_schedine SET status = 'errore', last_attempt_at = NOW(), attempt_count = attempt_count + 1, last_error = :err, updated_at = NOW() WHERE id = :id");
+            $stmt->execute(['err' => $message, 'id' => (int) $row['id']]);
+        }
     }
 
-    $testData = alloggiati_ws_call_list($config, $traceRecords, 'Test', (string) $tokenData['token']);
-    webservice_log_event($pdo, [
-        'service_name' => 'alloggiati',
-        'scope_type' => 'day',
-        'scope_ref' => $arrivalDate,
-        'action_name' => 'Test',
-        'status' => $testData['success'] ? 'sent' : 'failed',
-        'request_payload' => (string) ($testData['request_xml'] ?? ''),
-        'response_payload' => (string) ($testData['response_xml'] ?? ''),
-        'error_message' => (string) ($testData['overall_error'] ?? ''),
-    ]);
-    if (!$testData['success']) {
-        $marked = alloggiati_ws_mark_schedine($pdo, $schedine, $testData['details'] ?? [], false);
-        $errors = $marked['errors'] ?: [(string) ($testData['overall_error'] ?: 'Test Alloggiati non riuscito.')];
-        return ['sent' => 0, 'errors' => $errors, 'mode' => 'ws'];
+    if (!$sendableRows) {
+        return ['sent' => 0, 'errors' => $errors ?: ['Nessuna schedina valida dopo il test preliminare.']];
     }
 
-    $sendData = alloggiati_ws_call_list($config, $traceRecords, 'Send', (string) $tokenData['token']);
-    webservice_log_event($pdo, [
-        'service_name' => 'alloggiati',
-        'scope_type' => 'day',
-        'scope_ref' => $arrivalDate,
-        'action_name' => 'Send',
-        'status' => $sendData['success'] ? 'sent' : 'failed',
-        'request_payload' => (string) ($sendData['request_xml'] ?? ''),
-        'response_payload' => (string) ($sendData['response_xml'] ?? ''),
-        'error_message' => (string) ($sendData['overall_error'] ?? ''),
-    ]);
-
-    $marked = alloggiati_ws_mark_schedine($pdo, $schedine, $sendData['details'] ?? [], $sendData['success']);
-    if (!$sendData['success'] && !$marked['errors']) {
-        $marked['errors'][] = (string) ($sendData['overall_error'] ?: 'Invio Alloggiati non riuscito.');
+    $send = alloggiati_ws_run_method($pdo, 'Send', $config, (string) $tokenInfo['token'], $sendableLines, 'day', $arrivalDate);
+    $sendResults = $send['row_results'];
+    $sent = 0;
+    foreach ($sendableRows as $index => $row) {
+        $rowResult = $sendResults[$index] ?? ['success' => false, 'error_detail' => 'Risposta incompleta del servizio'];
+        if (!empty($rowResult['success'])) {
+            $stmt = $pdo->prepare("UPDATE alloggiati_schedine SET status = 'inviata', sent_at = NOW(), last_attempt_at = NOW(), attempt_count = attempt_count + 1, last_error = NULL, validation_errors = NULL, updated_at = NOW() WHERE id = :id");
+            $stmt->execute(['id' => (int) $row['id']]);
+            $sent++;
+        } else {
+            $message = trim(($rowResult['error_description'] ?? '') . ' ' . ($rowResult['error_detail'] ?? '')) ?: 'Invio schedina fallito.';
+            $errors[] = ($row['display_name'] ?? 'Schedina') . ': ' . $message;
+            $stmt = $pdo->prepare("UPDATE alloggiati_schedine SET status = 'errore', last_attempt_at = NOW(), attempt_count = attempt_count + 1, last_error = :err, updated_at = NOW() WHERE id = :id");
+            $stmt->execute(['err' => $message, 'id' => (int) $row['id']]);
+        }
     }
-    return $marked + ['mode' => 'ws'];
+
+    return ['sent' => $sent, 'errors' => array_values(array_unique($errors))];
 }
 
 function alloggiati_ws_send_schedina(PDO $pdo, int $schedinaId): array
 {
     $bundle = alloggiati_collect_single_export($pdo, $schedinaId);
     $schedina = $bundle['schedina'] ?? null;
-    if (!$schedina || !empty($bundle['errors'])) {
-        return ['sent' => 0, 'errors' => array_values($bundle['errors'] ?? ['Schedina non disponibile.']), 'mode' => 'none'];
+    $line = (string) ($bundle['content'] ?? '');
+    if (!$schedina || trim($line) === '') {
+        return ['sent' => 0, 'errors' => array_values($bundle['errors'] ?? ['Schedina non pronta.'])];
     }
 
     $config = alloggiati_ws_config();
-    $traceRecord = (string) ($schedina['trace_record'] ?? '');
-    if ($traceRecord === '') {
-        return ['sent' => 0, 'errors' => ['Schedina senza tracciato record valido.'], 'mode' => 'none'];
+    if (!alloggiati_ws_config_ready($config)) {
+        throw new RuntimeException('Configura utente, password e WSKEY del web service Alloggiati.');
     }
 
-    if (alloggiati_ws_simulation_enabled($config)) {
-        $result = alloggiati_ws_mark_schedine($pdo, [$schedina], [], true);
-        webservice_log_event($pdo, [
+    if (!empty($config['simulate_send_without_ws'])) {
+        webservice_log($pdo, [
             'service_name' => 'alloggiati',
-            'scope_type' => 'schedina',
+            'action_name' => 'Send',
+            'scope_type' => 'single_schedina',
             'scope_ref' => (string) $schedinaId,
-            'action_name' => 'simulate_send_single',
-            'status' => 'simulated',
-            'request_payload' => $traceRecord,
-            'response_payload' => '',
+            'is_simulated' => true,
+            'success' => true,
+            'request_payload' => $line,
+            'response_payload' => 'SIMULATED_OK',
             'error_message' => '',
         ]);
-        return $result + ['mode' => 'simulation'];
+        $stmt = $pdo->prepare("UPDATE alloggiati_schedine SET status = 'inviata', sent_at = NOW(), last_attempt_at = NOW(), attempt_count = attempt_count + 1, last_error = NULL, validation_errors = NULL, updated_at = NOW() WHERE id = :id");
+        $stmt->execute(['id' => $schedinaId]);
+        return ['sent' => 1, 'errors' => [], 'arrival_date' => (string) ($schedina['arrival_date'] ?? '')];
     }
 
-    $tokenData = alloggiati_ws_generate_token($config);
-    webservice_log_event($pdo, [
-        'service_name' => 'alloggiati',
-        'scope_type' => 'schedina',
-        'scope_ref' => (string) $schedinaId,
-        'action_name' => 'GenerateToken',
-        'status' => $tokenData['success'] ? 'sent' : 'failed',
-        'request_payload' => (string) ($tokenData['request_xml'] ?? ''),
-        'response_payload' => (string) ($tokenData['response_xml'] ?? ''),
-        'error_message' => (string) ($tokenData['error'] ?? ''),
-    ]);
-    if (!$tokenData['success']) {
-        return ['sent' => 0, 'errors' => [(string) $tokenData['error']], 'mode' => 'ws'];
+    $tokenInfo = alloggiati_ws_generate_token_live($pdo, $config);
+    $test = alloggiati_ws_run_method($pdo, 'Test', $config, (string) $tokenInfo['token'], [$line], 'single_schedina', (string) $schedinaId);
+    $testResult = $test['row_results'][0] ?? ['success' => false, 'error_detail' => 'Risposta incompleta del servizio'];
+    if (empty($testResult['success'])) {
+        $message = trim(($testResult['error_description'] ?? '') . ' ' . ($testResult['error_detail'] ?? '')) ?: 'Schedina non valida.';
+        $stmt = $pdo->prepare("UPDATE alloggiati_schedine SET status = 'errore', last_attempt_at = NOW(), attempt_count = attempt_count + 1, last_error = :err, updated_at = NOW() WHERE id = :id");
+        $stmt->execute(['err' => $message, 'id' => $schedinaId]);
+        return ['sent' => 0, 'errors' => [$message], 'arrival_date' => (string) ($schedina['arrival_date'] ?? '')];
     }
 
-    $testData = alloggiati_ws_call_list($config, [$traceRecord], 'Test', (string) $tokenData['token']);
-    webservice_log_event($pdo, [
-        'service_name' => 'alloggiati',
-        'scope_type' => 'schedina',
-        'scope_ref' => (string) $schedinaId,
-        'action_name' => 'Test',
-        'status' => $testData['success'] ? 'sent' : 'failed',
-        'request_payload' => (string) ($testData['request_xml'] ?? ''),
-        'response_payload' => (string) ($testData['response_xml'] ?? ''),
-        'error_message' => (string) ($testData['overall_error'] ?? ''),
-    ]);
-    if (!$testData['success']) {
-        $marked = alloggiati_ws_mark_schedine($pdo, [$schedina], $testData['details'] ?? [], false);
-        $errors = $marked['errors'] ?: [(string) ($testData['overall_error'] ?: 'Test Alloggiati non riuscito.')];
-        return ['sent' => 0, 'errors' => $errors, 'mode' => 'ws'];
+    $send = alloggiati_ws_run_method($pdo, 'Send', $config, (string) $tokenInfo['token'], [$line], 'single_schedina', (string) $schedinaId);
+    $sendResult = $send['row_results'][0] ?? ['success' => false, 'error_detail' => 'Risposta incompleta del servizio'];
+    if (empty($sendResult['success'])) {
+        $message = trim(($sendResult['error_description'] ?? '') . ' ' . ($sendResult['error_detail'] ?? '')) ?: 'Invio schedina fallito.';
+        $stmt = $pdo->prepare("UPDATE alloggiati_schedine SET status = 'errore', last_attempt_at = NOW(), attempt_count = attempt_count + 1, last_error = :err, updated_at = NOW() WHERE id = :id");
+        $stmt->execute(['err' => $message, 'id' => $schedinaId]);
+        return ['sent' => 0, 'errors' => [$message], 'arrival_date' => (string) ($schedina['arrival_date'] ?? '')];
     }
 
-    $sendData = alloggiati_ws_call_list($config, [$traceRecord], 'Send', (string) $tokenData['token']);
-    webservice_log_event($pdo, [
-        'service_name' => 'alloggiati',
-        'scope_type' => 'schedina',
-        'scope_ref' => (string) $schedinaId,
-        'action_name' => 'Send',
-        'status' => $sendData['success'] ? 'sent' : 'failed',
-        'request_payload' => (string) ($sendData['request_xml'] ?? ''),
-        'response_payload' => (string) ($sendData['response_xml'] ?? ''),
-        'error_message' => (string) ($sendData['overall_error'] ?? ''),
-    ]);
+    $stmt = $pdo->prepare("UPDATE alloggiati_schedine SET status = 'inviata', sent_at = NOW(), last_attempt_at = NOW(), attempt_count = attempt_count + 1, last_error = NULL, validation_errors = NULL, updated_at = NOW() WHERE id = :id");
+    $stmt->execute(['id' => $schedinaId]);
 
-    $marked = alloggiati_ws_mark_schedine($pdo, [$schedina], $sendData['details'] ?? [], $sendData['success']);
-    if (!$sendData['success'] && !$marked['errors']) {
-        $marked['errors'][] = (string) ($sendData['overall_error'] ?: 'Invio Alloggiati non riuscito.');
-    }
-    return $marked + ['mode' => 'ws'];
+    return ['sent' => 1, 'errors' => [], 'arrival_date' => (string) ($schedina['arrival_date'] ?? '')];
 }

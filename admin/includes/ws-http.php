@@ -2,74 +2,86 @@
 
 declare(strict_types=1);
 
-function ws_http_post_xml(string $url, string $xml, array $headers = [], array $options = []): array
+function ws_http_post_xml(string $url, string $xml, array $options = []): array
 {
-    if (!function_exists('curl_init')) {
+    $headers = $options['headers'] ?? [];
+    $timeout = (int) ($options['timeout'] ?? 30);
+    $basicAuth = $options['basic_auth'] ?? null;
+
+    if (function_exists('curl_init')) {
+        $ch = curl_init($url);
+        if ($ch === false) {
+            throw new RuntimeException('Impossibile inizializzare cURL.');
+        }
+
+        $responseHeaders = [];
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $xml,
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HEADERFUNCTION => static function ($curl, string $headerLine) use (&$responseHeaders): int {
+                $len = strlen($headerLine);
+                $parts = explode(':', $headerLine, 2);
+                if (count($parts) === 2) {
+                    $responseHeaders[strtolower(trim($parts[0]))][] = trim($parts[1]);
+                }
+                return $len;
+            },
+            CURLOPT_TIMEOUT => $timeout,
+            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+        ]);
+
+        if (is_array($basicAuth) && !empty($basicAuth['username'])) {
+            curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+            curl_setopt($ch, CURLOPT_USERPWD, (string) $basicAuth['username'] . ':' . (string) ($basicAuth['password'] ?? ''));
+        }
+
+        $body = curl_exec($ch);
+        $errno = curl_errno($ch);
+        $error = curl_error($ch);
+        $status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        curl_close($ch);
+
+        if ($errno !== 0) {
+            throw new RuntimeException('Errore HTTP/cURL: ' . $error);
+        }
+
         return [
-            'success' => false,
-            'status_code' => 0,
-            'body' => '',
-            'error' => 'cURL non disponibile sul server.',
+            'status_code' => $status,
+            'headers' => $responseHeaders,
+            'body' => is_string($body) ? $body : '',
         ];
     }
 
-    $timeout = (int) ($options['timeout'] ?? 45);
-    $connectTimeout = (int) ($options['connect_timeout'] ?? 20);
-
-    $ch = curl_init($url);
-    $curlOptions = [
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => $xml,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => $timeout,
-        CURLOPT_CONNECTTIMEOUT => $connectTimeout,
-        CURLOPT_HTTPHEADER => array_merge([
-            'Content-Length: ' . strlen($xml),
-        ], $headers),
-        CURLOPT_SSL_VERIFYPEER => true,
-        CURLOPT_SSL_VERIFYHOST => 2,
+    $contextHeaders = implode("
+", $headers);
+    $opts = [
+        'http' => [
+            'method' => 'POST',
+            'header' => $contextHeaders,
+            'content' => $xml,
+            'timeout' => $timeout,
+            'ignore_errors' => true,
+        ],
     ];
-
-    if (!empty($options['basic_auth_user'])) {
-        $curlOptions[CURLOPT_HTTPAUTH] = CURLAUTH_BASIC;
-        $curlOptions[CURLOPT_USERPWD] = (string) $options['basic_auth_user'] . ':' . (string) ($options['basic_auth_pass'] ?? '');
+    $context = stream_context_create($opts);
+    $body = @file_get_contents($url, false, $context);
+    if ($body === false) {
+        throw new RuntimeException('Errore HTTP: impossibile contattare il servizio remoto.');
     }
 
-    curl_setopt_array($ch, $curlOptions);
-    $body = curl_exec($ch);
-    $statusCode = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-    $error = curl_error($ch);
-    curl_close($ch);
+    $status = 0;
+    global $http_response_header;
+    if (!empty($http_response_header[0]) && preg_match('/\s(\d{3})\s/', (string) $http_response_header[0], $m)) {
+        $status = (int) $m[1];
+    }
 
     return [
-        'success' => $body !== false && $statusCode >= 200 && $statusCode < 300,
-        'status_code' => $statusCode,
-        'body' => is_string($body) ? $body : '',
-        'error' => $error,
+        'status_code' => $status,
+        'headers' => [],
+        'body' => $body,
     ];
-}
-
-function ws_xml_xpath(string $xml): ?DOMXPath
-{
-    $dom = new DOMDocument();
-    $previous = libxml_use_internal_errors(true);
-    $loaded = $dom->loadXML($xml);
-    libxml_clear_errors();
-    libxml_use_internal_errors($previous);
-
-    if (!$loaded) {
-        return null;
-    }
-
-    return new DOMXPath($dom);
-}
-
-function ws_xml_value(DOMXPath $xpath, string $query): string
-{
-    $nodeList = @$xpath->query($query);
-    if (!$nodeList || !$nodeList->length) {
-        return '';
-    }
-
-    return trim((string) $nodeList->item(0)->textContent);
 }

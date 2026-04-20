@@ -10,6 +10,6 @@ return [
     'password' => '',
     'wskey' => '',
 
-    // Fase attuale: il workflow di invio resta locale, ma il tracciato e le buste SOAP sono già predisposti.
-    'simulate_send_without_ws' => true,
+    // Imposta a false per usare il web service reale dopo aver compilato le credenziali.
+    'simulate_send_without_ws' => false,
 ];

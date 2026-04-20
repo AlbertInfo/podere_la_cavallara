@@ -7,13 +7,6 @@ require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/ross1000-ws.php';
 require_admin();
 
-function redirect_ross_day_ws(string $month, string $day, string $type, string $message): never
-{
-    set_flash($type, $message);
-    header('Location: ' . admin_url('anagrafica.php?month=' . rawurlencode($month) . '&day=' . rawurlencode($day)));
-    exit;
-}
-
 $day = trim((string) ($_GET['day'] ?? ''));
 $month = trim((string) ($_GET['month'] ?? ''));
 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $day) || !preg_match('/^\d{4}-\d{2}$/', $month)) {
@@ -22,15 +15,23 @@ if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $day) || !preg_match('/^\d{4}-\d{2}$/',
 }
 
 try {
-    $result = ross1000_ws_send_day($pdo, $day);
-    if (!$result['success']) {
-        redirect_ross_day_ws($month, $day, 'error', 'Invio ROSS1000 non riuscito: ' . implode(' ', $result['errors'] ?? []));
+    $state = ross1000_get_day_state($pdo, $day, ross1000_property_config());
+    if ((int) ($state['is_finalized'] ?? 0) !== 1) {
+        throw new RuntimeException('Chiudi il giorno prima di inviarlo a ROSS1000.');
     }
 
-    $message = (($result['mode'] ?? '') === 'simulation')
-        ? 'Invio ROSS1000 simulato con successo. Configura username/password e disattiva la simulazione per l’invio reale.'
-        : 'Invio ROSS1000 del giorno completato con successo.';
-    redirect_ross_day_ws($month, $day, 'success', $message);
+    $payload = ross1000_build_day_payload($pdo, $day);
+    ross1000_ws_send($pdo, $payload, 'day', $day);
+
+    if (ross1000_day_status_table_ready($pdo)) {
+        $state['exported_ross_at'] = date('Y-m-d H:i:s');
+        ross1000_upsert_day_state($pdo, $day, $state);
+    }
+
+    set_flash('success', 'Invio ROSS1000 del giorno completato correttamente.');
 } catch (Throwable $e) {
-    redirect_ross_day_ws($month, $day, 'error', 'Errore durante l’invio ROSS1000: ' . $e->getMessage());
+    set_flash('error', 'Invio ROSS1000 non riuscito: ' . $e->getMessage());
 }
+
+header('Location: ' . admin_url('anagrafica.php?month=' . rawurlencode($month) . '&day=' . rawurlencode($day)));
+exit;

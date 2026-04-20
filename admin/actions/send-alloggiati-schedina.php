@@ -45,8 +45,7 @@ try {
     $pdo->commit();
 
     if (($result['sent'] ?? 0) > 0) {
-        $modeMsg = (($result['mode'] ?? '') === 'simulation') ? ' (simulazione attiva)' : '';
-        redirect_alloggiati_schedina($month, $day, 'success', 'Schedina Alloggiati inviata correttamente' . $modeMsg . '.');
+        redirect_alloggiati_schedina($month, $day, 'success', 'Schedina Alloggiati inviata correttamente.');
     }
     redirect_alloggiati_schedina($month, $day, 'error', implode(' ', $result['errors'] ?? []) ?: 'La schedina selezionata non è pronta per l’invio.');
 } catch (Throwable $e) {
