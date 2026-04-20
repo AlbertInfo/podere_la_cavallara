@@ -136,7 +136,7 @@ if ($recordTableReady) {
         if ($prenotazioneLinkReady) {
             $syncResult = anagrafica_sync_prenotazioni_range_safe($pdo, $monthStart->format('Y-m-d'), $monthEnd->format('Y-m-d'));
             $bookingSyncIssues = (array) ($syncResult['issues'] ?? []);
-            $selectedBookings = anagrafica_fetch_prenotazioni_touching_day($pdo, $selectedDay);
+            $selectedBookings = anagrafica_fetch_day_entries($pdo, $selectedDay);
         }
     } catch (Throwable $e) {
         $selectedBookings = [];
@@ -197,7 +197,7 @@ if ($recordTableReady && isset($days[$selectedDay])) {
     $selectedSnapshot = $days[$selectedDay] ?? null;
     $selectedRecords = (array) ($selectedSnapshot['touching_records'] ?? []);
     if ($prenotazioneLinkReady) {
-        $selectedBookings = anagrafica_fetch_prenotazioni_touching_day($pdo, $selectedDay);
+        $selectedBookings = anagrafica_fetch_day_entries($pdo, $selectedDay);
     }
 }
 
@@ -826,10 +826,10 @@ require_once __DIR__ . '/includes/header.php';
         <div class="card-lite ross-day-records">
             <div class="section-title section-title--split">
                 <div>
-                    <h3>Prenotazioni che toccano il giorno</h3>
-                    <p class="muted">La lista è letta dalla tabella prenotazioni e rimane sincronizzata con l'anagrafica collegata per documenti ed export.</p>
+                    <h3>Prenotazioni e anagrafiche che toccano il giorno</h3>
+                    <p class="muted">La lista unisce prenotazioni e anagrafiche manuali che hanno check-in, presenza o check-out sul giorno selezionato, mantenendo la sincronizzazione con documenti ed export.</p>
                 </div>
-                <span class="ross-badge ross-badge--blue"><?= count($selectedBookings) ?> prenotazioni</span>
+                <span class="ross-badge ross-badge--blue"><?= count($selectedBookings) ?> elementi</span>
             </div>
             <?php if (!$prenotazioneLinkReady): ?>
                 <div class="anagrafica-empty-state">
@@ -838,8 +838,8 @@ require_once __DIR__ . '/includes/header.php';
                 </div>
             <?php elseif (!$selectedBookings): ?>
                 <div class="anagrafica-empty-state">
-                    <strong>Nessuna prenotazione trovata</strong>
-                    <p class="muted">Per il giorno selezionato non risultano check-in, presenze o check-out nella tabella prenotazioni.</p>
+                    <strong>Nessun elemento trovato</strong>
+                    <p class="muted">Per il giorno selezionato non risultano check-in, presenze o check-out né prenotazioni né anagrafiche manuali.</p>
                 </div>
             <?php else: ?>
                 <div class="ross-record-list">
@@ -864,12 +864,21 @@ require_once __DIR__ . '/includes/header.php';
                                 <?php if (!empty($flags['arrival'])): ?><span class="ross-badge ross-badge--green">Check-in</span><?php endif; ?>
                                 <?php if (!empty($flags['departure'])): ?><span class="ross-badge ross-badge--amber">Check-out</span><?php endif; ?>
                                 <?php if (!empty($flags['present'])): ?><span class="ross-badge ross-badge--blue">Presenza</span><?php endif; ?>
+                                <?php if (($booking['row_source'] ?? '') === 'manual_record'): ?><span class="ross-badge">Anagrafica manuale</span><?php endif; ?>
                                 <?php if (!empty($booking['linked_record_id'])): ?><span class="ross-badge">Scheda collegata</span><?php endif; ?>
                                 <?php if (!empty($booking['document_ready'])): ?><span class="ross-badge ross-badge--green">Documento presente</span><?php endif; ?>
                                 <?php if (!empty($booking['sync_issue_message'])): ?><span class="ross-badge ross-badge--amber">Da completare</span><?php endif; ?>
                             </div>
                             <div class="ross-record-row__actions" data-row-ignore>
                                 <button class="btn btn-light btn-sm" type="button" data-booking-modal-trigger data-booking-payload='<?= e(json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>'>Apri scheda</button>
+                                <form method="post" action="<?= e(admin_url('actions/delete-booking-anagrafica.php')) ?>" data-delete-form>
+                                    <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+                                    <input type="hidden" name="month" value="<?= e($selectedMonth) ?>">
+                                    <input type="hidden" name="day" value="<?= e($selectedDay) ?>">
+                                    <input type="hidden" name="prenotazione_id" value="<?= (int) ($booking['booking_id'] ?? $booking['id'] ?? 0) ?>">
+                                    <input type="hidden" name="linked_record_id" value="<?= (int) ($booking['linked_record_id'] ?? 0) ?>">
+                                    <button class="btn btn-danger-soft btn-sm" type="submit">Rimuovi</button>
+                                </form>
                             </div>
                         </article>
                     <?php endforeach; ?>

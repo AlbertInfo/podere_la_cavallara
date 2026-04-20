@@ -502,6 +502,13 @@ try {
         'id' => $recordId,
     ]);
 
+    upsert_prenotazione_from_record($pdo, $recordId, [
+        'arrival_date' => $arrivalDate,
+        'departure_date' => $departureDate,
+        'expected_guests' => count($normalizedGuests),
+        'booking_reference' => $bookingReference,
+    ], $normalizedGuests[0]);
+
     if (alloggiati_schedine_table_ready($pdo)) {
         alloggiati_sync_record($pdo, $recordId);
     }

@@ -349,6 +349,128 @@ function anagrafica_fetch_record_guests(PDO $pdo, int $recordId): array
     return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 }
 
+function anagrafica_build_record_modal_payload(PDO $pdo, array $record): array
+{
+    $recordId = (int) ($record['id'] ?? 0);
+    $recordType = (string) ($record['record_type'] ?? 'single');
+    $bookingReference = (string) ($record['booking_reference'] ?? '');
+    $bookingReceived = (string) ($record['booking_received_date'] ?? date('Y-m-d'));
+    $arrival = substr((string) ($record['arrival_date'] ?? ''), 0, 10);
+    $departure = substr((string) ($record['departure_date'] ?? ''), 0, 10);
+    $reservedRooms = max(1, (int) ($record['reserved_rooms'] ?? 1));
+
+    $guests = [];
+    foreach (anagrafica_fetch_record_guests($pdo, $recordId) as $guest) {
+        $guests[] = [
+            'first_name' => (string) ($guest['first_name'] ?? ''),
+            'last_name' => (string) ($guest['last_name'] ?? ''),
+            'gender' => (string) ($guest['gender'] ?? 'M'),
+            'birth_date' => substr((string) ($guest['birth_date'] ?? ''), 0, 10),
+            'citizenship_label' => (string) ($guest['citizenship_label'] ?? ''),
+            'birth_state_label' => (string) ($guest['birth_state_label'] ?? ''),
+            'birth_province' => (string) ($guest['birth_province'] ?? ''),
+            'birth_place_label' => (string) ($guest['birth_place_label'] ?? ''),
+            'residence_state_label' => (string) ($guest['residence_state_label'] ?? ''),
+            'residence_province' => (string) ($guest['residence_province'] ?? ''),
+            'residence_place_label' => (string) ($guest['residence_place_label'] ?? ''),
+            'document_type_label' => (string) ($guest['document_type_label'] ?? ''),
+            'document_number' => (string) ($guest['document_number'] ?? ''),
+            'document_issue_place' => (string) ($guest['document_issue_place'] ?? ''),
+            'tourism_type' => (string) ($guest['tourism_type'] ?? ''),
+            'transport_type' => (string) ($guest['transport_type'] ?? ''),
+        ];
+    }
+    if (!$guests) {
+        $guests[] = [];
+    }
+
+    return [
+        'prenotazione_id' => (int) ($record['prenotazione_id'] ?? 0),
+        'linked_record_id' => $recordId,
+        'record_type' => $recordType,
+        'booking_reference' => $bookingReference,
+        'booking_received_date' => $bookingReceived,
+        'arrival_date' => $arrival,
+        'departure_date' => $departure,
+        'reserved_rooms' => $reservedRooms,
+        'guests' => $guests,
+    ];
+}
+
+function anagrafica_fetch_standalone_records_touching_day(PDO $pdo, string $day): array
+{
+    $sql = "
+        SELECT ar.*, leader.first_name AS leader_first_name,
+               leader.last_name AS leader_last_name,
+               leader.document_type_label AS leader_document_type_label,
+               leader.document_number AS leader_document_number,
+               leader.document_issue_place AS leader_document_issue_place,
+               leader.birth_date AS leader_birth_date,
+               leader.gender AS leader_gender,
+               leader.citizenship_label AS leader_citizenship_label,
+               leader.birth_state_label AS leader_birth_state_label,
+               leader.birth_province AS leader_birth_province,
+               leader.birth_place_label AS leader_birth_place_label,
+               leader.residence_state_label AS leader_residence_state_label,
+               leader.residence_province AS leader_residence_province,
+               leader.residence_place_label AS leader_residence_place_label
+        FROM anagrafica_records ar
+        LEFT JOIN anagrafica_guests leader ON leader.record_id = ar.id AND leader.is_group_leader = 1
+        WHERE (ar.prenotazione_id IS NULL OR ar.prenotazione_id = 0)
+          AND ar.arrival_date <= :day AND ar.departure_date >= :day
+        ORDER BY ar.arrival_date ASC, ar.id ASC
+    ";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute(['day' => $day]);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    foreach ($rows as &$row) {
+        $arrival = substr((string) ($row['arrival_date'] ?? ''), 0, 10);
+        $departure = substr((string) ($row['departure_date'] ?? ''), 0, 10);
+        $customerName = trim((string) (($row['leader_first_name'] ?? '') . ' ' . ($row['leader_last_name'] ?? '')));
+        $totalGuests = max(1, (int) ($row['expected_guests'] ?? 1));
+        $recordRowId = (int) ($row['id'] ?? 0);
+        $row['booking_id'] = 0;
+        $row['row_source'] = 'manual_record';
+        $row['customer_name'] = $customerName !== '' ? $customerName : ('Anagrafica #' . $recordRowId);
+        $row['check_in'] = $arrival;
+        $row['check_out'] = $departure;
+        $row['adults'] = $totalGuests;
+        $row['children_count'] = 0;
+        $row['room_type'] = 'Anagrafica manuale';
+        $row['status'] = (string) ($row['status'] ?? 'draft');
+        $row['linked_record_id'] = $recordRowId;
+        $row['id'] = 0;
+        $row['flags'] = [
+            'arrival' => $arrival === $day,
+            'departure' => $departure === $day,
+            'present' => $arrival !== '' && $departure !== '' && $arrival <= $day && $departure > $day,
+        ];
+        $row['total_guests'] = $totalGuests;
+        $row['document_ready'] = trim((string) ($row['leader_document_number'] ?? '')) !== '';
+        $row['modal_payload'] = anagrafica_build_record_modal_payload($pdo, $row);
+    }
+    unset($row);
+    return $rows;
+}
+
+function anagrafica_fetch_day_entries(PDO $pdo, string $day): array
+{
+    $entries = anagrafica_fetch_prenotazioni_touching_day($pdo, $day);
+    foreach (anagrafica_fetch_standalone_records_touching_day($pdo, $day) as $row) {
+        $entries[] = $row;
+    }
+    usort($entries, static function (array $a, array $b): int {
+        $aDate = substr((string) ($a['check_in'] ?? $a['arrival_date'] ?? ''), 0, 10);
+        $bDate = substr((string) ($b['check_in'] ?? $b['arrival_date'] ?? ''), 0, 10);
+        $cmp = strcmp($aDate, $bDate);
+        if ($cmp !== 0) {
+            return $cmp;
+        }
+        return ((int) ($a['linked_record_id'] ?? $a['id'] ?? 0)) <=> ((int) ($b['linked_record_id'] ?? $b['id'] ?? 0));
+    });
+    return $entries;
+}
+
 function anagrafica_build_booking_modal_payload(PDO $pdo, array $booking): array
 {
     $bookingId = (int) ($booking['id'] ?? 0);

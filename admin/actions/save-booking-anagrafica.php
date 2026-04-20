@@ -39,6 +39,53 @@ function booking_error(array &$errors, string $field, string $message): void
     if (!isset($errors[$field])) $errors[$field] = $message;
 }
 
+
+function booking_upsert_prenotazione_from_record(PDO $pdo, int $recordId, array $recordData, array $leaderGuest): int
+{
+    $customerName = trim(((string) ($leaderGuest['first_name'] ?? '')) . ' ' . ((string) ($leaderGuest['last_name'] ?? '')));
+    $customerName = $customerName !== '' ? $customerName : ('Prenotazione ' . $recordId);
+    $stayPeriod = anagrafica_booking_stay_period((string) ($recordData['arrival_date'] ?? ''), (string) ($recordData['departure_date'] ?? ''));
+
+    $stmt = $pdo->prepare('SELECT prenotazione_id FROM anagrafica_records WHERE id = :id LIMIT 1');
+    $stmt->execute(['id' => $recordId]);
+    $prenotazioneId = (int) ($stmt->fetchColumn() ?: 0);
+
+    if ($prenotazioneId > 0) {
+        $update = $pdo->prepare('UPDATE prenotazioni SET customer_name = :customer_name, stay_period = :stay_period, check_in = :check_in, check_out = :check_out, room_type = COALESCE(room_type, :room_type), adults = :adults, children_count = :children_count, status = :status, external_reference = :external_reference, updated_at = NOW() WHERE id = :id LIMIT 1');
+        $update->execute([
+            'customer_name' => $customerName,
+            'stay_period' => $stayPeriod,
+            'check_in' => $recordData['arrival_date'],
+            'check_out' => $recordData['departure_date'],
+            'room_type' => 'Da definire',
+            'adults' => max(1, (int) ($recordData['expected_guests'] ?? 1)),
+            'children_count' => 0,
+            'status' => 'confermata',
+            'external_reference' => trim((string) ($recordData['booking_reference'] ?? '')) !== '' ? (string) $recordData['booking_reference'] : null,
+            'id' => $prenotazioneId,
+        ]);
+        return $prenotazioneId;
+    }
+
+    $insert = $pdo->prepare('INSERT INTO prenotazioni (booking_request_id, customer_name, customer_email, email_missing, customer_phone, stay_period, check_in, check_out, room_type, adults, children_count, notes, status, source, external_reference, raw_payload, created_at, updated_at) VALUES (NULL, :customer_name, NULL, 1, NULL, :stay_period, :check_in, :check_out, :room_type, :adults, :children_count, NULL, :status, :source, :external_reference, :raw_payload, NOW(), NOW())');
+    $insert->execute([
+        'customer_name' => $customerName,
+        'stay_period' => $stayPeriod,
+        'check_in' => $recordData['arrival_date'],
+        'check_out' => $recordData['departure_date'],
+        'room_type' => 'Da definire',
+        'adults' => max(1, (int) ($recordData['expected_guests'] ?? 1)),
+        'children_count' => 0,
+        'status' => 'confermata',
+        'source' => 'anagrafica_admin',
+        'external_reference' => trim((string) ($recordData['booking_reference'] ?? '')) !== '' ? (string) $recordData['booking_reference'] : null,
+        'raw_payload' => json_encode(['created_from_booking_modal' => true], JSON_UNESCAPED_UNICODE),
+    ]);
+    $prenotazioneId = (int) $pdo->lastInsertId();
+    $pdo->prepare('UPDATE anagrafica_records SET prenotazione_id = :prenotazione_id WHERE id = :id')->execute(['prenotazione_id' => $prenotazioneId, 'id' => $recordId]);
+    return $prenotazioneId;
+}
+
 $month = trim((string) ($_POST['month'] ?? ''));
 $day = trim((string) ($_POST['day'] ?? ''));
 $prenotazioneId = (int) ($_POST['prenotazione_id'] ?? 0);
@@ -67,7 +114,7 @@ $bookingReceivedDate = booking_parse_date($data['booking_received_date']);
 $arrivalDate = booking_parse_date($data['arrival_date']);
 $departureDate = booking_parse_date($data['departure_date']);
 
-if ($prenotazioneId <= 0) booking_error($errors, 'booking_reference', 'Prenotazione non valida.');
+if ($prenotazioneId <= 0 && $recordId <= 0) booking_error($errors, 'booking_reference', 'Record non valido.');
 if (!$bookingReceivedDate) booking_error($errors, 'booking_received_date', 'Inserisci una data di registrazione valida.');
 if (!$arrivalDate) booking_error($errors, 'arrival_date', 'Inserisci una data di arrivo valida.');
 if (!$departureDate) booking_error($errors, 'departure_date', 'Inserisci una data di partenza valida.');
@@ -88,7 +135,10 @@ try {
     $bookingStmt->execute(['id' => $prenotazioneId]);
     $booking = $bookingStmt->fetch(PDO::FETCH_ASSOC);
     if (!$booking) {
-        throw new RuntimeException('Prenotazione non trovata.');
+        if ($recordId <= 0) {
+            throw new RuntimeException('Prenotazione non trovata.');
+        }
+        $booking = ['id' => 0];
     }
 
     $existing = null;
@@ -320,19 +370,12 @@ try {
     }
 
     $leaderGuest = $normalizedGuests[0];
-    $customerName = trim($leaderGuest['first_name'] . ' ' . $leaderGuest['last_name']);
-    $stayPeriod = anagrafica_booking_stay_period($arrivalDate, $departureDate);
-    $updateBooking = $pdo->prepare('UPDATE prenotazioni SET customer_name = :customer_name, stay_period = :stay_period, check_in = :check_in, check_out = :check_out, adults = :adults, children_count = :children_count, external_reference = :external_reference, updated_at = NOW() WHERE id = :id');
-    $updateBooking->execute([
-        'customer_name' => $customerName !== '' ? $customerName : ('Prenotazione ' . $prenotazioneId),
-        'stay_period' => $stayPeriod,
-        'check_in' => $arrivalDate,
-        'check_out' => $departureDate,
-        'adults' => max(1, count($normalizedGuests)),
-        'children_count' => 0,
-        'external_reference' => $data['booking_reference'] !== '' ? $data['booking_reference'] : null,
-        'id' => $prenotazioneId,
-    ]);
+    $prenotazioneId = booking_upsert_prenotazione_from_record($pdo, $recordId, [
+        'arrival_date' => $arrivalDate,
+        'departure_date' => $departureDate,
+        'expected_guests' => count($normalizedGuests),
+        'booking_reference' => $data['booking_reference'],
+    ], $leaderGuest);
 
     if (alloggiati_schedine_table_ready($pdo)) {
         alloggiati_sync_record($pdo, $recordId);
