@@ -28,53 +28,73 @@ function ross1000_ws_endpoint(string $wsdl): string
 
 function ross1000_ws_build_envelope(array $payload): string
 {
-    $xml = ross1000_build_xml($payload);
-    $xml = preg_replace('/^<\?xml[^>]+>\s*/', '', $xml) ?: $xml;
+    $movimentiXml = ross1000_build_xml($payload);
+    $movimentiXml = preg_replace('/^<\?xml[^>]+>\s*/', '', $movimentiXml) ?: $movimentiXml;
 
-    return '<?xml version="1.0" encoding="UTF-8"?>'
-        . '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns2="http://checkin.ws.service.turismo5.gies.it/">'
-        . '<soapenv:Header/>'
-        . '<soapenv:Body>'
-        . '<ns2:inviaMovimentazione>'
-        . '<movimentazione>' . $xml . '</movimentazione>'
-        . '</ns2:inviaMovimentazione>'
-        . '</soapenv:Body>'
-        . '</soapenv:Envelope>';
-}
+    $source = new DOMDocument('1.0', 'UTF-8');
+    if (!@$source->loadXML($movimentiXml, LIBXML_NOBLANKS)) {
+        throw new RuntimeException('Impossibile costruire il payload SOAP ROSS1000.');
+    }
 
-function ross1000_ws_extract_fault_message(string $body): string
-{
-    $patterns = [
-        '/<faultstring[^>]*>(.*?)<\/faultstring>/is',
-        '/<soap:Reason>.*?<soap:Text[^>]*>(.*?)<\/soap:Text>.*?<\/soap:Reason>/is',
-        '/<faultcode[^>]*>(.*?)<\/faultcode>/is',
-    ];
+    $root = $source->documentElement;
+    if (!$root || $root->nodeName !== 'movimenti') {
+        throw new RuntimeException('Il payload ROSS1000 deve avere radice <movimenti>.');
+    }
 
-    foreach ($patterns as $pattern) {
-        if (preg_match($pattern, $body, $match)) {
-            $text = trim(html_entity_decode(strip_tags((string) $match[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
-            if ($text !== '') {
-                return $text;
-            }
+    $codice = '';
+    $prodotto = '';
+    $movimentoNodes = [];
+
+    foreach ($root->childNodes as $child) {
+        if (!$child instanceof DOMElement) {
+            continue;
+        }
+
+        if ($child->tagName === 'codice') {
+            $codice = trim($child->textContent);
+            continue;
+        }
+
+        if ($child->tagName === 'prodotto') {
+            $prodotto = trim($child->textContent);
+            continue;
+        }
+
+        if ($child->tagName === 'movimento') {
+            $movimentoNodes[] = $child;
         }
     }
 
-    return '';
-}
+    if ($codice === '' || $prodotto === '' || !$movimentoNodes) {
+        throw new RuntimeException('Il payload ROSS1000 non contiene codice, prodotto o movimenti validi.');
+    }
 
-function ross1000_ws_body_excerpt(string $body, int $maxLength = 500): string
-{
-    $text = trim(preg_replace('/\s+/u', ' ', strip_tags($body)) ?? '');
-    if ($text === '') {
-        $text = trim($body);
+    $soap = new DOMDocument('1.0', 'UTF-8');
+    $soap->preserveWhiteSpace = false;
+    $soap->formatOutput = false;
+
+    $envelope = $soap->createElementNS('http://schemas.xmlsoap.org/soap/envelope/', 'soapenv:Envelope');
+    $soap->appendChild($envelope);
+    $envelope->setAttribute('xmlns:ns2', 'http://checkin.ws.service.turismo5.gies.it/');
+
+    $header = $soap->createElement('soapenv:Header');
+    $body = $soap->createElement('soapenv:Body');
+    $envelope->appendChild($header);
+    $envelope->appendChild($body);
+
+    $request = $soap->createElement('ns2:inviaMovimentazione');
+    $body->appendChild($request);
+
+    $movimentazione = $soap->createElement('movimentazione');
+    $request->appendChild($movimentazione);
+    $movimentazione->appendChild($soap->createElement('codice', $codice));
+    $movimentazione->appendChild($soap->createElement('prodotto', $prodotto));
+
+    foreach ($movimentoNodes as $node) {
+        $movimentazione->appendChild($soap->importNode($node, true));
     }
-    if ($text === '') {
-        return '';
-    }
-    if (function_exists('mb_substr')) {
-        return mb_strlen($text) > $maxLength ? mb_substr($text, 0, $maxLength) . '…' : $text;
-    }
-    return strlen($text) > $maxLength ? substr($text, 0, $maxLength) . '…' : $text;
+
+    return $soap->saveXML() ?: '';
 }
 
 function ross1000_ws_response_success(string $body): bool
@@ -82,31 +102,35 @@ function ross1000_ws_response_success(string $body): bool
     if (trim($body) === '') {
         return false;
     }
-    if (stripos($body, '<Fault>') !== false || stripos($body, '<soap:Fault') !== false || stripos($body, '<faultstring>') !== false) {
-        return false;
-    }
-    return stripos($body, '<Envelope') !== false || stripos($body, ':Envelope') !== false || stripos($body, '<Body') !== false;
+
+    return stripos($body, '<Fault') === false
+        && stripos($body, ':Fault') === false
+        && stripos($body, '<faultstring>') === false;
 }
 
-function ross1000_ws_error_message(array $response): string
+function ross1000_ws_response_error_message(array $response): string
 {
     $statusCode = (int) ($response['status_code'] ?? 0);
     $body = (string) ($response['body'] ?? '');
-    $fault = ross1000_ws_extract_fault_message($body);
-    if ($fault !== '') {
-        return sprintf('Fault SOAP ROSS1000 (HTTP %d): %s', $statusCode, $fault);
+
+    if ($body !== '') {
+        if (preg_match('/<faultstring>(.*?)<\/faultstring>/is', $body, $m)) {
+            return 'Fault SOAP ROSS1000 (HTTP ' . $statusCode . '): ' . trim(html_entity_decode(strip_tags($m[1]), ENT_QUOTES | ENT_XML1, 'UTF-8'));
+        }
+        if (preg_match('/<faultcode>(.*?)<\/faultcode>/is', $body, $m)) {
+            return 'Fault SOAP ROSS1000 (HTTP ' . $statusCode . '): ' . trim(html_entity_decode(strip_tags($m[1]), ENT_QUOTES | ENT_XML1, 'UTF-8'));
+        }
     }
 
-    $excerpt = ross1000_ws_body_excerpt($body);
-    if ($statusCode < 200 || $statusCode >= 300) {
-        return $excerpt !== ''
-            ? sprintf('Risposta HTTP %d dal servizio ROSS1000: %s', $statusCode, $excerpt)
-            : sprintf('Risposta HTTP %d dal servizio ROSS1000.', $statusCode);
+    if ($statusCode > 0) {
+        $excerpt = trim(preg_replace('/\s+/', ' ', strip_tags($body)));
+        if ($excerpt !== '') {
+            return 'Risposta HTTP ' . $statusCode . ' da ROSS1000: ' . mb_substr($excerpt, 0, 300);
+        }
+        return 'Risposta HTTP ' . $statusCode . ' da ROSS1000.';
     }
 
-    return $excerpt !== ''
-        ? 'ROSS1000 ha restituito una risposta non valida: ' . $excerpt
-        : 'ROSS1000 ha restituito una risposta non valida.';
+    return 'ROSS1000 ha restituito una risposta non valida.';
 }
 
 function ross1000_ws_send(PDO $pdo, array $payload, string $scopeType, string $scopeRef): array
@@ -147,11 +171,9 @@ function ross1000_ws_send(PDO $pdo, array $payload, string $scopeType, string $s
         'timeout' => 45,
     ]);
 
-    $success = ($response['status_code'] ?? 0) >= 200
-        && ($response['status_code'] ?? 0) < 300
-        && ross1000_ws_response_success((string) ($response['body'] ?? ''));
-
-    $errorMessage = $success ? '' : ross1000_ws_error_message($response);
+    $success = ($response['status_code'] ?? 0) >= 200 && ($response['status_code'] ?? 0) < 300 && ross1000_ws_response_success((string) ($response['body'] ?? ''));
+    $errorMessage = $success ? '' : ross1000_ws_response_error_message($response);
+    $responsePayload = 'HTTP ' . (int) ($response['status_code'] ?? 0) . "\n\n" . (string) ($response['body'] ?? '');
 
     webservice_log($pdo, [
         'service_name' => 'ross1000',
@@ -161,20 +183,13 @@ function ross1000_ws_send(PDO $pdo, array $payload, string $scopeType, string $s
         'is_simulated' => false,
         'success' => $success,
         'request_payload' => $requestXml,
-        'response_payload' => 'HTTP ' . (int) ($response['status_code'] ?? 0) . "
-" . (string) ($response['body'] ?? ''),
+        'response_payload' => $responsePayload,
         'error_message' => $errorMessage,
     ]);
 
     if (!$success) {
-        throw new RuntimeException($errorMessage !== '' ? $errorMessage : 'ROSS1000 ha restituito una risposta non valida. Controlla i log del web service.');
+        throw new RuntimeException($errorMessage);
     }
 
-    return [
-        'success' => true,
-        'simulated' => false,
-        'request_xml' => $requestXml,
-        'response_body' => (string) ($response['body'] ?? ''),
-        'status_code' => (int) ($response['status_code'] ?? 0),
-    ];
+    return ['success' => true, 'simulated' => false, 'request_xml' => $requestXml, 'response_body' => (string) ($response['body'] ?? '')];
 }

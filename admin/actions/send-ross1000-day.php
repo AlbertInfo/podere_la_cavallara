@@ -21,23 +21,15 @@ try {
     }
 
     $payload = ross1000_build_day_payload($pdo, $day);
-    $wsResult = ross1000_ws_send($pdo, $payload, 'day', $day);
+    ross1000_ws_send($pdo, $payload, 'day', $day);
 
     if (ross1000_day_status_table_ready($pdo)) {
-        $pdo->beginTransaction();
         $state['exported_ross_at'] = date('Y-m-d H:i:s');
         ross1000_upsert_day_state($pdo, $day, $state);
-        $pdo->commit();
     }
 
-    $message = !empty($wsResult['simulated'])
-        ? 'Invio ROSS1000 del giorno simulato correttamente.'
-        : 'Invio ROSS1000 del giorno completato correttamente.';
-    set_flash('success', $message);
+    set_flash('success', 'Invio ROSS1000 del giorno completato correttamente.');
 } catch (Throwable $e) {
-    if ($pdo->inTransaction()) {
-        $pdo->rollBack();
-    }
     set_flash('error', 'Invio ROSS1000 non riuscito: ' . $e->getMessage());
 }
 
