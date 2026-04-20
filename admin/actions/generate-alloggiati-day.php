@@ -39,7 +39,7 @@ try {
     $filename = alloggiati_build_download_filename_for_day($day);
     $content = (string) $bundle['content'];
 
-    header('Content-Type: text/plain; charset=windows-1252');
+    header('Content-Type: text/plain; charset=UTF-8');
     header('Content-Disposition: attachment; filename="' . $filename . '"');
     header('Content-Length: ' . strlen($content));
     echo $content;

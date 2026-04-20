@@ -35,22 +35,18 @@ try {
         redirect_alloggiati_schedina($month, $day, 'error', 'Esegui prima la migration della tabella alloggiati_schedine.');
     }
 
-    $pdo->beginTransaction();
     $result = alloggiati_ws_send_schedina($pdo, $schedinaId);
     if (($result['sent'] ?? 0) > 0 && ross1000_day_status_table_ready($pdo)) {
         $state = ross1000_get_day_state($pdo, $day);
         $state['exported_alloggiati_at'] = date('Y-m-d H:i:s');
         ross1000_upsert_day_state($pdo, $day, $state);
     }
-    $pdo->commit();
 
     if (($result['sent'] ?? 0) > 0) {
         redirect_alloggiati_schedina($month, $day, 'success', 'Schedina Alloggiati inviata correttamente.');
     }
-    redirect_alloggiati_schedina($month, $day, 'error', implode(' ', $result['errors'] ?? []) ?: 'La schedina selezionata non è pronta per l’invio.');
+    $errors = array_values(array_unique(array_filter(array_map(static fn($v): string => trim((string) $v), $result['errors'] ?? []))));
+    redirect_alloggiati_schedina($month, $day, 'error', implode(' | ', $errors) ?: 'La schedina selezionata non è pronta per l’invio.');
 } catch (Throwable $e) {
-    if ($pdo->inTransaction()) {
-        $pdo->rollBack();
-    }
     redirect_alloggiati_schedina($month, $day, 'error', 'Errore durante l’invio della schedina: ' . $e->getMessage());
 }

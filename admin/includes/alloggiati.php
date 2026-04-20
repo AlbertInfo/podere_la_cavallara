@@ -362,19 +362,32 @@ function alloggiati_sync_day(PDO $pdo, string $arrivalDate): array
     return alloggiati_fetch_day_schedine($pdo, $arrivalDate);
 }
 
+function alloggiati_is_exportable_status(string $status): bool
+{
+    return in_array($status, ['pronta', 'inviata', 'errore'], true);
+}
+
+function alloggiati_is_ws_sendable_status(string $status): bool
+{
+    return in_array($status, ['pronta', 'errore'], true);
+}
+
+function alloggiati_join_trace_records(array $lines): string
+{
+    return implode("\r\n", $lines);
+}
+
 function alloggiati_attach_runtime_fields(array $row): array
 {
     $row['payload'] = json_decode((string) ($row['payload_json'] ?? ''), true) ?: [];
-    $row['validation_errors_list'] = array_values(array_filter(array_map('trim', preg_split('/
-|
-|
-/', (string) ($row['validation_errors'] ?? '')) ?: [])));
+    $row['validation_errors_list'] = array_values(array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', (string) ($row['validation_errors'] ?? '')) ?: [])));
     $trace = alloggiati_build_trace_record($row['payload']);
     $row['trace_record'] = $trace['record'];
     $row['trace_errors'] = $trace['errors'];
     $row['trace_length'] = strlen((string) $trace['record']);
-    $row['can_generate_file'] = empty($trace['errors']) && in_array((string) ($row['status'] ?? ''), ['pronta', 'inviata'], true);
-    $row['can_send_ws'] = empty($trace['errors']) && in_array((string) ($row['status'] ?? ''), ['pronta'], true);
+    $status = (string) ($row['status'] ?? '');
+    $row['can_generate_file'] = empty($trace['errors']) && alloggiati_is_exportable_status($status);
+    $row['can_send_ws'] = empty($trace['errors']) && alloggiati_is_ws_sendable_status($status);
     return $row;
 }
 
@@ -571,25 +584,33 @@ function alloggiati_collect_day_export(PDO $pdo, string $arrivalDate): array
             $errors[] = (string) ($schedina['display_name'] ?? 'Schedina') . ': ' . implode(' ', $schedina['trace_errors']);
             continue;
         }
-        if (!in_array((string) ($schedina['status'] ?? ''), ['pronta', 'inviata'], true)) {
+        if (!alloggiati_is_exportable_status((string) ($schedina['status'] ?? ''))) {
             continue;
         }
         $lines[] = (string) $schedina['trace_record'];
         $rows[] = $schedina;
     }
 
+    if (count($lines) > 1000) {
+        $errors[] = 'Il tracciato Alloggiati supporta al massimo 1000 righe per file.';
+        $lines = array_slice($lines, 0, 1000);
+        $rows = array_slice($rows, 0, 1000);
+    }
+
     return [
         'schedine' => $rows,
-        'content' => implode("
-", $lines),
+        'content' => alloggiati_join_trace_records($lines),
         'line_count' => count($lines),
-        'errors' => $errors,
+        'errors' => array_values(array_unique($errors)),
         'ws' => alloggiati_build_ws_previews($lines),
     ];
 }
 
-function alloggiati_collect_single_export(PDO $pdo, int $schedinaId): array
+function alloggiati_collect_single_export(PDO $pdo, int $schedinaId, ?array $allowedStatuses = null): array
 {
+    $allowedStatuses = $allowedStatuses ?: ['pronta', 'inviata', 'errore'];
+    $allowedStatuses = array_values(array_unique(array_map('strval', $allowedStatuses)));
+
     $schedina = alloggiati_fetch_schedina($pdo, $schedinaId);
     if (!$schedina) {
         return ['schedina' => null, 'content' => '', 'line_count' => 0, 'errors' => ['Schedina non trovata.'], 'ws' => alloggiati_build_ws_previews([])];
@@ -605,8 +626,8 @@ function alloggiati_collect_single_export(PDO $pdo, int $schedinaId): array
         return ['schedina' => $schedina, 'content' => '', 'line_count' => 0, 'errors' => $schedina['trace_errors'], 'ws' => alloggiati_build_ws_previews([])];
     }
 
-    if (!in_array((string) ($schedina['status'] ?? ''), ['pronta', 'inviata'], true)) {
-        return ['schedina' => $schedina, 'content' => '', 'line_count' => 0, 'errors' => ['La schedina non è pronta per la generazione del tracciato.'], 'ws' => alloggiati_build_ws_previews([])];
+    if (!in_array((string) ($schedina['status'] ?? ''), $allowedStatuses, true)) {
+        return ['schedina' => $schedina, 'content' => '', 'line_count' => 0, 'errors' => ['La schedina non è disponibile per l’operazione richiesta.'], 'ws' => alloggiati_build_ws_previews([])];
     }
 
     $line = (string) $schedina['trace_record'];

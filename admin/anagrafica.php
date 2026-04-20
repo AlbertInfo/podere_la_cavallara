@@ -1071,13 +1071,13 @@ require_once __DIR__ . '/includes/header.php';
                     <form method="get" action="<?= e(admin_url('actions/generate-alloggiati-day.php')) ?>" class="alloggiati-day-send-form">
                         <input type="hidden" name="month" value="<?= e($selectedMonth) ?>">
                         <input type="hidden" name="day" value="<?= e($selectedDay) ?>">
-                        <button class="btn btn-light<?= $selectedSchedineCounts['pronta'] > 0 || $selectedSchedineCounts['inviata'] > 0 ? '' : ' is-disabled' ?> js-alloggiati-modal-trigger" type="submit" <?= ($selectedSchedineCounts['pronta'] > 0 || $selectedSchedineCounts['inviata'] > 0) ? '' : 'disabled' ?> data-modal-template-id="alloggiatiDayFileTemplate">Genera file Alloggiati del giorno</button>
+                        <button class="btn btn-light<?= $selectedSchedineCounts['pronta'] > 0 || $selectedSchedineCounts['inviata'] > 0 || $selectedSchedineCounts['errore'] > 0 ? '' : ' is-disabled' ?> js-alloggiati-modal-trigger" type="submit" <?= ($selectedSchedineCounts['pronta'] > 0 || $selectedSchedineCounts['inviata'] > 0 || $selectedSchedineCounts['errore'] > 0) ? '' : 'disabled' ?> data-modal-template-id="alloggiatiDayFileTemplate">Genera file Alloggiati del giorno</button>
                     </form>
                     <form method="post" action="<?= e(admin_url('actions/send-alloggiati-day.php')) ?>" class="alloggiati-day-send-form">
                         <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
                         <input type="hidden" name="month" value="<?= e($selectedMonth) ?>">
                         <input type="hidden" name="day" value="<?= e($selectedDay) ?>">
-                        <button class="btn btn-primary<?= $selectedSchedineCounts['pronta'] > 0 ? '' : ' is-disabled' ?> js-alloggiati-modal-trigger" type="submit" <?= $selectedSchedineCounts['pronta'] > 0 ? '' : 'disabled' ?> data-modal-template-id="alloggiatiDayConfirmTemplate">Invia tutte le schedine del giorno</button>
+                        <button class="btn btn-primary<?= $selectedSchedineCounts['pronta'] > 0 || $selectedSchedineCounts['errore'] > 0 ? '' : ' is-disabled' ?> js-alloggiati-modal-trigger" type="submit" <?= $selectedSchedineCounts['pronta'] > 0 || $selectedSchedineCounts['errore'] > 0 ? '' : 'disabled' ?> data-modal-template-id="alloggiatiDayConfirmTemplate">Invia tutte le schedine del giorno</button>
                     </form>
                 <?php endif; ?>
             </div>
@@ -1112,6 +1112,7 @@ require_once __DIR__ . '/includes/header.php';
                             <div><span>Giorno</span><strong><?= e((new DateTimeImmutable($selectedDay))->format('d/m/Y')) ?></strong></div>
                             <div><span>Schedine esportabili</span><strong><?= (int) ($selectedSchedineCounts['pronta'] + $selectedSchedineCounts['inviata']) ?></strong></div>
                             <div><span>Schedine pronte</span><strong><?= (int) $selectedSchedineCounts['pronta'] ?></strong></div>
+                            <div><span>Schedine da ritentare</span><strong><?= (int) $selectedSchedineCounts['errore'] ?></strong></div>
                             <div><span>Documenti valorizzati</span><strong><?= (int) $alloggiatiDayDocumentCount ?></strong></div>
                         </div>
                         <p class="muted">Il download contiene le schedine valide del giorno di arrivo selezionato, ordinate per record con il capo famiglia/gruppo prima dei componenti.</p>
@@ -1123,12 +1124,13 @@ require_once __DIR__ . '/includes/header.php';
                         <div class="alloggiati-confirm__grid">
                             <div><span>Giorno</span><strong><?= e((new DateTimeImmutable($selectedDay))->format('d/m/Y')) ?></strong></div>
                             <div><span>Schedine pronte</span><strong><?= (int) $selectedSchedineCounts['pronta'] ?></strong></div>
+                            <div><span>Schedine da ritentare</span><strong><?= (int) $selectedSchedineCounts['errore'] ?></strong></div>
                             <div><span>Schedine già inviate</span><strong><?= (int) $selectedSchedineCounts['inviata'] ?></strong></div>
                             <div><span>Schedine con errore</span><strong><?= (int) $selectedSchedineCounts['errore'] ?></strong></div>
                             <div><span>Documenti valorizzati</span><strong><?= (int) $alloggiatiDayDocumentCount ?></strong></div>
                             <div><span>WS</span><strong><?= $alloggiatiWsReady ? (!empty($alloggiatiWsConfig['simulate_send_without_ws']) ? 'Simulazione' : 'Live pronto') : 'Da configurare' ?></strong></div>
                         </div>
-                        <p class="muted">Conferma l'invio delle schedine pronte del giorno selezionato. Il tracciato record e le richieste SOAP GenerateToken/Test/Send sono già predisposti nel backend.</p>
+                        <p class="muted">Conferma l'invio delle schedine pronte del giorno selezionato, includendo eventuali schedine in errore ma con tracciato ancora valido. Il backend esegue GenerateToken, Authentication_Test, Test e Send, registrando sempre request/response ed errori.</p>
                     </div>
                 </template>
 
@@ -1201,7 +1203,7 @@ require_once __DIR__ . '/includes/header.php';
                                             <?php if (!empty($payload['document_type_label'])): ?>
                                                 <p class="muted">Documento: <?= e((string) $payload['document_type_label']) ?> · <?= e((string) ($payload['document_number'] ?? '')) ?></p>
                                             <?php endif; ?>
-                                            <p class="muted">Conferma l'invio della schedina selezionata. Il sistema usa il tracciato record corretto e prepara anche la richiesta SOAP di Test/Send per la fase finale del WS.</p>
+                                            <p class="muted">Conferma l'invio della schedina selezionata. Il backend valida il token con Authentication_Test, esegue Test e poi Send, registrando request/response ed eventuali errori del WS.</p>
                                         </div>
                                     </template>
                                 <?php else: ?>
