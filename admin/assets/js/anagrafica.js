@@ -536,12 +536,61 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     });
 
+    function submitConfirmedForm(action) {
+      if (!action || !action.form) return;
+      var form = action.form;
+      var submitter = action.submitter || null;
+
+      if (submitter && typeof form.requestSubmit === 'function') {
+        form.requestSubmit(submitter);
+        return;
+      }
+
+      var originalAction = form.getAttribute('action');
+      var originalMethod = form.getAttribute('method');
+      var originalEnctype = form.getAttribute('enctype');
+      var originalTarget = form.getAttribute('target');
+      var cleanupNodes = [];
+
+      if (submitter) {
+        var overrideAction = submitter.getAttribute('formaction');
+        var overrideMethod = submitter.getAttribute('formmethod');
+        var overrideEnctype = submitter.getAttribute('formenctype');
+        var overrideTarget = submitter.getAttribute('formtarget');
+        if (overrideAction) form.setAttribute('action', overrideAction);
+        if (overrideMethod) form.setAttribute('method', overrideMethod);
+        if (overrideEnctype) form.setAttribute('enctype', overrideEnctype);
+        if (overrideTarget) form.setAttribute('target', overrideTarget);
+
+        var submitterName = submitter.getAttribute('name');
+        if (submitterName) {
+          var hidden = document.createElement('input');
+          hidden.type = 'hidden';
+          hidden.name = submitterName;
+          hidden.value = submitter.value || '';
+          form.appendChild(hidden);
+          cleanupNodes.push(hidden);
+        }
+      }
+
+      HTMLFormElement.prototype.submit.call(form);
+
+      cleanupNodes.forEach(function (node) {
+        if (node.parentNode) node.parentNode.removeChild(node);
+      });
+
+      if (originalAction !== null) form.setAttribute('action', originalAction); else form.removeAttribute('action');
+      if (originalMethod !== null) form.setAttribute('method', originalMethod); else form.removeAttribute('method');
+      if (originalEnctype !== null) form.setAttribute('enctype', originalEnctype); else form.removeAttribute('enctype');
+      if (originalTarget !== null) form.setAttribute('target', originalTarget); else form.removeAttribute('target');
+    }
+
     confirmButton.addEventListener('click', function () {
       var action = activeAction;
       closeModal();
       if (!action) return;
       if (action.type === 'form' && action.form) {
-        HTMLFormElement.prototype.submit.call(action.form);
+        submitConfirmedForm(action);
         return;
       }
       if (action.type === 'link' && action.href) {
@@ -562,7 +611,7 @@ document.addEventListener('DOMContentLoaded', function () {
         var href = button.getAttribute('href');
         var action = null;
         if (form) {
-          action = { type: 'form', form: form };
+          action = { type: 'form', form: form, submitter: button };
         } else if (href && href !== '#') {
           action = { type: 'link', href: href };
         }
