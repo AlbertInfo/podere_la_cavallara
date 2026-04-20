@@ -422,7 +422,7 @@ require_once __DIR__ . '/includes/header.php';
     <section class="booking-hero anagrafica-hero">
         <div class="booking-hero-copy">
             <span class="eyebrow">Sezione anagrafica</span>
-            <h1>Pianificazione giornaliera ROSS1000</h1>
+            <h1>Pianificazione giornaliera ROSS1000 - AlloggiatiWeb</h1>
             <p class="muted">Seleziona il mese, controlla il calendario orizzontale e chiudi la giornata quando il dato è definitivo. L’XML ROSS1000 viene generato come fotografia completa del giorno, in linea con il tracciato e con l’import gestionale di ROSS1000.<?php /* docs cite in response */ ?></p>
         </div>
         <div class="toolbar anagrafica-hero__actions">
