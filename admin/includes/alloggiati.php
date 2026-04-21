@@ -456,6 +456,133 @@ function alloggiati_day_status_counts(array $schedine): array
     return $counts;
 }
 
+
+function alloggiati_record_overall_status(array $counts): string
+{
+    $errore = (int) ($counts['errore'] ?? 0);
+    $pronta = (int) ($counts['pronta'] ?? 0);
+    $inviata = (int) ($counts['inviata'] ?? 0);
+    $bozza = (int) ($counts['bozza'] ?? 0);
+
+    if ($errore > 0) {
+        return 'errore';
+    }
+    if ($pronta > 0 && $inviata > 0) {
+        return 'mista';
+    }
+    if ($pronta > 0) {
+        return 'pronta';
+    }
+    if ($bozza > 0) {
+        return 'bozza';
+    }
+    if ($inviata > 0) {
+        return 'inviata';
+    }
+    return 'bozza';
+}
+
+function alloggiati_record_kind_from_tipo(string $tipoCode): string
+{
+    if ($tipoCode === '17') {
+        return 'famiglia';
+    }
+    if ($tipoCode === '18') {
+        return 'gruppo';
+    }
+    return 'singolo';
+}
+
+function alloggiati_record_kind_label(string $kind): string
+{
+    if ($kind === 'famiglia') {
+        return 'Famiglia';
+    }
+    if ($kind === 'gruppo') {
+        return 'Gruppo';
+    }
+    return 'Ospite singolo';
+}
+
+function alloggiati_group_schedine_by_record(array $schedine): array
+{
+    $schedine = alloggiati_sort_schedine_for_transmission($schedine);
+    $grouped = [];
+
+    foreach ($schedine as $schedina) {
+        $recordId = (int) ($schedina['record_id'] ?? 0);
+        if ($recordId <= 0) {
+            continue;
+        }
+        if (!isset($grouped[$recordId])) {
+            $grouped[$recordId] = [];
+        }
+        $grouped[$recordId][] = $schedina;
+    }
+
+    $bundles = [];
+    foreach ($grouped as $recordId => $rows) {
+        $leader = $rows[0] ?? [];
+        foreach ($rows as $row) {
+            if (!empty($row['is_group_leader'])) {
+                $leader = $row;
+                break;
+            }
+        }
+        $components = array_values(array_filter($rows, static fn(array $row): bool => (int) ($row['id'] ?? 0) !== (int) ($leader['id'] ?? 0)));
+        $counts = alloggiati_day_status_counts($rows);
+        $payload = (array) ($leader['payload'] ?? []);
+        $kind = alloggiati_record_kind_from_tipo((string) ($payload['tipo_alloggiato_code'] ?? ''));
+        $traceErrors = [];
+        $documentCount = 0;
+        foreach ($rows as $row) {
+            if (!empty($row['trace_errors'])) {
+                foreach ((array) $row['trace_errors'] as $error) {
+                    $traceErrors[] = trim((string) (($row['display_name'] ?? 'Schedina') . ': ' . $error));
+                }
+            }
+            $rowPayload = (array) ($row['payload'] ?? []);
+            if (trim((string) ($rowPayload['document_number'] ?? '')) !== '') {
+                $documentCount++;
+            }
+        }
+
+        $canGenerateFile = !empty($rows);
+        $canSendWs = !empty($rows);
+        foreach ($rows as $row) {
+            if (empty($row['can_generate_file'])) {
+                $canGenerateFile = false;
+            }
+            if (empty($row['can_send_ws'])) {
+                $canSendWs = false;
+            }
+        }
+
+        $bundles[] = [
+            'record_id' => $recordId,
+            'kind' => $kind,
+            'kind_label' => alloggiati_record_kind_label($kind),
+            'leader' => $leader,
+            'components' => $components,
+            'rows' => $rows,
+            'people' => $rows,
+            'counts' => $counts,
+            'overall_status' => alloggiati_record_overall_status($counts),
+            'line_count' => count($rows),
+            'document_count' => $documentCount,
+            'trace_errors' => array_values(array_unique(array_filter($traceErrors))),
+            'display_name' => (string) ($leader['display_name'] ?? ($payload['display_name'] ?? ('Record #' . $recordId))),
+            'arrival_date' => (string) ($leader['arrival_date'] ?? ($payload['arrival_date'] ?? '')),
+            'arrival_date_portal' => (string) ($payload['arrival_date_portal'] ?? ''),
+            'permanence_days' => (int) ($payload['permanence_days'] ?? 0),
+            'can_generate_file' => $canGenerateFile,
+            'can_send_ws' => $canSendWs,
+        ];
+    }
+
+    return $bundles;
+}
+
 function alloggiati_ascii_upper(string $value): string
 {
     $value = trim(preg_replace('/\s+/u', ' ', $value) ?? '');
@@ -637,6 +764,49 @@ function alloggiati_collect_single_export(PDO $pdo, int $schedinaId, ?array $all
 
     $line = (string) $schedina['trace_record'];
     return ['schedina' => $schedina, 'content' => $line, 'line_count' => 1, 'errors' => [], 'ws' => alloggiati_build_ws_previews([$line])];
+}
+
+
+function alloggiati_collect_record_export(PDO $pdo, int $recordId, ?array $allowedStatuses = null): array
+{
+    $allowedStatuses = $allowedStatuses ?: ['pronta', 'inviata', 'errore'];
+    $allowedStatuses = array_values(array_unique(array_map('strval', $allowedStatuses)));
+
+    $rows = alloggiati_sort_schedine_for_transmission(alloggiati_sync_record($pdo, $recordId));
+    if (!$rows) {
+        return ['record_id' => $recordId, 'schedine' => [], 'content' => '', 'line_count' => 0, 'errors' => ['Nessuna schedina collegata trovata per l’anagrafica selezionata.'], 'bundle' => null, 'ws' => alloggiati_build_ws_previews([])];
+    }
+
+    $bundle = alloggiati_group_schedine_by_record($rows)[0] ?? null;
+    $lines = [];
+    $errors = [];
+
+    foreach ($rows as $schedina) {
+        if (!empty($schedina['trace_errors'])) {
+            $errors[] = (string) ($schedina['display_name'] ?? 'Schedina') . ': ' . implode(' ', (array) $schedina['trace_errors']);
+            continue;
+        }
+        if (!in_array((string) ($schedina['status'] ?? ''), $allowedStatuses, true)) {
+            $errors[] = (string) ($schedina['display_name'] ?? 'Schedina') . ': stato non disponibile per l’operazione richiesta.';
+            continue;
+        }
+        $lines[] = (string) ($schedina['trace_record'] ?? '');
+    }
+
+    if (count($lines) !== count($rows)) {
+        return ['record_id' => $recordId, 'schedine' => $rows, 'content' => '', 'line_count' => 0, 'errors' => array_values(array_unique($errors)), 'bundle' => $bundle, 'ws' => alloggiati_build_ws_previews([])];
+    }
+
+    return ['record_id' => $recordId, 'schedine' => $rows, 'content' => alloggiati_join_trace_records($lines), 'line_count' => count($lines), 'errors' => [], 'bundle' => $bundle, 'ws' => alloggiati_build_ws_previews($lines)];
+}
+
+function alloggiati_build_download_filename_for_record(array $bundle): string
+{
+    $leader = (array) ($bundle['leader'] ?? []);
+    $arrival = str_replace('-', '', (string) ($bundle['arrival_date'] ?? ($leader['arrival_date'] ?? date('Y-m-d'))));
+    $recordId = (int) ($bundle['record_id'] ?? 0);
+    $name = preg_replace('/[^A-Za-z0-9_-]+/', '-', (string) ($bundle['display_name'] ?? 'anagrafica')) ?: 'anagrafica';
+    return 'alloggiati-' . $arrival . '-record-' . $recordId . '-' . strtolower($name) . '.txt';
 }
 
 function alloggiati_build_download_filename_for_day(string $arrivalDate): string

@@ -100,6 +100,7 @@ $bookingModalOpen = (bool) ($bookingModalState['open'] ?? false);
 $alloggiatiTableReady = false;
 $selectedSchedine = [];
 $selectedSchedineCounts = ['total' => 0, 'bozza' => 0, 'pronta' => 0, 'inviata' => 0, 'errore' => 0];
+$selectedSchedineGroups = [];
 $alloggiatiWsConfig = alloggiati_ws_config();
 $alloggiatiWsReady = alloggiati_ws_config_ready($alloggiatiWsConfig);
 $rossWsConfig = ross1000_ws_runtime_config();
@@ -224,12 +225,14 @@ try {
         if ($alloggiatiTableReady) {
             $selectedSchedine = alloggiati_sync_day($pdo, $selectedDay);
             $selectedSchedineCounts = alloggiati_day_status_counts($selectedSchedine);
+            $selectedSchedineGroups = alloggiati_group_schedine_by_record($selectedSchedine);
         }
     }
 } catch (Throwable $e) {
     $alloggiatiTableReady = false;
     $selectedSchedine = [];
     $selectedSchedineCounts = ['total' => 0, 'bozza' => 0, 'pronta' => 0, 'inviata' => 0, 'errore' => 0];
+    $selectedSchedineGroups = [];
 }
 
 
@@ -1141,79 +1144,92 @@ require_once __DIR__ . '/includes/header.php';
                 </template>
 
                 <div class="alloggiati-schedine-list">
-                    <?php foreach ($selectedSchedine as $schedina): ?>
+                    <?php foreach ($selectedSchedineGroups as $bundle): ?>
                         <?php
-                        $payload = $schedina['payload'] ?? [];
-                        $schedinaId = (int) ($schedina['id'] ?? 0);
-                        $status = (string) ($schedina['status'] ?? 'bozza');
-                        $statusLabelMap = ['bozza' => 'Bozza', 'pronta' => 'Pronta', 'inviata' => 'Inviata', 'errore' => 'Errore'];
-                        $statusClassMap = ['bozza' => 'ross-badge', 'pronta' => 'ross-badge ross-badge--blue', 'inviata' => 'ross-badge ross-badge--green', 'errore' => 'ross-badge ross-badge--amber'];
-                        $canSendSingle = in_array($status, ['pronta', 'errore'], true);
+                        $recordId = (int) ($bundle['record_id'] ?? 0);
+                        $people = (array) ($bundle['people'] ?? []);
+                        $counts = (array) ($bundle['counts'] ?? []);
+                        $status = (string) ($bundle['overall_status'] ?? 'bozza');
+                        $statusLabelMap = ['bozza' => 'Bozza', 'pronta' => 'Pronta', 'inviata' => 'Inviata', 'errore' => 'Errore', 'mista' => 'Parziale'];
+                        $statusClassMap = ['bozza' => 'ross-badge', 'pronta' => 'ross-badge ross-badge--blue', 'inviata' => 'ross-badge ross-badge--green', 'errore' => 'ross-badge ross-badge--amber', 'mista' => 'ross-badge'];
+                        $kindLabel = (string) ($bundle['kind_label'] ?? 'Ospite singolo');
+                        $sendLabel = $status === 'errore' ? 'Ritenta invio' : 'Invia anagrafica';
                         ?>
-                        <article class="ross-record-row alloggiati-schedina-row">
+                        <article class="ross-record-row alloggiati-schedina-row alloggiati-record-bundle">
                             <div class="ross-record-row__main">
-                                <strong><?= e((string) ($schedina['display_name'] ?? ($payload['display_name'] ?? 'Schedina'))) ?></strong>
+                                <strong><?= e($kindLabel . ' · ' . ((string) ($bundle['display_name'] ?? ('Anagrafica #' . $recordId)))) ?></strong>
                                 <div class="ross-record-row__subline">
-                                    <span><?= e((string) ($payload['tipo_alloggiato_label'] ?? '')) ?></span>
-                                    <span>Arrivo <?= e((string) ($payload['arrival_date_xml'] ?? '')) ?></span>
-                                    <span>Permanenza <?= (int) ($payload['permanence_days'] ?? 0) ?> gg</span>
-                                    <?php if (!empty($payload['document_type_label'])): ?><span><?= e((string) $payload['document_type_label']) ?> · <?= e((string) ($payload['document_number'] ?? '')) ?></span><?php endif; ?>
+                                    <span><?= count($people) ?> <?= count($people) === 1 ? 'ospite' : 'ospiti' ?></span>
+                                    <span>Arrivo <?= e((string) ($bundle['arrival_date_portal'] ?? '')) ?></span>
+                                    <span>Permanenza <?= (int) ($bundle['permanence_days'] ?? 0) ?> gg</span>
+                                    <span>Documenti <?= (int) ($bundle['document_count'] ?? 0) ?>/<?= count($people) ?></span>
                                 </div>
-                                <?php if (!empty($schedina['last_error'])): ?>
-                                    <div class="alloggiati-schedina-row__error"><?= nl2br(e((string) $schedina['last_error'])) ?></div>
+                                <div class="alloggiati-record-bundle__people">
+                                    <?php foreach ($people as $person): ?>
+                                        <?php $personPayload = (array) ($person['payload'] ?? []); ?>
+                                        <div class="alloggiati-record-bundle__person">
+                                            <span class="alloggiati-record-bundle__role"><?= e((string) ($personPayload['tipo_alloggiato_label'] ?? 'Ospite')) ?></span>
+                                            <strong><?= e((string) ($person['display_name'] ?? ($personPayload['display_name'] ?? 'Ospite'))) ?></strong>
+                                            <?php if (!empty($personPayload['document_type_label']) || !empty($personPayload['document_number'])): ?>
+                                                <span class="muted"><?= e(trim(((string) ($personPayload['document_type_label'] ?? '')) . ' · ' . ((string) ($personPayload['document_number'] ?? '')), ' ·')) ?></span>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                                <?php if (!empty($bundle['trace_errors'])): ?>
+                                    <div class="alloggiati-schedina-row__error"><?= nl2br(e(implode("
+", (array) $bundle['trace_errors']))) ?></div>
                                 <?php endif; ?>
                             </div>
                             <div class="ross-record-row__badges" data-row-ignore>
                                 <span class="<?= e($statusClassMap[$status] ?? 'ross-badge') ?>"><?= e($statusLabelMap[$status] ?? ucfirst($status)) ?></span>
-                                <?php if (!empty($schedina['sent_at'])): ?><span class="ross-badge">Inviata <?= e(date('d/m H:i', strtotime((string) $schedina['sent_at']))) ?></span><?php endif; ?>
+                                <?php if ((int) ($counts['inviata'] ?? 0) > 0): ?><span class="ross-badge">Inviate <?= (int) ($counts['inviata'] ?? 0) ?>/<?= count($people) ?></span><?php endif; ?>
+                                <?php if (count($people) > 1): ?><span class="ross-badge"><?= count($people) ?> schedine collegate</span><?php endif; ?>
                             </div>
                             <div class="ross-record-row__actions" data-row-ignore>
-                                <?php if (!empty($schedina['can_generate_file'])): ?>
-                                    <form method="get" action="<?= e(admin_url('actions/generate-alloggiati-schedina.php')) ?>" class="alloggiati-single-send-form">
+                                <?php if (!empty($bundle['can_generate_file'])): ?>
+                                    <form method="get" action="<?= e(admin_url('actions/generate-alloggiati-record.php')) ?>" class="alloggiati-single-send-form">
                                         <input type="hidden" name="month" value="<?= e($selectedMonth) ?>">
                                         <input type="hidden" name="day" value="<?= e($selectedDay) ?>">
-                                        <input type="hidden" name="schedina_id" value="<?= $schedinaId ?>">
-                                        <button class="btn btn-light btn-sm js-alloggiati-modal-trigger" type="submit" data-modal-template-id="alloggiatiSchedinaFile<?= $schedinaId ?>">Scarica tracciato</button>
+                                        <input type="hidden" name="record_id" value="<?= $recordId ?>">
+                                        <button class="btn btn-light btn-sm js-alloggiati-modal-trigger" type="submit" data-modal-template-id="alloggiatiRecordFile<?= $recordId ?>">Scarica tracciato</button>
                                     </form>
-                                    <template id="alloggiatiSchedinaFile<?= $schedinaId ?>">
+                                    <template id="alloggiatiRecordFile<?= $recordId ?>">
                                         <div class="alloggiati-confirm">
                                             <div class="alloggiati-confirm__grid">
-                                                <div><span>Ospite</span><strong><?= e((string) ($schedina['display_name'] ?? ($payload['display_name'] ?? ''))) ?></strong></div>
-                                                <div><span>Tipo</span><strong><?= e((string) ($payload['tipo_alloggiato_label'] ?? '')) ?></strong></div>
-                                                <div><span>Arrivo</span><strong><?= e((string) ($payload['arrival_date_portal'] ?? '')) ?></strong></div>
-                                                <?php if (!empty($payload['document_type_label'])): ?><div><span>Documento</span><strong><?= e((string) $payload['document_type_label']) ?> · <?= e((string) ($payload['document_number'] ?? '')) ?></strong></div><?php else: ?><div><span>Documento</span><strong>Non disponibile</strong></div><?php endif; ?>
+                                                <div><span>Anagrafica</span><strong><?= e($kindLabel) ?></strong></div>
+                                                <div><span>Riferimento</span><strong><?= e((string) ($bundle['display_name'] ?? ('Record #' . $recordId))) ?></strong></div>
+                                                <div><span>Arrivo</span><strong><?= e((string) ($bundle['arrival_date_portal'] ?? '')) ?></strong></div>
+                                                <div><span>Schedine</span><strong><?= count($people) ?></strong></div>
                                             </div>
-                                            <p class="muted">Scaricherai il tracciato record della schedina selezionata nel formato testuale previsto da Alloggiati Web.</p>
+                                            <p class="muted">Scaricherai il tracciato completo dell’anagrafica, con ospite principale e componenti collegati nello stesso file.</p>
                                         </div>
                                     </template>
                                 <?php else: ?>
                                     <button class="btn btn-light btn-sm is-disabled" type="button" disabled>Tracciato non disponibile</button>
                                 <?php endif; ?>
 
-                                <?php if ($canSendSingle): ?>
-                                    <form method="post" action="<?= e(admin_url('actions/send-alloggiati-schedina.php')) ?>" class="alloggiati-single-send-form">
+                                <?php if (!empty($bundle['can_send_ws'])): ?>
+                                    <form method="post" action="<?= e(admin_url('actions/send-alloggiati-record.php')) ?>" class="alloggiati-single-send-form">
                                         <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
                                         <input type="hidden" name="month" value="<?= e($selectedMonth) ?>">
                                         <input type="hidden" name="day" value="<?= e($selectedDay) ?>">
-                                        <input type="hidden" name="schedina_id" value="<?= $schedinaId ?>">
-                                        <button class="btn btn-light btn-sm js-alloggiati-modal-trigger" type="submit" data-modal-template-id="alloggiatiSchedinaConfirm<?= $schedinaId ?>"><?= $status === 'errore' ? 'Ritenta invio' : 'Invia schedina' ?></button>
+                                        <input type="hidden" name="record_id" value="<?= $recordId ?>">
+                                        <button class="btn btn-light btn-sm js-alloggiati-modal-trigger" type="submit" data-modal-template-id="alloggiatiRecordConfirm<?= $recordId ?>"><?= e($sendLabel) ?></button>
                                     </form>
-                                    <template id="alloggiatiSchedinaConfirm<?= $schedinaId ?>">
+                                    <template id="alloggiatiRecordConfirm<?= $recordId ?>">
                                         <div class="alloggiati-confirm">
                                             <div class="alloggiati-confirm__grid">
-                                                <div><span>Ospite</span><strong><?= e((string) ($schedina['display_name'] ?? ($payload['display_name'] ?? ''))) ?></strong></div>
-                                                <div><span>Tipo</span><strong><?= e((string) ($payload['tipo_alloggiato_label'] ?? '')) ?></strong></div>
-                                                <div><span>Arrivo</span><strong><?= e((string) ($payload['arrival_date_portal'] ?? '')) ?></strong></div>
-                                                <div><span>Permanenza</span><strong><?= (int) ($payload['permanence_days'] ?? 0) ?> gg</strong></div>
+                                                <div><span>Anagrafica</span><strong><?= e($kindLabel) ?></strong></div>
+                                                <div><span>Ospite principale</span><strong><?= e((string) ($bundle['display_name'] ?? ('Record #' . $recordId))) ?></strong></div>
+                                                <div><span>Arrivo</span><strong><?= e((string) ($bundle['arrival_date_portal'] ?? '')) ?></strong></div>
+                                                <div><span>Schedine collegate</span><strong><?= count($people) ?></strong></div>
                                             </div>
-                                            <?php if (!empty($payload['document_type_label'])): ?>
-                                                <p class="muted">Documento: <?= e((string) $payload['document_type_label']) ?> · <?= e((string) ($payload['document_number'] ?? '')) ?></p>
-                                            <?php endif; ?>
-                                            <p class="muted">Conferma l'invio della schedina selezionata. Il backend valida il token con Authentication_Test, esegue Test e poi Send, registrando request/response ed eventuali errori del WS.</p>
+                                            <p class="muted">L’invio comprende tutta l’anagrafica e tutte le schedine collegate nello stesso flusso verso Alloggiati Web.</p>
                                         </div>
                                     </template>
                                 <?php else: ?>
-                                    <button class="btn btn-light btn-sm is-disabled" type="button" disabled><?= $status === 'inviata' ? 'Già inviata' : 'Non inviab.' ?></button>
+                                    <button class="btn btn-light btn-sm is-disabled" type="button" disabled><?= $status === 'inviata' ? 'Già inviata' : 'Invio non disponibile' ?></button>
                                 <?php endif; ?>
                             </div>
                         </article>

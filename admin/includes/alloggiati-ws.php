@@ -479,6 +479,99 @@ function alloggiati_ws_send_day(PDO $pdo, string $arrivalDate): array
     return ['sent' => $sent, 'errors' => array_values(array_unique($errors))];
 }
 
+
+function alloggiati_ws_send_record(PDO $pdo, int $recordId): array
+{
+    $bundle = alloggiati_collect_record_export($pdo, $recordId, ['pronta', 'errore']);
+    $schedine = (array) ($bundle['schedine'] ?? []);
+    $lines = array_values(array_map(static fn(array $row): string => (string) ($row['trace_record'] ?? ''), $schedine));
+
+    if (!$schedine || count($lines) !== count($schedine) || trim((string) ($bundle['content'] ?? '')) === '') {
+        return ['sent' => 0, 'errors' => array_values($bundle['errors'] ?? ['L’anagrafica selezionata non è pronta per l’invio.'])];
+    }
+
+    $config = alloggiati_ws_config();
+    if (!alloggiati_ws_config_ready($config)) {
+        throw new RuntimeException('Configura utente, password e WSKEY del web service Alloggiati.');
+    }
+
+    if (!empty($config['simulate_send_without_ws'])) {
+        webservice_log($pdo, [
+            'service_name' => 'alloggiati',
+            'action_name' => 'Send',
+            'scope_type' => 'record',
+            'scope_ref' => (string) $recordId,
+            'is_simulated' => true,
+            'success' => true,
+            'status' => 'simulated',
+            'request_payload' => alloggiati_join_trace_records($lines),
+            'response_payload' => 'SIMULATED_OK',
+            'error_message' => '',
+        ]);
+        $ids = array_map(static fn(array $r): int => (int) $r['id'], $schedine);
+        if ($ids) {
+            $placeholders = implode(',', array_fill(0, count($ids), '?'));
+            $stmt = $pdo->prepare("UPDATE alloggiati_schedine SET status = 'inviata', sent_at = NOW(), last_attempt_at = NOW(), attempt_count = attempt_count + 1, last_error = NULL, validation_errors = NULL, updated_at = NOW() WHERE id IN ($placeholders)");
+            $stmt->execute($ids);
+        }
+        return ['sent' => count($ids), 'errors' => []];
+    }
+
+    try {
+        $tokenInfo = alloggiati_ws_generate_token_live($pdo, $config);
+    } catch (Throwable $e) {
+        alloggiati_ws_mark_schedine_failed($pdo, $schedine, $e->getMessage());
+        throw $e;
+    }
+
+    $errors = array_values($bundle['errors'] ?? []);
+    $sendableRows = [];
+    $sendableLines = [];
+
+    $test = alloggiati_ws_run_method($pdo, 'Test', $config, (string) $tokenInfo['token'], $lines, 'record', (string) $recordId);
+    $testFallback = $test['error_message'] ?: 'Test preliminare non concluso correttamente.';
+    $testResults = alloggiati_ws_normalize_row_results((array) ($test['row_results'] ?? []), count($schedine), $testFallback);
+
+    foreach ($schedine as $index => $row) {
+        $rowResult = $testResults[$index];
+        if (!empty($rowResult['success'])) {
+            $sendableRows[] = $row;
+            $sendableLines[] = $lines[$index];
+            continue;
+        }
+
+        $message = alloggiati_ws_compose_error_message($rowResult, $testFallback ?: 'Schedina non valida.');
+        $errors[] = ($row['display_name'] ?? 'Schedina') . ': ' . $message;
+        alloggiati_ws_mark_schedine_failed($pdo, [$row], $message);
+    }
+
+    if (!$sendableRows || count($sendableRows) !== count($schedine)) {
+        return ['sent' => 0, 'errors' => array_values(array_unique($errors ?: ['L’anagrafica contiene componenti non validi per l’invio.']))];
+    }
+
+    $send = alloggiati_ws_run_method($pdo, 'Send', $config, (string) $tokenInfo['token'], $sendableLines, 'record', (string) $recordId);
+    $sendFallback = $send['error_message'] ?: 'Invio non concluso correttamente.';
+    $sendResults = alloggiati_ws_normalize_row_results((array) ($send['row_results'] ?? []), count($sendableRows), $sendFallback);
+
+    $sent = 0;
+    $successStmt = $pdo->prepare("UPDATE alloggiati_schedine SET status = 'inviata', sent_at = NOW(), last_attempt_at = NOW(), attempt_count = attempt_count + 1, last_error = NULL, validation_errors = NULL, updated_at = NOW() WHERE id = :id");
+
+    foreach ($sendableRows as $index => $row) {
+        $rowResult = $sendResults[$index];
+        if (!empty($rowResult['success'])) {
+            $successStmt->execute(['id' => (int) $row['id']]);
+            $sent++;
+            continue;
+        }
+
+        $message = alloggiati_ws_compose_error_message($rowResult, $sendFallback ?: 'Invio schedina fallito.');
+        $errors[] = ($row['display_name'] ?? 'Schedina') . ': ' . $message;
+        alloggiati_ws_mark_schedine_failed($pdo, [$row], $message);
+    }
+
+    return ['sent' => $sent, 'errors' => array_values(array_unique($errors))];
+}
+
 function alloggiati_ws_send_schedina(PDO $pdo, int $schedinaId): array
 {
     $bundle = alloggiati_collect_single_export($pdo, $schedinaId, ['pronta', 'errore']);
