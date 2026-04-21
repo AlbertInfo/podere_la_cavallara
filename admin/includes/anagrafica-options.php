@@ -328,9 +328,9 @@ function anagrafica_tipo_alloggiato_options(): array
 function anagrafica_record_type_options(): array
 {
     return [
-        'single' => 'Ospite singolo (16)',
-        'family' => 'Famiglia: Capo famiglia (17) + Familiari (19)',
-        'group' => 'Gruppo: Capo gruppo (18) + Membri gruppo (20)',
+        'single' => 'Ospite singolo',
+        'family' => 'Famiglia',
+        'group' => 'Gruppo',
     ];
 }
 

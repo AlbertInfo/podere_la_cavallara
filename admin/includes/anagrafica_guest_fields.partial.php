@@ -41,14 +41,14 @@ if ($currentGuestTypeCode === '') {
     $currentGuestTypeCode = anagrafica_tipo_alloggiato_code_for_record_type($currentRecordType, $isLeaderGuest);
 }
 $currentGuestTypeLabel = anagrafica_tipo_alloggiato_options()[$currentGuestTypeCode] ?? '';
-$currentGuestTypeDisplay = trim($currentGuestTypeCode . ($currentGuestTypeLabel !== '' ? (' · ' . $currentGuestTypeLabel) : ''));
+$currentGuestTypeDisplay = $currentGuestTypeLabel !== '' ? $currentGuestTypeLabel : $currentGuestTypeCode;
+$componentCardTitle = $currentRecordType === 'family' ? 'Familiare' : ($currentRecordType === 'group' ? 'Membro gruppo' : 'Componente');
 ?>
 <div class="anagrafica-guest-card<?= $isRepeaterGuest ? '' : ' anagrafica-guest-card--primary' ?>"<?= $isRepeaterGuest ? ' data-guest-card' : '' ?> data-guest-scope data-guest-index="<?= e((string) $guestIndex) ?>">
     <?php if ($isRepeaterGuest): ?>
         <div class="anagrafica-guest-card__top">
             <div>
-                <strong>Componente <span data-guest-number><?= e((string) $guestNumber) ?></span></strong>
-                <p class="muted">Compila i dati completi dell'ospite: il gestionale conserva i documenti per gli export esterni e Alloggiati Web userà automaticamente la mappatura corretta.</p>
+                <strong><span data-guest-role-label><?= e($componentCardTitle) ?></span> <span data-guest-number><?= e((string) $guestNumber) ?></span></strong>
             </div>
             <button class="btn btn-light btn-sm" type="button" data-remove-guest>Rimuovi</button>
         </div>
@@ -128,7 +128,7 @@ $currentGuestTypeDisplay = trim($currentGuestTypeCode . ($currentGuestTypeLabel 
         </label>
 
         <label class="anagrafica-field">
-            <span>Tipologia alloggiato (Alloggiati Web)</span>
+            <span>Tipologia alloggiato</span>
             <input type="text" value="<?= e($currentGuestTypeDisplay) ?>" readonly data-alloggiati-type-display data-guest-index="<?= e((string) $guestIndex) ?>">
         </label>
 

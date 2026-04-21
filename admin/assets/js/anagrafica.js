@@ -204,22 +204,75 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  function roleLabelsForRecordType(recordTypeValue) {
+    if (recordTypeValue === 'family') {
+      return {
+        leaderSectionTitle: 'Capofamiglia / primo ospite',
+        leaderSectionDescription: 'La prima anagrafica sarà il capofamiglia.',
+        repeaterSectionTitle: 'Familiari',
+        repeaterSectionDescription: 'I componenti aggiunti saranno salvati come familiari.',
+        addButtonLabel: 'Aggiungi familiare',
+        memberCardLabel: 'Familiare'
+      };
+    }
+    if (recordTypeValue === 'group') {
+      return {
+        leaderSectionTitle: 'Capogruppo / primo ospite',
+        leaderSectionDescription: 'La prima anagrafica sarà il capogruppo.',
+        repeaterSectionTitle: 'Membri gruppo',
+        repeaterSectionDescription: 'I componenti aggiunti saranno salvati come membri gruppo.',
+        addButtonLabel: 'Aggiungi membro',
+        memberCardLabel: 'Membro gruppo'
+      };
+    }
+    return {
+      leaderSectionTitle: 'Ospite principale',
+      leaderSectionDescription: 'Compila i dati dell\'ospite.',
+      repeaterSectionTitle: 'Componenti aggiuntivi',
+      repeaterSectionDescription: 'Per questa composizione non sono previsti componenti aggiuntivi.',
+      addButtonLabel: 'Aggiungi componente',
+      memberCardLabel: 'Componente'
+    };
+  }
+
   function alloggiatiTypeDisplayValue(recordTypeValue, guestIndex) {
     var index = parseInt(guestIndex, 10);
     var isLeader = isNaN(index) || index === 0;
     if (recordTypeValue === 'family') {
-      return isLeader ? '17 · CAPO FAMIGLIA' : '19 · FAMILIARE';
+      return isLeader ? 'Capofamiglia' : 'Familiare';
     }
     if (recordTypeValue === 'group') {
-      return isLeader ? '18 · CAPO GRUPPO' : '20 · MEMBRO GRUPPO';
+      return isLeader ? 'Capogruppo' : 'Membro gruppo';
     }
-    return '16 · OSPITE SINGOLO';
+    return 'Ospite singolo';
   }
 
   function refreshDerivedAlloggiatiTypes(scope, recordTypeValue) {
     $all('[data-alloggiati-type-display]', scope || document).forEach(function (field) {
       var guestIndex = field.getAttribute('data-guest-index') || '0';
       field.value = alloggiatiTypeDisplayValue(recordTypeValue || 'single', guestIndex);
+    });
+  }
+
+  function refreshStructureLabels(scope, recordTypeValue) {
+    var labels = roleLabelsForRecordType(recordTypeValue || 'single');
+    $all('[data-leader-section-title]', scope || document).forEach(function (node) {
+      node.textContent = labels.leaderSectionTitle;
+    });
+    $all('[data-leader-section-description]', scope || document).forEach(function (node) {
+      node.textContent = labels.leaderSectionDescription;
+    });
+    $all('[data-repeater-section-title]', scope || document).forEach(function (node) {
+      node.textContent = labels.repeaterSectionTitle;
+    });
+    $all('[data-repeater-section-description]', scope || document).forEach(function (node) {
+      node.textContent = labels.repeaterSectionDescription;
+    });
+    $all('[data-add-guest-label]', scope || document).forEach(function (node) {
+      node.textContent = labels.addButtonLabel;
+    });
+    $all('[data-guest-role-label]', scope || document).forEach(function (node) {
+      node.textContent = labels.memberCardLabel;
     });
   }
 
@@ -284,6 +337,7 @@ document.addEventListener('DOMContentLoaded', function () {
       refreshGuestCounters();
       updateGroupState();
       refreshDerivedAlloggiatiTypes(form, recordType ? recordType.value : 'single');
+      refreshStructureLabels(form, recordType ? recordType.value : 'single');
       updateProvinceFilteredPlaces(form);
       clearClientValidation(form);
     }
@@ -383,6 +437,7 @@ document.addEventListener('DOMContentLoaded', function () {
       }
       refreshGuestCounters();
       refreshDerivedAlloggiatiTypes(form, recordType ? recordType.value : 'single');
+      refreshStructureLabels(form, recordType ? recordType.value : 'single');
     }
 
     function wireCloneLists(card, index) {
@@ -418,6 +473,7 @@ document.addEventListener('DOMContentLoaded', function () {
       cloneIndex += 1;
       refreshGuestCounters();
       refreshDerivedAlloggiatiTypes(form, recordType ? recordType.value : 'single');
+      refreshStructureLabels(form, recordType ? recordType.value : 'single');
       updateProvinceFilteredPlaces(form);
     }
 
@@ -488,6 +544,7 @@ document.addEventListener('DOMContentLoaded', function () {
     refreshGuestCounters();
     updateGroupState();
     refreshDerivedAlloggiatiTypes(form, recordType ? recordType.value : 'single');
+    refreshStructureLabels(form, recordType ? recordType.value : 'single');
     updateProvinceFilteredPlaces(form);
     setPanelState(forceOpen);
   }
@@ -999,6 +1056,7 @@ function initMonthRangeConfigurator() {
       cloneIndex += 1;
       refreshGuestCounters();
       refreshDerivedAlloggiatiTypes(form, recordType ? recordType.value : 'single');
+      refreshStructureLabels(form, recordType ? recordType.value : 'single');
       updateProvinceFilteredPlaces(form);
     }
 
@@ -1053,6 +1111,7 @@ function initMonthRangeConfigurator() {
       }
       refreshGuestCounters();
       refreshDerivedAlloggiatiTypes(form, recordType ? recordType.value : 'single');
+      refreshStructureLabels(form, recordType ? recordType.value : 'single');
     }
 
     function clearClientErrors() {
@@ -1104,6 +1163,7 @@ function initMonthRangeConfigurator() {
       }
       updateGroupState();
       refreshDerivedAlloggiatiTypes(form, recordType ? recordType.value : 'single');
+      refreshStructureLabels(form, recordType ? recordType.value : 'single');
       updateProvinceFilteredPlaces(form);
       setModalState(true);
     }

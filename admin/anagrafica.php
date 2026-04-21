@@ -902,7 +902,7 @@ require_once __DIR__ . '/includes/header.php';
                     <div>
                         <span class="eyebrow">Prenotazione sincronizzata</span>
                         <h3 id="bookingSyncModalTitle">Trasforma la prenotazione in anagrafica completa</h3>
-                        <p class="muted">Il form riprende la stessa struttura della nuova anagrafica: composizione del gruppo e mappatura automatica dei tipi Alloggiati Web.</p>
+                        <p class="muted">Il form riprende la struttura della nuova anagrafica e imposta automaticamente la tipologia corretta per ogni ospite.</p>
                     </div>
                     <button class="btn btn-light btn-sm" type="button" data-booking-modal-close>Chiudi</button>
                 </div>
@@ -924,13 +924,13 @@ require_once __DIR__ . '/includes/header.php';
 
                         <div class="anagrafica-grid anagrafica-grid--compact">
                             <label class="anagrafica-field<?= e($bookingModalFieldClass('record_type')) ?>">
-                                <span>Tipologia alloggiato / composizione</span>
+                                <span>Composizione anagrafica</span>
                                 <select name="record_type" id="bookingRecordType">
                                     <?php foreach ($recordTypeOptions as $value => $label): ?>
                                         <option value="<?= e($value) ?>" <?= $bookingModalRecord['record_type'] === $value ? 'selected' : '' ?>><?= e($label) ?></option>
                                     <?php endforeach; ?>
                                 </select>
-                                <small class="muted">16 = ospite singolo · 17/19 = famiglia · 18/20 = gruppo.</small>
+                                
                                 <?php if ($bookingModalErrorFor('record_type') !== ''): ?><small class="anagrafica-field-error"><?= e($bookingModalErrorFor('record_type')) ?></small><?php endif; ?>
                             </label>
 
@@ -969,8 +969,8 @@ require_once __DIR__ . '/includes/header.php';
                     <div class="anagrafica-section">
                         <div class="anagrafica-section__header">
                             <div>
-                                <h3>Capogruppo / primo ospite</h3>
-                                <p class="muted">Compila il documento per tutti gli ospiti. Alloggiati Web userà il documento solo per 16/17/18, mentre i componenti 19/20 lo manterranno a disposizione per gli export esterni.</p>
+                                <h3 data-leader-section-title>Anagrafica principale</h3>
+                                <p class="muted"><span data-leader-section-description>Compila i dati dell'ospite principale.</span></p>
                             </div>
                         </div>
                         <?php
@@ -991,10 +991,10 @@ require_once __DIR__ . '/includes/header.php';
                     <div class="anagrafica-section">
                         <div class="anagrafica-section__header">
                             <div>
-                                <h3>Componenti aggiuntivi</h3>
-                                <p class="muted">Per famiglia o gruppo aggiungi un componente alla volta. Anche per i componenti compila gli estremi documento: il tracciato Alloggiati li lascerà blank per 19/20 ma resteranno disponibili per l’export comunale.</p>
+                                <h3 data-repeater-section-title>Componenti aggiuntivi</h3>
+                                <p class="muted"><span data-repeater-section-description>Aggiungi i componenti collegati alla composizione selezionata.</span></p>
                             </div>
-                            <button class="btn btn-light" type="button" id="bookingAddGuestButton">Aggiungi componente</button>
+                            <button class="btn btn-light" type="button" id="bookingAddGuestButton" data-add-guest-label>Aggiungi componente</button>
                         </div>
                         <div class="anagrafica-repeater" id="bookingGuestRepeater">
                             <?php foreach ($bookingModalAdditionalGuests as $guestLoopIndex => $guestLoop): ?>
@@ -1031,8 +1031,7 @@ require_once __DIR__ . '/includes/header.php';
         <div class="anagrafica-guest-card" data-guest-card data-guest-scope>
             <div class="anagrafica-guest-card__top">
                 <div>
-                    <strong>Componente <span data-guest-number></span></strong>
-                    <p class="muted">Compila il componente con documento completo: il gestionale manterrà i dati per gli export esterni e mapperà automaticamente il tipo Alloggiati.</p>
+                    <strong><span data-guest-role-label>Componente</span> <span data-guest-number></span></strong>
                 </div>
                 <button class="btn btn-light btn-sm" type="button" data-remove-guest>Rimuovi</button>
             </div>
@@ -1048,7 +1047,7 @@ require_once __DIR__ . '/includes/header.php';
                 <label class="anagrafica-field"><span>Stato di residenza</span><input list="state-options" data-state-role="residence" data-name="residence_state_label" placeholder="Seleziona uno stato" required></label>
                 <label class="anagrafica-field"><span>Provincia residenza (se Italia)</span><input list="province-options" data-province-role="residence" data-name="residence_province" placeholder="Seleziona provincia"></label>
                 <label class="anagrafica-field"><span>Comune / località residenza</span><input data-list-template="residence" data-place-role="residence" data-name="residence_place_label" placeholder="Comune italiano, NUTS o località" required></label>
-                <label class="anagrafica-field"><span>Tipologia alloggiato (Alloggiati Web)</span><input type="text" data-alloggiati-type-display readonly></label>
+                <label class="anagrafica-field"><span>Tipologia alloggiato</span><input type="text" data-alloggiati-type-display readonly></label>
                 <label class="anagrafica-field"><span>Tipo documento</span><select data-name="document_type_label" required><option value="">Seleziona</option><?php foreach ($documentTypes as $docCode => $docLabel): ?><option value="<?= e($docLabel) ?>"><?= e($docLabel) ?></option><?php endforeach; ?></select></label>
                 <label class="anagrafica-field"><span>Numero documento</span><input type="text" data-name="document_number" maxlength="50" required></label>
                 <label class="anagrafica-field"><span>Luogo rilascio documento</span><input list="document-issue-options" data-name="document_issue_place" placeholder="Comune italiano o stato estero" required></label>
@@ -1273,19 +1272,19 @@ require_once __DIR__ . '/includes/header.php';
                 <div class="anagrafica-section__header">
                     <div>
                         <h3>Dati soggiorno</h3>
-                        <p class="muted">Il giorno selezionato alimenta registrazione prenotazione e data di arrivo. La composizione del gruppo mappa automaticamente i codici Alloggiati 16/17/18/19/20.</p>
+                        <p class="muted">Il giorno selezionato alimenta la registrazione prenotazione e la data di arrivo.</p>
                     </div>
                 </div>
 
                 <div class="anagrafica-grid anagrafica-grid--compact">
                     <label class="anagrafica-field<?= e($fieldClass('record_type')) ?>">
-                        <span>Tipologia alloggiato / composizione</span>
+                        <span>Composizione anagrafica</span>
                         <select name="record_type" id="recordType">
                             <?php foreach ($recordTypeOptions as $value => $label): ?>
                                 <option value="<?= e($value) ?>" <?= $formRecord['record_type'] === $value ? 'selected' : '' ?>><?= e($label) ?></option>
                             <?php endforeach; ?>
                         </select>
-                        <small class="muted">16 = ospite singolo · 17/19 = famiglia · 18/20 = gruppo.</small>
+                        
                         <?php if ($errorFor('record_type') !== ''): ?><small class="anagrafica-field-error"><?= e($errorFor('record_type')) ?></small><?php endif; ?>
                     </label>
 
@@ -1318,8 +1317,8 @@ require_once __DIR__ . '/includes/header.php';
             <div class="anagrafica-section">
                 <div class="anagrafica-section__header">
                     <div>
-                        <h3>Capogruppo / primo ospite</h3>
-                        <p class="muted">Compila il documento per tutti gli ospiti. Alloggiati Web userà il documento solo per 16/17/18, mentre i componenti 19/20 lo manterranno a disposizione per gli export esterni.</p>
+                        <h3 data-leader-section-title>Anagrafica principale</h3>
+                        <p class="muted"><span data-leader-section-description>Compila i dati dell'ospite principale.</span></p>
                     </div>
                 </div>
                 <?php $currentRecordType = $formRecord['record_type']; $guestIndex = 0; $guestData = $leaderGuest; $isRepeaterGuest = false; $guestNumber = 1; require __DIR__ . '/includes/anagrafica_guest_fields.partial.php'; ?>
@@ -1328,10 +1327,10 @@ require_once __DIR__ . '/includes/header.php';
             <div class="anagrafica-section">
                 <div class="anagrafica-section__header">
                     <div>
-                        <h3>Componenti aggiuntivi</h3>
-                        <p class="muted">Per famiglia o gruppo aggiungi un componente alla volta. Anche per i componenti compila gli estremi documento: il tracciato Alloggiati li lascerà blank per 19/20 ma resteranno disponibili per l’export comunale.</p>
+                        <h3 data-repeater-section-title>Componenti aggiuntivi</h3>
+                        <p class="muted"><span data-repeater-section-description>Aggiungi i componenti collegati alla composizione selezionata.</span></p>
                     </div>
-                    <button class="btn btn-light" type="button" id="addGuestButton">Aggiungi componente</button>
+                    <button class="btn btn-light" type="button" id="addGuestButton" data-add-guest-label>Aggiungi componente</button>
                 </div>
                 <div class="anagrafica-repeater" id="guestRepeater">
                     <?php foreach ($additionalGuests as $guestLoopIndex => $guestLoop): ?>
@@ -1344,8 +1343,7 @@ require_once __DIR__ . '/includes/header.php';
                 <div class="anagrafica-guest-card" data-guest-card data-guest-scope>
                     <div class="anagrafica-guest-card__top">
                         <div>
-                            <strong>Componente <span data-guest-number></span></strong>
-                            <p class="muted">Compila il componente con documento completo: il gestionale manterrà i dati per gli export esterni e mapperà automaticamente il tipo Alloggiati.</p>
+                            <strong><span data-guest-role-label>Componente</span> <span data-guest-number></span></strong>
                         </div>
                         <button class="btn btn-light btn-sm" type="button" data-remove-guest>Rimuovi</button>
                     </div>
@@ -1361,7 +1359,7 @@ require_once __DIR__ . '/includes/header.php';
                         <label class="anagrafica-field"><span>Stato di residenza</span><input list="state-options" data-state-role="residence" data-name="residence_state_label" placeholder="Seleziona uno stato" required></label>
                         <label class="anagrafica-field"><span>Provincia residenza (se Italia)</span><input list="province-options" data-province-role="residence" data-name="residence_province" placeholder="Seleziona provincia"></label>
                         <label class="anagrafica-field"><span>Comune / località residenza</span><input data-list-template="residence" data-place-role="residence" data-name="residence_place_label" placeholder="Comune italiano, NUTS o località" required></label>
-                        <label class="anagrafica-field"><span>Tipologia alloggiato (Alloggiati Web)</span><input type="text" data-alloggiati-type-display readonly></label>
+                        <label class="anagrafica-field"><span>Tipologia alloggiato</span><input type="text" data-alloggiati-type-display readonly></label>
                         <label class="anagrafica-field"><span>Tipo documento</span><select data-name="document_type_label" required><option value="">Seleziona</option><?php foreach ($documentTypes as $docCode => $docLabel): ?><option value="<?= e($docLabel) ?>"><?= e($docLabel) ?></option><?php endforeach; ?></select></label>
                         <label class="anagrafica-field"><span>Numero documento</span><input type="text" data-name="document_number" maxlength="50" required></label>
                         <label class="anagrafica-field"><span>Luogo rilascio documento</span><input list="document-issue-options" data-name="document_issue_place" placeholder="Comune italiano o stato estero" required></label>
