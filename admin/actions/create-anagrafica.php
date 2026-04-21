@@ -90,7 +90,10 @@ function build_listing_redirect_url(string $month = '', string $day = '', string
 
 function derive_guest_idswh(string $bookingIdswh, int $index): string
 {
-    return strtoupper(substr($bookingIdswh . str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT), 0, 20));
+    $suffix = str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT);
+    $base = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $bookingIdswh) ?? '');
+    $base = substr($base, 0, 18);
+    return str_pad($base . $suffix, 20, '0', STR_PAD_RIGHT);
 }
 
 function derive_booking_idswh(string $recordType, string $bookingReference): string
@@ -456,8 +459,15 @@ try {
     $guestStmt = $pdo->prepare('INSERT INTO anagrafica_guests (record_id, guest_idswh, is_group_leader, leader_idswh, tipoalloggiato_code, first_name, last_name, gender, birth_date, citizenship_label, citizenship_code, birth_state_label, birth_state_code, birth_province, birth_place_label, birth_city_code, residence_state_label, residence_state_code, residence_province, residence_place_label, residence_place_code, document_type, document_type_label, document_type_code, document_number, document_issue_date, document_expiry_date, document_issue_place, document_issue_place_code, email, phone, tourism_type, transport_type, education_level, profession, tax_exemption_code, created_at, updated_at) VALUES (:record_id, :guest_idswh, :is_group_leader, :leader_idswh, :tipoalloggiato_code, :first_name, :last_name, :gender, :birth_date, :citizenship_label, :citizenship_code, :birth_state_label, :birth_state_code, :birth_province, :birth_place_label, :birth_city_code, :residence_state_label, :residence_state_code, :residence_province, :residence_place_label, :residence_place_code, :document_type, :document_type_label, :document_type_code, :document_number, NULL, NULL, :document_issue_place, :document_issue_place_code, NULL, NULL, :tourism_type, :transport_type, NULL, NULL, NULL, NOW(), NOW())');
 
     $leaderIdswh = '';
+    $usedGuestIdswh = [];
     foreach ($normalizedGuests as $index => $guest) {
-        $guestIdswh = $existingGuestIds[$index] ?? derive_guest_idswh($bookingIdswh, $index);
+        $derivedGuestIdswh = derive_guest_idswh($bookingIdswh, $index);
+        $existingGuestIdswh = trim((string) ($existingGuestIds[$index] ?? ''));
+        $guestIdswh = $existingGuestIdswh;
+        if ($guestIdswh === '' || isset($usedGuestIdswh[$guestIdswh])) {
+            $guestIdswh = $derivedGuestIdswh;
+        }
+        $usedGuestIdswh[$guestIdswh] = true;
         if ($index === 0) {
             $leaderIdswh = $guestIdswh;
         }

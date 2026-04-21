@@ -10,7 +10,10 @@ require_once __DIR__ . '/alloggiati.php';
 if (!function_exists('derive_guest_idswh')) {
     function derive_guest_idswh(string $bookingIdswh, int $index): string
     {
-        return strtoupper(substr($bookingIdswh . str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT), 0, 20));
+        $suffix = str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT);
+        $base = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $bookingIdswh) ?? '');
+        $base = substr($base, 0, 18);
+        return str_pad($base . $suffix, 20, '0', STR_PAD_RIGHT);
     }
 }
 
