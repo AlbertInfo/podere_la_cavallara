@@ -254,6 +254,16 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  function bindProvincePlaceDependencies(scope, rootForm) {
+    $all('[data-state-role], [data-province-role]', scope || document).forEach(function (field) {
+      if (field.dataset.depBound === '1') return;
+      field.dataset.depBound = '1';
+      field.addEventListener('change', function () { updateProvinceFilteredPlaces(rootForm || document); });
+      field.addEventListener('input', function () { updateProvinceFilteredPlaces(rootForm || document); });
+      field.addEventListener('blur', function () { updateProvinceFilteredPlaces(rootForm || document); });
+    });
+  }
+
   function refreshStructureLabels(scope, recordTypeValue) {
     var labels = roleLabelsForRecordType(recordTypeValue || 'single');
     $all('[data-leader-section-title]', scope || document).forEach(function (node) {
@@ -470,6 +480,7 @@ document.addEventListener('DOMContentLoaded', function () {
       bindRemoveButtons(card);
       initDates(card);
       installLiveValidation(card);
+      bindProvincePlaceDependencies(card, form);
       cloneIndex += 1;
       refreshGuestCounters();
       refreshDerivedAlloggiatiTypes(form, recordType ? recordType.value : 'single');
@@ -533,10 +544,7 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     });
 
-    $all('[data-state-role], [data-province-role]', form).forEach(function (field) {
-      field.addEventListener('change', function () { updateProvinceFilteredPlaces(form); });
-      field.addEventListener('input', function () { updateProvinceFilteredPlaces(form); });
-    });
+    bindProvincePlaceDependencies(form, form);
 
     initDates(form);
     bindRemoveButtons();
@@ -1203,10 +1211,7 @@ function initMonthRangeConfigurator() {
     if (addButton) addButton.addEventListener('click', function () { addGuestCard({}); });
     if (recordType) recordType.addEventListener('change', updateGroupState);
 
-    $all('[data-state-role], [data-province-role]', form).forEach(function (field) {
-      field.addEventListener('change', function () { updateProvinceFilteredPlaces(form); });
-      field.addEventListener('input', function () { updateProvinceFilteredPlaces(form); });
-    });
+    bindProvincePlaceDependencies(form, form);
 
     initDates(form);
     installLiveValidation(form);
