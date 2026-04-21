@@ -136,7 +136,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function configurePlaceField(field, values, placeholder, disabled) {
     if (!field) return;
-    field.disabled = !!disabled;
+    // UX: non blocchiamo i campi geografici; guidiamo la compilazione con placeholder e datalist.
+    // Il flag disabled resta gestito solo in casi eccezionali, ma qui preferiamo tenerli compilabili.
+    field.disabled = disabled === true ? true : false;
     if (placeholder) field.placeholder = placeholder;
     var datalist = ensureDatalist(field, field.getAttribute('data-place-role') || 'place', field.dataset.fallbackListId || globalPlaceListId);
     fillDatalist(datalist, values);
@@ -154,21 +156,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
       if (birthState && birthProvince && birthPlace) {
         var birthIsItaly = italySelected(birthState.value);
-        birthProvince.disabled = !birthIsItaly;
+        birthProvince.disabled = false;
         var birthCode = resolveProvinceCode(birthProvince.value);
         if (birthIsItaly && birthCode) {
           configurePlaceField(birthPlace, comuniByProvince[birthCode] || [], 'Seleziona il comune di nascita', false);
         } else if (birthIsItaly) {
           configurePlaceField(birthPlace, [], 'Seleziona prima la provincia', false);
         } else {
-          configurePlaceField(birthPlace, [], 'Per estero basta lo stato di nascita', true);
-          if (!birthPlace.dataset.keepValue) birthPlace.value = '';
+          configurePlaceField(birthPlace, [], 'Facoltativo per estero', false);
         }
       }
 
       if (residenceState && residenceProvince && residencePlace) {
         var residenceIsItaly = italySelected(residenceState.value);
-        residenceProvince.disabled = !residenceIsItaly;
+        residenceProvince.disabled = false;
         var residenceCode = resolveProvinceCode(residenceProvince.value);
         if (residenceIsItaly && residenceCode) {
           configurePlaceField(residencePlace, comuniByProvince[residenceCode] || [], 'Seleziona il comune di residenza', false);
@@ -177,7 +178,7 @@ document.addEventListener('DOMContentLoaded', function () {
         } else {
           residencePlace.disabled = false;
           residencePlace.setAttribute('list', globalPlaceListId);
-          residencePlace.placeholder = 'Località estera o codice NUTS';
+          residencePlace.placeholder = 'Comune / località residenza';
         }
       }
 
