@@ -230,15 +230,13 @@ try {
         $documentType = $documentTypeLabel !== '' ? anagrafica_find_document_by_value($documentTypeLabel) : null;
         $documentNumber = trim((string) ($guest['document_number'] ?? ''));
         $documentIssuePlace = trim((string) ($guest['document_issue_place'] ?? ''));
-        if ($isLeader) {
-            if (!$documentType) booking_error($errors, $fieldPrefix . 'document_type_label', 'Seleziona il tipo documento.');
-            if ($documentNumber === '') booking_error($errors, $fieldPrefix . 'document_number', 'Inserisci il numero documento.');
-            if ($documentIssuePlace === '') booking_error($errors, $fieldPrefix . 'document_issue_place', 'Inserisci il luogo di rilascio del documento.');
-        }
-        $documentIssuePlaceCode = null;
-        if ($documentIssuePlace !== '') {
-            $issueComune = anagrafica_find_comune_by_value($documentIssuePlace, '');
-            $documentIssuePlaceCode = $issueComune['code'] ?? null;
+        if (!$documentType) booking_error($errors, $fieldPrefix . 'document_type_label', 'Seleziona il tipo documento.');
+        if ($documentNumber === '') booking_error($errors, $fieldPrefix . 'document_number', 'Inserisci il numero documento.');
+        if ($documentIssuePlace === '') booking_error($errors, $fieldPrefix . 'document_issue_place', 'Inserisci il luogo di rilascio del documento.');
+        $documentIssuePlaceResolved = $documentIssuePlace !== '' ? anagrafica_resolve_document_issue_place_value($documentIssuePlace) : null;
+        $documentIssuePlaceCode = $documentIssuePlaceResolved['code'] ?? null;
+        if ($documentIssuePlace !== '' && !$documentIssuePlaceResolved) {
+            booking_error($errors, $fieldPrefix . 'document_issue_place', 'Luogo di rilascio del documento non riconosciuto.');
         }
 
         $tourismType = trim((string) ($guest['tourism_type'] ?? ''));
@@ -250,7 +248,7 @@ try {
             continue;
         }
         if ($birthState['code'] === anagrafica_default_italy_state_code() && !$birthCity) continue;
-        if ($isLeader && (!$documentType || $documentNumber === '' || $documentIssuePlace === '')) continue;
+        if (!$documentType || $documentNumber === '' || !$documentIssuePlaceResolved) continue;
 
         $normalizedGuests[] = [
             'first_name' => $firstName,
@@ -269,11 +267,11 @@ try {
             'residence_province' => $residenceProvinceCode,
             'residence_place_label' => $residencePlace['label'],
             'residence_place_code' => $residencePlace['code'],
-            'document_type_label' => $isLeader ? ($documentType['description'] ?? null) : null,
-            'document_type_code' => $isLeader ? ($documentType['code'] ?? null) : null,
-            'document_number' => $isLeader ? $documentNumber : null,
-            'document_issue_place' => $isLeader ? $documentIssuePlace : null,
-            'document_issue_place_code' => $isLeader ? $documentIssuePlaceCode : null,
+            'document_type_label' => $documentType['description'] ?? null,
+            'document_type_code' => $documentType['code'] ?? null,
+            'document_number' => $documentNumber,
+            'document_issue_place' => $documentIssuePlaceResolved['label'] ?? $documentIssuePlace,
+            'document_issue_place_code' => $documentIssuePlaceCode,
             'tourism_type' => $tourismType,
             'transport_type' => $transportType,
         ];

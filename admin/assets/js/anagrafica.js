@@ -204,6 +204,25 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  function alloggiatiTypeDisplayValue(recordTypeValue, guestIndex) {
+    var index = parseInt(guestIndex, 10);
+    var isLeader = isNaN(index) || index === 0;
+    if (recordTypeValue === 'family') {
+      return isLeader ? '17 · CAPO FAMIGLIA' : '19 · FAMILIARE';
+    }
+    if (recordTypeValue === 'group') {
+      return isLeader ? '18 · CAPO GRUPPO' : '20 · MEMBRO GRUPPO';
+    }
+    return '16 · OSPITE SINGOLO';
+  }
+
+  function refreshDerivedAlloggiatiTypes(scope, recordTypeValue) {
+    $all('[data-alloggiati-type-display]', scope || document).forEach(function (field) {
+      var guestIndex = field.getAttribute('data-guest-index') || '0';
+      field.value = alloggiatiTypeDisplayValue(recordTypeValue || 'single', guestIndex);
+    });
+  }
+
   function initFormPanel() {
     var formCard = document.getElementById('anagraficaFormCard');
     var form = document.getElementById('anagraficaForm');
@@ -264,6 +283,7 @@ document.addEventListener('DOMContentLoaded', function () {
       clearGuestRepeater();
       refreshGuestCounters();
       updateGroupState();
+      refreshDerivedAlloggiatiTypes(form, recordType ? recordType.value : 'single');
       updateProvinceFilteredPlaces(form);
       clearClientValidation(form);
     }
@@ -362,6 +382,7 @@ document.addEventListener('DOMContentLoaded', function () {
         clearGuestRepeater();
       }
       refreshGuestCounters();
+      refreshDerivedAlloggiatiTypes(form, recordType ? recordType.value : 'single');
     }
 
     function wireCloneLists(card, index) {
@@ -385,6 +406,9 @@ document.addEventListener('DOMContentLoaded', function () {
         var dataName = field.getAttribute('data-name');
         field.name = 'guests[' + cloneIndex + '][' + dataName + ']';
       });
+      $all('[data-alloggiati-type-display]', card).forEach(function (field) {
+        field.setAttribute('data-guest-index', String(cloneIndex));
+      });
 
       wireCloneLists(card, cloneIndex);
       repeater.appendChild(card);
@@ -393,6 +417,7 @@ document.addEventListener('DOMContentLoaded', function () {
       installLiveValidation(card);
       cloneIndex += 1;
       refreshGuestCounters();
+      refreshDerivedAlloggiatiTypes(form, recordType ? recordType.value : 'single');
       updateProvinceFilteredPlaces(form);
     }
 
@@ -462,6 +487,7 @@ document.addEventListener('DOMContentLoaded', function () {
     installLiveValidation(form);
     refreshGuestCounters();
     updateGroupState();
+    refreshDerivedAlloggiatiTypes(form, recordType ? recordType.value : 'single');
     updateProvinceFilteredPlaces(form);
     setPanelState(forceOpen);
   }
@@ -960,6 +986,9 @@ function initMonthRangeConfigurator() {
         var dataName = field.getAttribute('data-name');
         field.name = 'guests[' + cloneIndex + '][' + dataName + ']';
       });
+      $all('[data-alloggiati-type-display]', card).forEach(function (field) {
+        field.setAttribute('data-guest-index', String(cloneIndex));
+      });
 
       wireCloneLists(card, cloneIndex);
       repeater.appendChild(card);
@@ -969,6 +998,7 @@ function initMonthRangeConfigurator() {
       setGuestValues(card, guest || {});
       cloneIndex += 1;
       refreshGuestCounters();
+      refreshDerivedAlloggiatiTypes(form, recordType ? recordType.value : 'single');
       updateProvinceFilteredPlaces(form);
     }
 
@@ -1022,6 +1052,7 @@ function initMonthRangeConfigurator() {
         }
       }
       refreshGuestCounters();
+      refreshDerivedAlloggiatiTypes(form, recordType ? recordType.value : 'single');
     }
 
     function clearClientErrors() {
@@ -1072,6 +1103,7 @@ function initMonthRangeConfigurator() {
         addGuestCard(guests[i]);
       }
       updateGroupState();
+      refreshDerivedAlloggiatiTypes(form, recordType ? recordType.value : 'single');
       updateProvinceFilteredPlaces(form);
       setModalState(true);
     }

@@ -328,10 +328,54 @@ function anagrafica_tipo_alloggiato_options(): array
 function anagrafica_record_type_options(): array
 {
     return [
-        'single' => 'Ospite singolo',
-        'family' => 'Famiglia',
-        'group' => 'Gruppo',
+        'single' => 'Ospite singolo (16)',
+        'family' => 'Famiglia: Capo famiglia (17) + Familiari (19)',
+        'group' => 'Gruppo: Capo gruppo (18) + Membri gruppo (20)',
     ];
+}
+
+function anagrafica_document_issue_place_options(): array
+{
+    static $options = null;
+    if ($options !== null) {
+        return $options;
+    }
+
+    $options = array_values(array_unique(array_merge(
+        array_values(anagrafica_state_options()),
+        anagrafica_place_option_labels()
+    )));
+    sort($options, SORT_NATURAL | SORT_FLAG_CASE);
+
+    return $options;
+}
+
+function anagrafica_resolve_document_issue_place_value(?string $value): ?array
+{
+    $value = trim((string) $value);
+    if ($value === '') {
+        return null;
+    }
+
+    $comune = anagrafica_find_comune_by_value($value, '');
+    if ($comune) {
+        return [
+            'code' => (string) ($comune['code'] ?? ''),
+            'label' => (string) ($comune['label'] ?? $value),
+            'type' => 'comune',
+        ];
+    }
+
+    $state = anagrafica_find_state_by_value($value);
+    if ($state) {
+        return [
+            'code' => (string) ($state['code'] ?? ''),
+            'label' => (string) ($state['description'] ?? $value),
+            'type' => 'state',
+        ];
+    }
+
+    return null;
 }
 
 function anagrafica_tipo_alloggiato_code_for_record_type(string $recordType, bool $isLeader): string

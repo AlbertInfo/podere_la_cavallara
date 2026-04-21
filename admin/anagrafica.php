@@ -306,6 +306,7 @@ $province = anagrafica_province_italiane();
 $documentTypes = anagrafica_document_types();
 $cityOptions = anagrafica_comune_option_labels();
 $placeOptions = anagrafica_place_option_labels();
+$documentIssueOptions = anagrafica_document_issue_place_options();
 $channels = anagrafica_booking_channels();
 $tourismTypes = anagrafica_tourism_types();
 $transportTypes = anagrafica_transport_types();
@@ -901,7 +902,7 @@ require_once __DIR__ . '/includes/header.php';
                     <div>
                         <span class="eyebrow">Prenotazione sincronizzata</span>
                         <h3 id="bookingSyncModalTitle">Trasforma la prenotazione in anagrafica completa</h3>
-                        <p class="muted">Il form riprende la stessa struttura della nuova anagrafica: tipologia record, capogruppo e componenti aggiuntivi.</p>
+                        <p class="muted">Il form riprende la stessa struttura della nuova anagrafica: composizione del gruppo e mappatura automatica dei tipi Alloggiati Web.</p>
                     </div>
                     <button class="btn btn-light btn-sm" type="button" data-booking-modal-close>Chiudi</button>
                 </div>
@@ -923,12 +924,13 @@ require_once __DIR__ . '/includes/header.php';
 
                         <div class="anagrafica-grid anagrafica-grid--compact">
                             <label class="anagrafica-field<?= e($bookingModalFieldClass('record_type')) ?>">
-                                <span>Tipologia record</span>
+                                <span>Tipologia alloggiato / composizione</span>
                                 <select name="record_type" id="bookingRecordType">
                                     <?php foreach ($recordTypeOptions as $value => $label): ?>
                                         <option value="<?= e($value) ?>" <?= $bookingModalRecord['record_type'] === $value ? 'selected' : '' ?>><?= e($label) ?></option>
                                     <?php endforeach; ?>
                                 </select>
+                                <small class="muted">16 = ospite singolo · 17/19 = famiglia · 18/20 = gruppo.</small>
                                 <?php if ($bookingModalErrorFor('record_type') !== ''): ?><small class="anagrafica-field-error"><?= e($bookingModalErrorFor('record_type')) ?></small><?php endif; ?>
                             </label>
 
@@ -968,7 +970,7 @@ require_once __DIR__ . '/includes/header.php';
                         <div class="anagrafica-section__header">
                             <div>
                                 <h3>Capogruppo / primo ospite</h3>
-                                <p class="muted">Documento richiesto solo per ospite singolo o capogruppo/capofamiglia.</p>
+                                <p class="muted">Compila il documento per tutti gli ospiti. Alloggiati Web userà il documento solo per 16/17/18, mentre i componenti 19/20 lo manterranno a disposizione per gli export esterni.</p>
                             </div>
                         </div>
                         <?php
@@ -990,7 +992,7 @@ require_once __DIR__ . '/includes/header.php';
                         <div class="anagrafica-section__header">
                             <div>
                                 <h3>Componenti aggiuntivi</h3>
-                                <p class="muted">Per famiglia o gruppo aggiungi un componente alla volta. Per i componenti non servono i dati del documento.</p>
+                                <p class="muted">Per famiglia o gruppo aggiungi un componente alla volta. Anche per i componenti compila gli estremi documento: il tracciato Alloggiati li lascerà blank per 19/20 ma resteranno disponibili per l’export comunale.</p>
                             </div>
                             <button class="btn btn-light" type="button" id="bookingAddGuestButton">Aggiungi componente</button>
                         </div>
@@ -1001,6 +1003,7 @@ require_once __DIR__ . '/includes/header.php';
                                 $errorForBackup = $errorFor;
                                 $fieldClass = $bookingModalFieldClass;
                                 $errorFor = $bookingModalErrorFor;
+                                $currentRecordType = $bookingModalRecord['record_type'];
                                 $guestIndex = $guestLoopIndex + 1;
                                 $guestData = $guestLoop;
                                 $isRepeaterGuest = true;
@@ -1029,7 +1032,7 @@ require_once __DIR__ . '/includes/header.php';
             <div class="anagrafica-guest-card__top">
                 <div>
                     <strong>Componente <span data-guest-number></span></strong>
-                    <p class="muted">Compila solo i dati essenziali per ROSS1000 e Alloggiati Web.</p>
+                    <p class="muted">Compila il componente con documento completo: il gestionale manterrà i dati per gli export esterni e mapperà automaticamente il tipo Alloggiati.</p>
                 </div>
                 <button class="btn btn-light btn-sm" type="button" data-remove-guest>Rimuovi</button>
             </div>
@@ -1045,6 +1048,10 @@ require_once __DIR__ . '/includes/header.php';
                 <label class="anagrafica-field"><span>Stato di residenza</span><input list="state-options" data-state-role="residence" data-name="residence_state_label" placeholder="Seleziona uno stato" required></label>
                 <label class="anagrafica-field"><span>Provincia residenza (se Italia)</span><input list="province-options" data-province-role="residence" data-name="residence_province" placeholder="Seleziona provincia"></label>
                 <label class="anagrafica-field"><span>Comune / località residenza</span><input data-list-template="residence" data-place-role="residence" data-name="residence_place_label" placeholder="Comune italiano, NUTS o località" required></label>
+                <label class="anagrafica-field"><span>Tipologia alloggiato (Alloggiati Web)</span><input type="text" data-alloggiati-type-display readonly></label>
+                <label class="anagrafica-field"><span>Tipo documento</span><select data-name="document_type_label" required><option value="">Seleziona</option><?php foreach ($documentTypes as $docCode => $docLabel): ?><option value="<?= e($docLabel) ?>"><?= e($docLabel) ?></option><?php endforeach; ?></select></label>
+                <label class="anagrafica-field"><span>Numero documento</span><input type="text" data-name="document_number" maxlength="50" required></label>
+                <label class="anagrafica-field"><span>Luogo rilascio documento</span><input list="document-issue-options" data-name="document_issue_place" placeholder="Comune italiano o stato estero" required></label>
                 <label class="anagrafica-field"><span>Tipo turismo</span><select data-name="tourism_type" required><option value="">Seleziona</option><?php foreach ($tourismTypes as $value): ?><option value="<?= e($value) ?>"><?= e($value) ?></option><?php endforeach; ?></select></label>
                 <label class="anagrafica-field"><span>Mezzo di trasporto</span><select data-name="transport_type" required><option value="">Seleziona</option><?php foreach ($transportTypes as $value): ?><option value="<?= e($value) ?>"><?= e($value) ?></option><?php endforeach; ?></select></label>
             </div>
@@ -1175,7 +1182,7 @@ require_once __DIR__ . '/includes/header.php';
                                                 <div><span>Ospite</span><strong><?= e((string) ($schedina['display_name'] ?? ($payload['display_name'] ?? ''))) ?></strong></div>
                                                 <div><span>Tipo</span><strong><?= e((string) ($payload['tipo_alloggiato_label'] ?? '')) ?></strong></div>
                                                 <div><span>Arrivo</span><strong><?= e((string) ($payload['arrival_date_portal'] ?? '')) ?></strong></div>
-                                                <?php if (!empty($payload['document_type_label'])): ?><div><span>Documento</span><strong><?= e((string) $payload['document_type_label']) ?> · <?= e((string) ($payload['document_number'] ?? '')) ?></strong></div><?php else: ?><div><span>Documento</span><strong>Non richiesto</strong></div><?php endif; ?>
+                                                <?php if (!empty($payload['document_type_label'])): ?><div><span>Documento</span><strong><?= e((string) $payload['document_type_label']) ?> · <?= e((string) ($payload['document_number'] ?? '')) ?></strong></div><?php else: ?><div><span>Documento</span><strong>Non disponibile</strong></div><?php endif; ?>
                                             </div>
                                             <p class="muted">Scaricherai il tracciato record della schedina selezionata nel formato testuale previsto da Alloggiati Web.</p>
                                         </div>
@@ -1266,18 +1273,19 @@ require_once __DIR__ . '/includes/header.php';
                 <div class="anagrafica-section__header">
                     <div>
                         <h3>Dati soggiorno</h3>
-                        <p class="muted">Il giorno selezionato alimenta registrazione prenotazione e data di arrivo. Compila solo i campi indispensabili ai tracciati.</p>
+                        <p class="muted">Il giorno selezionato alimenta registrazione prenotazione e data di arrivo. La composizione del gruppo mappa automaticamente i codici Alloggiati 16/17/18/19/20.</p>
                     </div>
                 </div>
 
                 <div class="anagrafica-grid anagrafica-grid--compact">
                     <label class="anagrafica-field<?= e($fieldClass('record_type')) ?>">
-                        <span>Tipologia record</span>
+                        <span>Tipologia alloggiato / composizione</span>
                         <select name="record_type" id="recordType">
                             <?php foreach ($recordTypeOptions as $value => $label): ?>
                                 <option value="<?= e($value) ?>" <?= $formRecord['record_type'] === $value ? 'selected' : '' ?>><?= e($label) ?></option>
                             <?php endforeach; ?>
                         </select>
+                        <small class="muted">16 = ospite singolo · 17/19 = famiglia · 18/20 = gruppo.</small>
                         <?php if ($errorFor('record_type') !== ''): ?><small class="anagrafica-field-error"><?= e($errorFor('record_type')) ?></small><?php endif; ?>
                     </label>
 
@@ -1311,23 +1319,23 @@ require_once __DIR__ . '/includes/header.php';
                 <div class="anagrafica-section__header">
                     <div>
                         <h3>Capogruppo / primo ospite</h3>
-                        <p class="muted">Documento richiesto solo per ospite singolo o capogruppo/capofamiglia.</p>
+                        <p class="muted">Compila il documento per tutti gli ospiti. Alloggiati Web userà il documento solo per 16/17/18, mentre i componenti 19/20 lo manterranno a disposizione per gli export esterni.</p>
                     </div>
                 </div>
-                <?php $guestIndex = 0; $guestData = $leaderGuest; $isRepeaterGuest = false; $guestNumber = 1; require __DIR__ . '/includes/anagrafica_guest_fields.partial.php'; ?>
+                <?php $currentRecordType = $formRecord['record_type']; $guestIndex = 0; $guestData = $leaderGuest; $isRepeaterGuest = false; $guestNumber = 1; require __DIR__ . '/includes/anagrafica_guest_fields.partial.php'; ?>
             </div>
 
             <div class="anagrafica-section">
                 <div class="anagrafica-section__header">
                     <div>
                         <h3>Componenti aggiuntivi</h3>
-                        <p class="muted">Per famiglia o gruppo aggiungi un componente alla volta. Per i componenti non servono i dati del documento.</p>
+                        <p class="muted">Per famiglia o gruppo aggiungi un componente alla volta. Anche per i componenti compila gli estremi documento: il tracciato Alloggiati li lascerà blank per 19/20 ma resteranno disponibili per l’export comunale.</p>
                     </div>
                     <button class="btn btn-light" type="button" id="addGuestButton">Aggiungi componente</button>
                 </div>
                 <div class="anagrafica-repeater" id="guestRepeater">
                     <?php foreach ($additionalGuests as $guestLoopIndex => $guestLoop): ?>
-                        <?php $guestIndex = $guestLoopIndex + 1; $guestData = $guestLoop; $isRepeaterGuest = true; $guestNumber = $guestLoopIndex + 2; require __DIR__ . '/includes/anagrafica_guest_fields.partial.php'; ?>
+                        <?php $currentRecordType = $formRecord['record_type']; $guestIndex = $guestLoopIndex + 1; $guestData = $guestLoop; $isRepeaterGuest = true; $guestNumber = $guestLoopIndex + 2; require __DIR__ . '/includes/anagrafica_guest_fields.partial.php'; ?>
                     <?php endforeach; ?>
                 </div>
             </div>
@@ -1337,7 +1345,7 @@ require_once __DIR__ . '/includes/header.php';
                     <div class="anagrafica-guest-card__top">
                         <div>
                             <strong>Componente <span data-guest-number></span></strong>
-                            <p class="muted">Compila solo i dati essenziali per ROSS1000 e Alloggiati Web.</p>
+                            <p class="muted">Compila il componente con documento completo: il gestionale manterrà i dati per gli export esterni e mapperà automaticamente il tipo Alloggiati.</p>
                         </div>
                         <button class="btn btn-light btn-sm" type="button" data-remove-guest>Rimuovi</button>
                     </div>
@@ -1353,6 +1361,10 @@ require_once __DIR__ . '/includes/header.php';
                         <label class="anagrafica-field"><span>Stato di residenza</span><input list="state-options" data-state-role="residence" data-name="residence_state_label" placeholder="Seleziona uno stato" required></label>
                         <label class="anagrafica-field"><span>Provincia residenza (se Italia)</span><input list="province-options" data-province-role="residence" data-name="residence_province" placeholder="Seleziona provincia"></label>
                         <label class="anagrafica-field"><span>Comune / località residenza</span><input data-list-template="residence" data-place-role="residence" data-name="residence_place_label" placeholder="Comune italiano, NUTS o località" required></label>
+                        <label class="anagrafica-field"><span>Tipologia alloggiato (Alloggiati Web)</span><input type="text" data-alloggiati-type-display readonly></label>
+                        <label class="anagrafica-field"><span>Tipo documento</span><select data-name="document_type_label" required><option value="">Seleziona</option><?php foreach ($documentTypes as $docCode => $docLabel): ?><option value="<?= e($docLabel) ?>"><?= e($docLabel) ?></option><?php endforeach; ?></select></label>
+                        <label class="anagrafica-field"><span>Numero documento</span><input type="text" data-name="document_number" maxlength="50" required></label>
+                        <label class="anagrafica-field"><span>Luogo rilascio documento</span><input list="document-issue-options" data-name="document_issue_place" placeholder="Comune italiano o stato estero" required></label>
                         <label class="anagrafica-field"><span>Tipo turismo</span><select data-name="tourism_type" required><option value="">Seleziona</option><?php foreach ($tourismTypes as $value): ?><option value="<?= e($value) ?>"><?= e($value) ?></option><?php endforeach; ?></select></label>
                         <label class="anagrafica-field"><span>Mezzo di trasporto</span><select data-name="transport_type" required><option value="">Seleziona</option><?php foreach ($transportTypes as $value): ?><option value="<?= e($value) ?>"><?= e($value) ?></option><?php endforeach; ?></select></label>
                     </div>
@@ -1370,6 +1382,7 @@ require_once __DIR__ . '/includes/header.php';
 <datalist id="province-options"><?php foreach ($province as $code => $provinceName): ?><option value="<?= e($provinceName) ?>"><?php endforeach; ?></datalist>
 <datalist id="city-options"><?php foreach ($cityOptions as $city): ?><option value="<?= e($city) ?>"><?php endforeach; ?></datalist>
 <datalist id="place-options"><?php foreach ($placeOptions as $place): ?><option value="<?= e($place) ?>"><?php endforeach; ?></datalist>
+<datalist id="document-issue-options"><?php foreach ($documentIssueOptions as $place): ?><option value="<?= e($place) ?>"><?php endforeach; ?></datalist>
 
 <script type="application/json" id="anagraficaProvinceMap"><?= json_encode($provinceNameToCode, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?></script>
 <script type="application/json" id="anagraficaComuniByProvince"><?= json_encode($comuniByProvince, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?></script>

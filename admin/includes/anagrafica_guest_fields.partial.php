@@ -35,13 +35,20 @@ $residenceListId = 'residence-place-options-' . $guestIndex;
 $currentDocumentValue = $fieldValue($guestData, 'document_type_label', $fieldValue($guestData, 'document_type'));
 $currentDocument = anagrafica_find_document_by_value($currentDocumentValue);
 $currentDocumentLabel = $currentDocument['description'] ?? $currentDocumentValue;
+$currentRecordType = (string) ($currentRecordType ?? ($formRecord['record_type'] ?? ($bookingModalRecord['record_type'] ?? 'single')));
+$currentGuestTypeCode = trim($fieldValue($guestData, 'tipoalloggiato_code', $fieldValue($guestData, 'tipo_alloggiato_code')));
+if ($currentGuestTypeCode === '') {
+    $currentGuestTypeCode = anagrafica_tipo_alloggiato_code_for_record_type($currentRecordType, $isLeaderGuest);
+}
+$currentGuestTypeLabel = anagrafica_tipo_alloggiato_options()[$currentGuestTypeCode] ?? '';
+$currentGuestTypeDisplay = trim($currentGuestTypeCode . ($currentGuestTypeLabel !== '' ? (' · ' . $currentGuestTypeLabel) : ''));
 ?>
 <div class="anagrafica-guest-card<?= $isRepeaterGuest ? '' : ' anagrafica-guest-card--primary' ?>"<?= $isRepeaterGuest ? ' data-guest-card' : '' ?> data-guest-scope data-guest-index="<?= e((string) $guestIndex) ?>">
     <?php if ($isRepeaterGuest): ?>
         <div class="anagrafica-guest-card__top">
             <div>
                 <strong>Componente <span data-guest-number><?= e((string) $guestNumber) ?></span></strong>
-                <p class="muted">Compila solo i dati realmente necessari per ROSS1000 e Alloggiati Web.</p>
+                <p class="muted">Compila i dati completi dell'ospite: il gestionale conserva i documenti per gli export esterni e Alloggiati Web userà automaticamente la mappatura corretta.</p>
             </div>
             <button class="btn btn-light btn-sm" type="button" data-remove-guest>Rimuovi</button>
         </div>
@@ -114,36 +121,39 @@ $currentDocumentLabel = $currentDocument['description'] ?? $currentDocumentValue
         </label>
 
         <label class="anagrafica-field<?= e($errorClassFor('residence_place_label')) ?>">
-            <span><?= $isLeaderGuest ? 'Comune / località residenza' : 'Comune / località residenza' ?></span>
+            <span>Comune / località residenza</span>
             <input list="<?= e($residenceListId) ?>" name="<?= e($prefix) ?>[residence_place_label]" data-place-role="residence" value="<?= e($fieldValue($guestData, 'residence_place_label', $fieldValue($guestData, 'residence_place'))) ?>" placeholder="Comune italiano, NUTS o località" required>
             <datalist id="<?= e($residenceListId) ?>"></datalist>
             <?php if ($errorTextFor('residence_place_label') !== ''): ?><small class="anagrafica-field-error"><?= e($errorTextFor('residence_place_label')) ?></small><?php endif; ?>
         </label>
 
-        <?php if ($isLeaderGuest): ?>
-            <label class="anagrafica-field<?= e($errorClassFor('document_type_label')) ?>">
-                <span>Tipo documento</span>
-                <select name="<?= e($prefix) ?>[document_type_label]" required>
-                    <option value="">Seleziona</option>
-                    <?php foreach ($documentTypes as $value => $label): ?>
-                        <option value="<?= e($label) ?>" <?= $currentDocumentLabel === $label ? 'selected' : '' ?>><?= e($label) ?></option>
-                    <?php endforeach; ?>
-                </select>
-                <?php if ($errorTextFor('document_type_label') !== ''): ?><small class="anagrafica-field-error"><?= e($errorTextFor('document_type_label')) ?></small><?php endif; ?>
-            </label>
+        <label class="anagrafica-field">
+            <span>Tipologia alloggiato (Alloggiati Web)</span>
+            <input type="text" value="<?= e($currentGuestTypeDisplay) ?>" readonly data-alloggiati-type-display data-guest-index="<?= e((string) $guestIndex) ?>">
+        </label>
 
-            <label class="anagrafica-field<?= e($errorClassFor('document_number')) ?>">
-                <span>Numero documento</span>
-                <input type="text" name="<?= e($prefix) ?>[document_number]" maxlength="50" value="<?= e($fieldValue($guestData, 'document_number')) ?>" required>
-                <?php if ($errorTextFor('document_number') !== ''): ?><small class="anagrafica-field-error"><?= e($errorTextFor('document_number')) ?></small><?php endif; ?>
-            </label>
+        <label class="anagrafica-field<?= e($errorClassFor('document_type_label')) ?>">
+            <span>Tipo documento</span>
+            <select name="<?= e($prefix) ?>[document_type_label]" required>
+                <option value="">Seleziona</option>
+                <?php foreach ($documentTypes as $value => $label): ?>
+                    <option value="<?= e($label) ?>" <?= $currentDocumentLabel === $label ? 'selected' : '' ?>><?= e($label) ?></option>
+                <?php endforeach; ?>
+            </select>
+            <?php if ($errorTextFor('document_type_label') !== ''): ?><small class="anagrafica-field-error"><?= e($errorTextFor('document_type_label')) ?></small><?php endif; ?>
+        </label>
 
-            <label class="anagrafica-field<?= e($errorClassFor('document_issue_place')) ?>">
-                <span>Luogo rilascio documento</span>
-                <input list="place-options" name="<?= e($prefix) ?>[document_issue_place]" value="<?= e($fieldValue($guestData, 'document_issue_place')) ?>" placeholder="Comune italiano o stato estero" required>
-                <?php if ($errorTextFor('document_issue_place') !== ''): ?><small class="anagrafica-field-error"><?= e($errorTextFor('document_issue_place')) ?></small><?php endif; ?>
-            </label>
-        <?php endif; ?>
+        <label class="anagrafica-field<?= e($errorClassFor('document_number')) ?>">
+            <span>Numero documento</span>
+            <input type="text" name="<?= e($prefix) ?>[document_number]" maxlength="50" value="<?= e($fieldValue($guestData, 'document_number')) ?>" required>
+            <?php if ($errorTextFor('document_number') !== ''): ?><small class="anagrafica-field-error"><?= e($errorTextFor('document_number')) ?></small><?php endif; ?>
+        </label>
+
+        <label class="anagrafica-field<?= e($errorClassFor('document_issue_place')) ?>">
+            <span>Luogo rilascio documento</span>
+            <input list="document-issue-options" name="<?= e($prefix) ?>[document_issue_place]" value="<?= e($fieldValue($guestData, 'document_issue_place')) ?>" placeholder="Comune italiano o stato estero" required>
+            <?php if ($errorTextFor('document_issue_place') !== ''): ?><small class="anagrafica-field-error"><?= e($errorTextFor('document_issue_place')) ?></small><?php endif; ?>
+        </label>
 
         <label class="anagrafica-field<?= e($errorClassFor('tourism_type')) ?>">
             <span>Tipo turismo</span>

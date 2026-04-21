@@ -208,7 +208,8 @@ function alloggiati_validate_schedina_payload(array $payload): array
         }
     }
 
-    if (alloggiati_document_required((string) ($payload['tipo_alloggiato_code'] ?? ''))) {
+    $tipoAlloggiatoCode = (string) ($payload['tipo_alloggiato_code'] ?? '');
+    if (alloggiati_document_required($tipoAlloggiatoCode)) {
         if (alloggiati_normalize_scalar($payload['document_type_code'] ?? '') === '') {
             $errors[] = 'Tipo documento mancante.';
         }
@@ -218,6 +219,10 @@ function alloggiati_validate_schedina_payload(array $payload): array
         if (alloggiati_normalize_scalar($payload['document_issue_place_code'] ?? '') === '') {
             $errors[] = 'Luogo rilascio documento mancante.';
         }
+    }
+
+    if (in_array($tipoAlloggiatoCode, ['19', '20'], true) && alloggiati_normalize_scalar($payload['leader_idswh'] ?? '') === '') {
+        $errors[] = 'Il componente deve essere collegato al relativo capo famiglia / capo gruppo.';
     }
 
     $today = date('Y-m-d');
