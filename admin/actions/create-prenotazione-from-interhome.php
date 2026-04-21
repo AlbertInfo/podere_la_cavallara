@@ -63,7 +63,8 @@ if (!in_array($status, $allowedStatuses, true)) {
 
 $dates = admin_parse_stay_period_dates($stayPeriod);
 $normalizedPhone = admin_normalize_optional_phone($customerPhone);
-$propertyCode = admin_extract_property_code(isset($row['_raw_property']) ? $row['_raw_property'] : '');
+// $propertyCode = admin_extract_property_code(isset($row['_raw_property']) ? $row['_raw_property'] : '');
+$propertyCode = extract_property_code(isset($row['_raw_property']) ? $row['_raw_property'] : '');
 $guestLanguage = trim((string) ($row['_language'] ?? ''));
 $guestCountryCode = admin_normalize_country_code(customer_language_to_country_code($guestLanguage));
 
