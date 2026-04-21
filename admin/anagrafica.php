@@ -895,7 +895,7 @@ require_once __DIR__ . '/includes/header.php';
     <div class="anagrafica-modal anagrafica-modal--booking<?= $bookingModalOpen ? ' is-open' : '' ?>" id="bookingSyncModal"<?= $bookingModalOpen ? '' : ' hidden' ?>>
         <div class="anagrafica-modal__backdrop" data-booking-modal-close></div>
         <div class="anagrafica-modal__dialog anagrafica-modal__dialog--wide booking-sync-modal" role="dialog" aria-modal="true" aria-labelledby="bookingSyncModalTitle">
-            <form method="post" action="<?= e(admin_url('actions/save-booking-anagrafica.php')) ?>" id="bookingSyncForm" novalidate>
+            <form method="post" action="<?= e(admin_url('actions/save-booking-anagrafica.php')) ?>" id="bookingSyncForm" novalidate data-guided-form="booking">
                 <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
                 <input type="hidden" name="month" value="<?= e($selectedMonth) ?>">
                 <input type="hidden" name="day" value="<?= e($selectedDay) ?>">
@@ -917,7 +917,17 @@ require_once __DIR__ . '/includes/header.php';
                         </div>
                     <?php endif; ?>
 
-                    <div class="anagrafica-section">
+                    <div class="anagrafica-guide anagrafica-guide--compact" data-form-progress>
+                        <div class="anagrafica-guide__steps">
+                            <span class="anagrafica-guide__step" data-step-key="stay">Soggiorno</span>
+                            <span class="anagrafica-guide__step" data-step-key="identity">Ospiti</span>
+                            <span class="anagrafica-guide__step" data-step-key="document">Documento</span>
+                        </div>
+                        <div class="anagrafica-guide__bar"><span data-progress-bar></span></div>
+                        <p class="anagrafica-guide__text muted" data-progress-text>Completa i campi obbligatori: il modulo si aggiorna in tempo reale.</p>
+                    </div>
+
+                    <div class="anagrafica-section" data-step-section="stay">
                         <div class="anagrafica-section__header">
                             <div>
                                 <h3>Dati soggiorno</h3>
@@ -928,7 +938,7 @@ require_once __DIR__ . '/includes/header.php';
                         <div class="anagrafica-grid anagrafica-grid--compact">
                             <label class="anagrafica-field<?= e($bookingModalFieldClass('record_type')) ?>">
                                 <span>Composizione anagrafica</span>
-                                <select name="record_type" id="bookingRecordType">
+                                <select name="record_type" id="bookingRecordType" data-auto-advance="1">
                                     <?php foreach ($recordTypeOptions as $value => $label): ?>
                                         <option value="<?= e($value) ?>" <?= $bookingModalRecord['record_type'] === $value ? 'selected' : '' ?>><?= e($label) ?></option>
                                     <?php endforeach; ?>
@@ -945,25 +955,25 @@ require_once __DIR__ . '/includes/header.php';
 
                             <label class="anagrafica-field<?= e($bookingModalFieldClass('booking_received_date')) ?>">
                                 <span>Data registrazione prenotazione</span>
-                                <input type="text" name="booking_received_date" class="js-date" data-date-role="booking-received" value="<?= e((string) $bookingModalRecord['booking_received_date']) ?>" placeholder="Seleziona la data" autocomplete="off" required>
+                                <input type="text" name="booking_received_date" class="js-date" data-date-role="booking-received" data-auto-advance="1" value="<?= e((string) $bookingModalRecord['booking_received_date']) ?>" placeholder="Seleziona la data" autocomplete="off" required>
                                 <?php if ($bookingModalErrorFor('booking_received_date') !== ''): ?><small class="anagrafica-field-error"><?= e($bookingModalErrorFor('booking_received_date')) ?></small><?php endif; ?>
                             </label>
 
                             <label class="anagrafica-field<?= e($bookingModalFieldClass('arrival_date')) ?>">
                                 <span>Data arrivo prevista</span>
-                                <input type="text" name="arrival_date" class="js-date" data-date-role="arrival" value="<?= e((string) $bookingModalRecord['arrival_date']) ?>" placeholder="Seleziona la data" autocomplete="off" required>
+                                <input type="text" name="arrival_date" class="js-date" data-date-role="arrival" data-auto-advance="1" value="<?= e((string) $bookingModalRecord['arrival_date']) ?>" placeholder="Seleziona la data" autocomplete="off" required>
                                 <?php if ($bookingModalErrorFor('arrival_date') !== ''): ?><small class="anagrafica-field-error"><?= e($bookingModalErrorFor('arrival_date')) ?></small><?php endif; ?>
                             </label>
 
                             <label class="anagrafica-field<?= e($bookingModalFieldClass('departure_date')) ?>">
                                 <span>Data partenza prevista</span>
-                                <input type="text" name="departure_date" class="js-date" data-date-role="departure" value="<?= e((string) $bookingModalRecord['departure_date']) ?>" placeholder="Seleziona la data" autocomplete="off" required>
+                                <input type="text" name="departure_date" class="js-date" data-date-role="departure" data-auto-advance="1" value="<?= e((string) $bookingModalRecord['departure_date']) ?>" placeholder="Seleziona la data" autocomplete="off" required>
                                 <?php if ($bookingModalErrorFor('departure_date') !== ''): ?><small class="anagrafica-field-error"><?= e($bookingModalErrorFor('departure_date')) ?></small><?php endif; ?>
                             </label>
 
                             <label class="anagrafica-field<?= e($bookingModalFieldClass('reserved_rooms')) ?>">
                                 <span>Numero camere prenotate</span>
-                                <input type="number" min="1" name="reserved_rooms" value="<?= e((string) $bookingModalRecord['reserved_rooms']) ?>" required>
+                                <input type="number" min="1" name="reserved_rooms" data-auto-advance="1" value="<?= e((string) $bookingModalRecord['reserved_rooms']) ?>" required>
                                 <?php if ($bookingModalErrorFor('reserved_rooms') !== ''): ?><small class="anagrafica-field-error"><?= e($bookingModalErrorFor('reserved_rooms')) ?></small><?php endif; ?>
                             </label>
                         </div>
@@ -1031,31 +1041,48 @@ require_once __DIR__ . '/includes/header.php';
     </div>
 
     <template id="bookingGuestTemplate">
+
         <div class="anagrafica-guest-card" data-guest-card data-guest-scope>
             <div class="anagrafica-guest-card__top">
                 <div>
                     <strong><span data-guest-role-label>Componente</span> <span data-guest-number></span></strong>
+                    <p class="muted">Compila i dati essenziali e il documento del componente collegato.</p>
                 </div>
                 <button class="btn btn-light btn-sm" type="button" data-remove-guest>Rimuovi</button>
             </div>
-            <div class="anagrafica-grid">
-                <label class="anagrafica-field"><span>Nome</span><input type="text" data-name="first_name" maxlength="100" required></label>
-                <label class="anagrafica-field"><span>Cognome</span><input type="text" data-name="last_name" maxlength="100" required></label>
-                <label class="anagrafica-field"><span>Sesso</span><select data-name="gender" required><option value="">Seleziona</option><option value="M">Maschio</option><option value="F">Femmina</option></select></label>
-                <label class="anagrafica-field"><span>Data di nascita</span><input type="text" class="js-date" data-date-role="birth" data-name="birth_date" placeholder="Seleziona la data" autocomplete="off" required></label>
-                <label class="anagrafica-field"><span>Cittadinanza</span><input list="state-options" data-name="citizenship_label" placeholder="Seleziona uno stato" required></label>
-                <label class="anagrafica-field"><span>Stato di nascita</span><input list="state-options" data-state-role="birth" data-name="birth_state_label" placeholder="Seleziona uno stato" required></label>
-                <label class="anagrafica-field"><span>Provincia nascita (se Italia)</span><input list="province-options" data-province-role="birth" data-name="birth_province" placeholder="Seleziona provincia"></label>
-                <label class="anagrafica-field"><span>Comune nascita</span><input data-list-template="birth" data-place-role="birth" data-name="birth_place_label" placeholder="Se scegli Italia, seleziona il comune"></label>
-                <label class="anagrafica-field"><span>Stato di residenza</span><input list="state-options" data-state-role="residence" data-name="residence_state_label" placeholder="Seleziona uno stato" required></label>
-                <label class="anagrafica-field"><span>Provincia residenza (se Italia)</span><input list="province-options" data-province-role="residence" data-name="residence_province" placeholder="Seleziona provincia"></label>
-                <label class="anagrafica-field"><span>Comune / località residenza</span><input data-list-template="residence" data-place-role="residence" data-name="residence_place_label" placeholder="Comune italiano, NUTS o località" required></label>
-                <label class="anagrafica-field"><span>Tipologia alloggiato</span><input type="text" data-alloggiati-type-display readonly></label>
-                <label class="anagrafica-field"><span>Tipo documento</span><select data-name="document_type_label" required><option value="">Seleziona</option><?php foreach ($documentTypes as $docCode => $docLabel): ?><option value="<?= e($docLabel) ?>"><?= e($docLabel) ?></option><?php endforeach; ?></select></label>
-                <label class="anagrafica-field"><span>Numero documento</span><input type="text" data-name="document_number" maxlength="50" required></label>
-                <label class="anagrafica-field"><span>Luogo rilascio documento</span><input list="document-issue-options" data-name="document_issue_place" placeholder="Comune italiano o stato estero" required></label>
-                <label class="anagrafica-field"><span>Tipo turismo</span><select data-name="tourism_type" required><option value="">Seleziona</option><?php foreach ($tourismTypes as $value): ?><option value="<?= e($value) ?>"><?= e($value) ?></option><?php endforeach; ?></select></label>
-                <label class="anagrafica-field"><span>Mezzo di trasporto</span><select data-name="transport_type" required><option value="">Seleziona</option><?php foreach ($transportTypes as $value): ?><option value="<?= e($value) ?>"><?= e($value) ?></option><?php endforeach; ?></select></label>
+            <div class="anagrafica-guest-groups">
+                <section class="anagrafica-subsection" data-step-section="identity">
+                    <div class="anagrafica-subsection__header"><div><h4>Dati persona</h4><p class="muted">Nome, cognome, sesso, nascita e cittadinanza.</p></div></div>
+                    <div class="anagrafica-grid">
+                        <label class="anagrafica-field"><span>Nome</span><input type="text" data-name="first_name" maxlength="100" required data-next-manual="1"></label>
+                        <label class="anagrafica-field"><span>Cognome</span><input type="text" data-name="last_name" maxlength="100" required data-next-manual="1"></label>
+                        <label class="anagrafica-field"><span>Sesso</span><select data-name="gender" required data-auto-advance="1"><option value="">Seleziona</option><option value="M">Maschio</option><option value="F">Femmina</option></select></label>
+                        <label class="anagrafica-field"><span>Data di nascita</span><input type="text" class="js-date" data-date-role="birth" data-name="birth_date" placeholder="gg/mm/aaaa" autocomplete="off" required data-auto-advance="1"></label>
+                        <label class="anagrafica-field"><span>Cittadinanza</span><select data-name="citizenship_label" data-state-role="citizenship" required data-auto-advance="1"><option value="">Seleziona uno stato</option><?php foreach ($stateOptions as $stateCode => $stateLabel): ?><option value="<?= e($stateCode) ?>"><?= e($stateLabel) ?></option><?php endforeach; ?></select></label>
+                        <label class="anagrafica-field"><span>Stato di nascita</span><select data-state-role="birth" data-name="birth_state_label" required data-auto-advance="1"><option value="">Seleziona uno stato</option><?php foreach ($stateOptions as $stateCode => $stateLabel): ?><option value="<?= e($stateCode) ?>"><?= e($stateLabel) ?></option><?php endforeach; ?></select><small class="anagrafica-field-hint">Se scegli Italia, si attivano provincia e comune.</small></label>
+                    </div>
+                </section>
+                <section class="anagrafica-subsection" data-step-section="birth-residence">
+                    <div class="anagrafica-subsection__header"><div><h4>Nascita e residenza</h4><p class="muted">I campi italiani si attivano in base allo stato selezionato.</p></div></div>
+                    <div class="anagrafica-grid">
+                        <label class="anagrafica-field" data-italy-only="birth"><span>Provincia nascita (se Italia)</span><select data-province-role="birth" data-name="birth_province" data-auto-advance="1"><option value="">Seleziona provincia</option><?php foreach ($province as $provinceCode => $provinceName): ?><option value="<?= e($provinceCode) ?>"><?= e($provinceName) ?></option><?php endforeach; ?></select></label>
+                        <label class="anagrafica-field" data-italy-only="birth"><span>Comune nascita</span><input data-list-template="birth" data-place-role="birth" data-name="birth_place_label" placeholder="Seleziona il comune di nascita" data-next-manual="1"></label>
+                        <label class="anagrafica-field"><span>Stato di residenza</span><select data-state-role="residence" data-name="residence_state_label" required data-auto-advance="1"><option value="">Seleziona uno stato</option><?php foreach ($stateOptions as $stateCode => $stateLabel): ?><option value="<?= e($stateCode) ?>"><?= e($stateLabel) ?></option><?php endforeach; ?></select><small class="anagrafica-field-hint">Per l'estero puoi indicare località libera o codice NUTS.</small></label>
+                        <label class="anagrafica-field" data-italy-only="residence"><span>Provincia residenza (se Italia)</span><select data-province-role="residence" data-name="residence_province" data-auto-advance="1"><option value="">Seleziona provincia</option><?php foreach ($province as $provinceCode => $provinceName): ?><option value="<?= e($provinceCode) ?>"><?= e($provinceName) ?></option><?php endforeach; ?></select></label>
+                        <label class="anagrafica-field"><span data-residence-place-label>Comune / località residenza</span><input data-list-template="residence" data-place-role="residence" data-name="residence_place_label" placeholder="Comune italiano, NUTS o località" required data-next-manual="1"></label>
+                    </div>
+                </section>
+                <section class="anagrafica-subsection" data-step-section="document">
+                    <div class="anagrafica-subsection__header"><div><h4>Documento e dettaglio soggiorno</h4><p class="muted">Documento sempre raccolto anche per familiari e membri gruppo.</p></div></div>
+                    <div class="anagrafica-grid">
+                        <label class="anagrafica-field anagrafica-field--readonly"><span>Tipologia alloggiato</span><input type="text" data-alloggiati-type-display readonly></label>
+                        <label class="anagrafica-field"><span>Tipo documento</span><select data-name="document_type_label" required data-auto-advance="1"><option value="">Seleziona</option><?php foreach ($documentTypes as $docCode => $docLabel): ?><option value="<?= e($docLabel) ?>"><?= e($docLabel) ?></option><?php endforeach; ?></select></label>
+                        <label class="anagrafica-field"><span>Numero documento</span><input type="text" data-name="document_number" maxlength="50" required data-next-manual="1"></label>
+                        <label class="anagrafica-field"><span>Luogo rilascio documento</span><input list="document-issue-options" data-name="document_issue_place" placeholder="Comune italiano o stato estero" required data-next-manual="1"></label>
+                        <label class="anagrafica-field"><span>Tipo turismo</span><select data-name="tourism_type" required data-auto-advance="1"><option value="">Seleziona</option><?php foreach ($tourismTypes as $value): ?><option value="<?= e($value) ?>"><?= e($value) ?></option><?php endforeach; ?></select></label>
+                        <label class="anagrafica-field"><span>Mezzo di trasporto</span><select data-name="transport_type" required data-auto-advance="1"><option value="">Seleziona</option><?php foreach ($transportTypes as $value): ?><option value="<?= e($value) ?>"><?= e($value) ?></option><?php endforeach; ?></select></label>
+                    </div>
+                </section>
             </div>
         </div>
     </template>
@@ -1266,7 +1293,7 @@ require_once __DIR__ . '/includes/header.php';
             <button class="btn btn-light" type="button" id="closeAnagraficaForm">Chiudi modulo</button>
         </div>
 
-        <form class="anagrafica-form" method="post" action="<?= e(admin_url('actions/create-anagrafica.php')) ?>" id="anagraficaForm" novalidate>
+        <form class="anagrafica-form" method="post" action="<?= e(admin_url('actions/create-anagrafica.php')) ?>" id="anagraficaForm" novalidate data-guided-form="main">
             <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
             <input type="hidden" name="record_id" value="<?= (int) $formRecord['id'] ?>">
             <input type="hidden" name="return_month" value="<?= e($selectedMonth) ?>">
@@ -1284,7 +1311,17 @@ require_once __DIR__ . '/includes/header.php';
                 </div>
             <?php endif; ?>
 
-            <div class="anagrafica-section">
+            <div class="anagrafica-guide" data-form-progress>
+                <div class="anagrafica-guide__steps">
+                    <span class="anagrafica-guide__step" data-step-key="stay">1. Soggiorno</span>
+                    <span class="anagrafica-guide__step" data-step-key="identity">2. Ospiti</span>
+                    <span class="anagrafica-guide__step" data-step-key="document">3. Documento</span>
+                </div>
+                <div class="anagrafica-guide__bar"><span data-progress-bar></span></div>
+                <p class="anagrafica-guide__text muted" data-progress-text>Compila i campi in sequenza: ogni campo corretto viene confermato visivamente.</p>
+            </div>
+
+            <div class="anagrafica-section" data-step-section="stay">
                 <div class="anagrafica-section__header">
                     <div>
                         <h3>Dati soggiorno</h3>
@@ -1295,7 +1332,7 @@ require_once __DIR__ . '/includes/header.php';
                 <div class="anagrafica-grid anagrafica-grid--compact">
                     <label class="anagrafica-field<?= e($fieldClass('record_type')) ?>">
                         <span>Composizione anagrafica</span>
-                        <select name="record_type" id="recordType">
+                        <select name="record_type" id="recordType" data-auto-advance="1">
                             <?php foreach ($recordTypeOptions as $value => $label): ?>
                                 <option value="<?= e($value) ?>" <?= $formRecord['record_type'] === $value ? 'selected' : '' ?>><?= e($label) ?></option>
                             <?php endforeach; ?>
@@ -1306,25 +1343,25 @@ require_once __DIR__ . '/includes/header.php';
 
                     <label class="anagrafica-field<?= e($fieldClass('booking_received_date')) ?>">
                         <span>Data registrazione prenotazione</span>
-                        <input type="text" name="booking_received_date" class="js-date" data-date-role="booking-received" value="<?= e((string) $formRecord['booking_received_date']) ?>" placeholder="Seleziona la data" autocomplete="off" required>
+                        <input type="text" name="booking_received_date" class="js-date" data-date-role="booking-received" data-auto-advance="1" value="<?= e((string) $formRecord['booking_received_date']) ?>" placeholder="Seleziona la data" autocomplete="off" required>
                         <?php if ($errorFor('booking_received_date') !== ''): ?><small class="anagrafica-field-error"><?= e($errorFor('booking_received_date')) ?></small><?php endif; ?>
                     </label>
 
                     <label class="anagrafica-field<?= e($fieldClass('arrival_date')) ?>">
                         <span>Data arrivo prevista</span>
-                        <input type="text" name="arrival_date" class="js-date" data-date-role="arrival" value="<?= e((string) $formRecord['arrival_date']) ?>" placeholder="Seleziona la data" autocomplete="off" required>
+                        <input type="text" name="arrival_date" class="js-date" data-date-role="arrival" data-auto-advance="1" value="<?= e((string) $formRecord['arrival_date']) ?>" placeholder="Seleziona la data" autocomplete="off" required>
                         <?php if ($errorFor('arrival_date') !== ''): ?><small class="anagrafica-field-error"><?= e($errorFor('arrival_date')) ?></small><?php endif; ?>
                     </label>
 
                     <label class="anagrafica-field<?= e($fieldClass('departure_date')) ?>">
                         <span>Data partenza prevista</span>
-                        <input type="text" name="departure_date" class="js-date" data-date-role="departure" value="<?= e((string) $formRecord['departure_date']) ?>" placeholder="Seleziona la data" autocomplete="off" required>
+                        <input type="text" name="departure_date" class="js-date" data-date-role="departure" data-auto-advance="1" value="<?= e((string) $formRecord['departure_date']) ?>" placeholder="Seleziona la data" autocomplete="off" required>
                         <?php if ($errorFor('departure_date') !== ''): ?><small class="anagrafica-field-error"><?= e($errorFor('departure_date')) ?></small><?php endif; ?>
                     </label>
 
                     <label class="anagrafica-field<?= e($fieldClass('reserved_rooms')) ?>">
                         <span>Numero camere prenotate</span>
-                        <input type="number" min="1" name="reserved_rooms" value="<?= e((string) $formRecord['reserved_rooms']) ?>" required>
+                        <input type="number" min="1" name="reserved_rooms" data-auto-advance="1" value="<?= e((string) $formRecord['reserved_rooms']) ?>" required>
                         <?php if ($errorFor('reserved_rooms') !== ''): ?><small class="anagrafica-field-error"><?= e($errorFor('reserved_rooms')) ?></small><?php endif; ?>
                     </label>
                 </div>
@@ -1356,33 +1393,50 @@ require_once __DIR__ . '/includes/header.php';
             </div>
 
             <template id="guestTemplate">
-                <div class="anagrafica-guest-card" data-guest-card data-guest-scope>
-                    <div class="anagrafica-guest-card__top">
-                        <div>
-                            <strong><span data-guest-role-label>Componente</span> <span data-guest-number></span></strong>
-                        </div>
-                        <button class="btn btn-light btn-sm" type="button" data-remove-guest>Rimuovi</button>
-                    </div>
-                    <div class="anagrafica-grid">
-                        <label class="anagrafica-field"><span>Nome</span><input type="text" data-name="first_name" maxlength="100" required></label>
-                        <label class="anagrafica-field"><span>Cognome</span><input type="text" data-name="last_name" maxlength="100" required></label>
-                        <label class="anagrafica-field"><span>Sesso</span><select data-name="gender" required><option value="">Seleziona</option><option value="M">Maschio</option><option value="F">Femmina</option></select></label>
-                        <label class="anagrafica-field"><span>Data di nascita</span><input type="text" class="js-date" data-date-role="birth" data-name="birth_date" placeholder="Seleziona la data" autocomplete="off" required></label>
-                        <label class="anagrafica-field"><span>Cittadinanza</span><input list="state-options" data-name="citizenship_label" placeholder="Seleziona uno stato" required></label>
-                        <label class="anagrafica-field"><span>Stato di nascita</span><input list="state-options" data-state-role="birth" data-name="birth_state_label" placeholder="Seleziona uno stato" required></label>
-                        <label class="anagrafica-field"><span>Provincia nascita (se Italia)</span><input list="province-options" data-province-role="birth" data-name="birth_province" placeholder="Seleziona provincia"></label>
-                        <label class="anagrafica-field"><span>Comune nascita</span><input data-list-template="birth" data-place-role="birth" data-name="birth_place_label" placeholder="Se scegli Italia, seleziona il comune"></label>
-                        <label class="anagrafica-field"><span>Stato di residenza</span><input list="state-options" data-state-role="residence" data-name="residence_state_label" placeholder="Seleziona uno stato" required></label>
-                        <label class="anagrafica-field"><span>Provincia residenza (se Italia)</span><input list="province-options" data-province-role="residence" data-name="residence_province" placeholder="Seleziona provincia"></label>
-                        <label class="anagrafica-field"><span>Comune / località residenza</span><input data-list-template="residence" data-place-role="residence" data-name="residence_place_label" placeholder="Comune italiano, NUTS o località" required></label>
-                        <label class="anagrafica-field"><span>Tipologia alloggiato</span><input type="text" data-alloggiati-type-display readonly></label>
-                        <label class="anagrafica-field"><span>Tipo documento</span><select data-name="document_type_label" required><option value="">Seleziona</option><?php foreach ($documentTypes as $docCode => $docLabel): ?><option value="<?= e($docLabel) ?>"><?= e($docLabel) ?></option><?php endforeach; ?></select></label>
-                        <label class="anagrafica-field"><span>Numero documento</span><input type="text" data-name="document_number" maxlength="50" required></label>
-                        <label class="anagrafica-field"><span>Luogo rilascio documento</span><input list="document-issue-options" data-name="document_issue_place" placeholder="Comune italiano o stato estero" required></label>
-                        <label class="anagrafica-field"><span>Tipo turismo</span><select data-name="tourism_type" required><option value="">Seleziona</option><?php foreach ($tourismTypes as $value): ?><option value="<?= e($value) ?>"><?= e($value) ?></option><?php endforeach; ?></select></label>
-                        <label class="anagrafica-field"><span>Mezzo di trasporto</span><select data-name="transport_type" required><option value="">Seleziona</option><?php foreach ($transportTypes as $value): ?><option value="<?= e($value) ?>"><?= e($value) ?></option><?php endforeach; ?></select></label>
-                    </div>
+
+        <div class="anagrafica-guest-card" data-guest-card data-guest-scope>
+            <div class="anagrafica-guest-card__top">
+                <div>
+                    <strong><span data-guest-role-label>Componente</span> <span data-guest-number></span></strong>
+                    <p class="muted">Compila i dati essenziali e il documento del componente collegato.</p>
                 </div>
+                <button class="btn btn-light btn-sm" type="button" data-remove-guest>Rimuovi</button>
+            </div>
+            <div class="anagrafica-guest-groups">
+                <section class="anagrafica-subsection" data-step-section="identity">
+                    <div class="anagrafica-subsection__header"><div><h4>Dati persona</h4><p class="muted">Nome, cognome, sesso, nascita e cittadinanza.</p></div></div>
+                    <div class="anagrafica-grid">
+                        <label class="anagrafica-field"><span>Nome</span><input type="text" data-name="first_name" maxlength="100" required data-next-manual="1"></label>
+                        <label class="anagrafica-field"><span>Cognome</span><input type="text" data-name="last_name" maxlength="100" required data-next-manual="1"></label>
+                        <label class="anagrafica-field"><span>Sesso</span><select data-name="gender" required data-auto-advance="1"><option value="">Seleziona</option><option value="M">Maschio</option><option value="F">Femmina</option></select></label>
+                        <label class="anagrafica-field"><span>Data di nascita</span><input type="text" class="js-date" data-date-role="birth" data-name="birth_date" placeholder="gg/mm/aaaa" autocomplete="off" required data-auto-advance="1"></label>
+                        <label class="anagrafica-field"><span>Cittadinanza</span><select data-name="citizenship_label" data-state-role="citizenship" required data-auto-advance="1"><option value="">Seleziona uno stato</option><?php foreach ($stateOptions as $stateCode => $stateLabel): ?><option value="<?= e($stateCode) ?>"><?= e($stateLabel) ?></option><?php endforeach; ?></select></label>
+                        <label class="anagrafica-field"><span>Stato di nascita</span><select data-state-role="birth" data-name="birth_state_label" required data-auto-advance="1"><option value="">Seleziona uno stato</option><?php foreach ($stateOptions as $stateCode => $stateLabel): ?><option value="<?= e($stateCode) ?>"><?= e($stateLabel) ?></option><?php endforeach; ?></select><small class="anagrafica-field-hint">Se scegli Italia, si attivano provincia e comune.</small></label>
+                    </div>
+                </section>
+                <section class="anagrafica-subsection" data-step-section="birth-residence">
+                    <div class="anagrafica-subsection__header"><div><h4>Nascita e residenza</h4><p class="muted">I campi italiani si attivano in base allo stato selezionato.</p></div></div>
+                    <div class="anagrafica-grid">
+                        <label class="anagrafica-field" data-italy-only="birth"><span>Provincia nascita (se Italia)</span><select data-province-role="birth" data-name="birth_province" data-auto-advance="1"><option value="">Seleziona provincia</option><?php foreach ($province as $provinceCode => $provinceName): ?><option value="<?= e($provinceCode) ?>"><?= e($provinceName) ?></option><?php endforeach; ?></select></label>
+                        <label class="anagrafica-field" data-italy-only="birth"><span>Comune nascita</span><input data-list-template="birth" data-place-role="birth" data-name="birth_place_label" placeholder="Seleziona il comune di nascita" data-next-manual="1"></label>
+                        <label class="anagrafica-field"><span>Stato di residenza</span><select data-state-role="residence" data-name="residence_state_label" required data-auto-advance="1"><option value="">Seleziona uno stato</option><?php foreach ($stateOptions as $stateCode => $stateLabel): ?><option value="<?= e($stateCode) ?>"><?= e($stateLabel) ?></option><?php endforeach; ?></select><small class="anagrafica-field-hint">Per l'estero puoi indicare località libera o codice NUTS.</small></label>
+                        <label class="anagrafica-field" data-italy-only="residence"><span>Provincia residenza (se Italia)</span><select data-province-role="residence" data-name="residence_province" data-auto-advance="1"><option value="">Seleziona provincia</option><?php foreach ($province as $provinceCode => $provinceName): ?><option value="<?= e($provinceCode) ?>"><?= e($provinceName) ?></option><?php endforeach; ?></select></label>
+                        <label class="anagrafica-field"><span data-residence-place-label>Comune / località residenza</span><input data-list-template="residence" data-place-role="residence" data-name="residence_place_label" placeholder="Comune italiano, NUTS o località" required data-next-manual="1"></label>
+                    </div>
+                </section>
+                <section class="anagrafica-subsection" data-step-section="document">
+                    <div class="anagrafica-subsection__header"><div><h4>Documento e dettaglio soggiorno</h4><p class="muted">Documento sempre raccolto anche per familiari e membri gruppo.</p></div></div>
+                    <div class="anagrafica-grid">
+                        <label class="anagrafica-field anagrafica-field--readonly"><span>Tipologia alloggiato</span><input type="text" data-alloggiati-type-display readonly></label>
+                        <label class="anagrafica-field"><span>Tipo documento</span><select data-name="document_type_label" required data-auto-advance="1"><option value="">Seleziona</option><?php foreach ($documentTypes as $docCode => $docLabel): ?><option value="<?= e($docLabel) ?>"><?= e($docLabel) ?></option><?php endforeach; ?></select></label>
+                        <label class="anagrafica-field"><span>Numero documento</span><input type="text" data-name="document_number" maxlength="50" required data-next-manual="1"></label>
+                        <label class="anagrafica-field"><span>Luogo rilascio documento</span><input list="document-issue-options" data-name="document_issue_place" placeholder="Comune italiano o stato estero" required data-next-manual="1"></label>
+                        <label class="anagrafica-field"><span>Tipo turismo</span><select data-name="tourism_type" required data-auto-advance="1"><option value="">Seleziona</option><?php foreach ($tourismTypes as $value): ?><option value="<?= e($value) ?>"><?= e($value) ?></option><?php endforeach; ?></select></label>
+                        <label class="anagrafica-field"><span>Mezzo di trasporto</span><select data-name="transport_type" required data-auto-advance="1"><option value="">Seleziona</option><?php foreach ($transportTypes as $value): ?><option value="<?= e($value) ?>"><?= e($value) ?></option><?php endforeach; ?></select></label>
+                    </div>
+                </section>
+            </div>
+        </div>
             </template>
 
             <div class="anagrafica-actions">

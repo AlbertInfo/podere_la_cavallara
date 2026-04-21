@@ -82,7 +82,8 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function italySelected(value) {
-    return normalizeValue(value) === 'italia';
+    var normalized = normalizeValue(value);
+    return normalized === 'italia' || String(value || '').trim() === '100000100';
   }
 
   function resolveProvinceCode(value) {
@@ -91,36 +92,53 @@ document.addEventListener('DOMContentLoaded', function () {
     if (provinceMap[value]) return provinceMap[value];
     var keys = Object.keys(provinceMap);
     for (var i = 0; i < keys.length; i += 1) {
-      if (normalizeValue(keys[i]) === normalized) {
+      if (normalizeValue(keys[i]) === normalized || normalizeValue(provinceMap[keys[i]]) === normalized) {
         return provinceMap[keys[i]];
       }
     }
     return '';
   }
 
+  function resolveSelectOptionValue(field, value) {
+    if (!field) return value == null ? '' : String(value);
+    var raw = value == null ? '' : String(value).trim();
+    if (!raw) return '';
+    var normalized = normalizeValue(raw);
+    var options = Array.prototype.slice.call(field.options || []);
+    for (var i = 0; i < options.length; i += 1) {
+      var option = options[i];
+      if (String(option.value) === raw) return option.value;
+      if (normalizeValue(option.value) === normalized || normalizeValue(option.textContent) === normalized) {
+        return option.value;
+      }
+    }
+    return raw;
+  }
+
+  function setFieldValueSmart(field, value) {
+    if (!field) return;
+    if (field.tagName === 'SELECT') {
+      field.value = resolveSelectOptionValue(field, value);
+      return;
+    }
+    field.value = value == null ? '' : String(value);
+  }
+
   function ensureDatalist(input, idPrefix, fallbackListId) {
     if (!input) return null;
-    if (input.dataset.datalistId) {
-      return document.getElementById(input.dataset.datalistId);
-    }
-
-    var listId = input.getAttribute('list');
+    var listId = input.getAttribute('list') || input.dataset.datalistId || '';
     if (!listId) {
       listId = idPrefix + '-' + Math.random().toString(36).slice(2, 8);
       input.setAttribute('list', listId);
     }
-
     var datalist = document.getElementById(listId);
     if (!datalist) {
       datalist = document.createElement('datalist');
       datalist.id = listId;
       input.parentNode.appendChild(datalist);
     }
-
     input.dataset.datalistId = listId;
-    if (fallbackListId) {
-      input.dataset.fallbackListId = fallbackListId;
-    }
+    if (fallbackListId) input.dataset.fallbackListId = fallbackListId;
     return datalist;
   }
 
@@ -134,12 +152,31 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  function configurePlaceField(field, values, placeholder, disabled) {
+  function setFieldVisibility(field, visible) {
     if (!field) return;
-    field.disabled = !!disabled;
+    var label = field.closest('.anagrafica-field');
+    if (label) {
+      label.classList.toggle('is-hidden', !visible);
+    }
+  }
+
+  function configurePlaceField(field, values, placeholder, options) {
+    if (!field) return;
+    options = options || {};
+    field.disabled = !!options.disabled;
+    field.readOnly = !!options.readOnly;
     if (placeholder) field.placeholder = placeholder;
-    var datalist = ensureDatalist(field, field.getAttribute('data-place-role') || 'place', field.dataset.fallbackListId || globalPlaceListId);
-    fillDatalist(datalist, values);
+    if (options.listId === null) {
+      field.removeAttribute('list');
+    } else {
+      var datalist = ensureDatalist(field, field.getAttribute('data-place-role') || 'place', options.fallbackListId || field.dataset.fallbackListId || globalPlaceListId);
+      if (options.listId) {
+        field.setAttribute('list', options.listId);
+      } else if (datalist) {
+        field.setAttribute('list', datalist.id);
+      }
+      fillDatalist(datalist, values);
+    }
   }
 
   function updateProvinceFilteredPlaces(scope) {
@@ -147,61 +184,292 @@ document.addEventListener('DOMContentLoaded', function () {
       var birthState = $('[data-state-role="birth"]', card);
       var birthProvince = $('[data-province-role="birth"]', card);
       var birthPlace = $('[data-place-role="birth"]', card);
-
       var residenceState = $('[data-state-role="residence"]', card);
       var residenceProvince = $('[data-province-role="residence"]', card);
       var residencePlace = $('[data-place-role="residence"]', card);
+      var residenceLabel = $('[data-residence-place-label]', card);
 
       if (birthState && birthProvince && birthPlace) {
         var birthIsItaly = italySelected(birthState.value);
-        birthProvince.disabled = !birthIsItaly;
         var birthCode = resolveProvinceCode(birthProvince.value);
+        birthProvince.disabled = !birthIsItaly;
+        setFieldVisibility(birthProvince, birthIsItaly);
+        setFieldVisibility(birthPlace, birthIsItaly);
         if (birthIsItaly && birthCode) {
-          configurePlaceField(birthPlace, comuniByProvince[birthCode] || [], 'Seleziona il comune di nascita', false);
+          configurePlaceField(birthPlace, comuniByProvince[birthCode] || [], 'Seleziona il comune di nascita', { readOnly: false });
         } else if (birthIsItaly) {
-          configurePlaceField(birthPlace, [], 'Seleziona prima la provincia', false);
+          configurePlaceField(birthPlace, [], 'Seleziona prima la provincia', { readOnly: true });
         } else {
-          configurePlaceField(birthPlace, [], 'Per estero basta lo stato di nascita', true);
-          if (!birthPlace.dataset.keepValue) birthPlace.value = '';
+          birthProvince.value = '';
+          birthPlace.value = '';
+          configurePlaceField(birthPlace, [], 'Per estero basta lo stato di nascita', { readOnly: true, listId: null });
         }
       }
 
       if (residenceState && residenceProvince && residencePlace) {
         var residenceIsItaly = italySelected(residenceState.value);
-        residenceProvince.disabled = !residenceIsItaly;
         var residenceCode = resolveProvinceCode(residenceProvince.value);
+        residenceProvince.disabled = !residenceIsItaly;
+        setFieldVisibility(residenceProvince, residenceIsItaly);
+        if (residenceLabel) {
+          residenceLabel.textContent = residenceIsItaly ? 'Comune residenza' : 'Comune / località residenza';
+        }
         if (residenceIsItaly && residenceCode) {
-          configurePlaceField(residencePlace, comuniByProvince[residenceCode] || [], 'Seleziona il comune di residenza', false);
+          configurePlaceField(residencePlace, comuniByProvince[residenceCode] || [], 'Seleziona il comune di residenza', { readOnly: false });
         } else if (residenceIsItaly) {
-          configurePlaceField(residencePlace, [], 'Seleziona prima la provincia', false);
+          configurePlaceField(residencePlace, [], 'Seleziona prima la provincia', { readOnly: true });
         } else {
-          residencePlace.disabled = false;
-          residencePlace.setAttribute('list', globalPlaceListId);
-          residencePlace.placeholder = 'Località estera o codice NUTS';
+          residenceProvince.value = '';
+          configurePlaceField(residencePlace, [], 'Località estera o codice NUTS', { readOnly: false, fallbackListId: globalPlaceListId, listId: globalPlaceListId });
         }
       }
     });
   }
 
+  function ensureErrorNode(field) {
+    var label = field ? field.closest('.anagrafica-field') : null;
+    if (!label) return null;
+    var node = label.querySelector('.anagrafica-field-error');
+    if (!node) {
+      node = document.createElement('small');
+      node.className = 'anagrafica-field-error';
+      label.appendChild(node);
+    }
+    return node;
+  }
+
   function addInvalidState(field, message) {
     if (!field) return;
     var label = field.closest('.anagrafica-field');
-    if (label) label.classList.add('is-invalid');
+    if (!label) return;
+    label.classList.add('is-invalid');
+    label.classList.remove('is-valid');
+    var errorNode = ensureErrorNode(field);
+    if (errorNode) errorNode.textContent = message || 'Campo obbligatorio';
     field.setCustomValidity(message || 'Campo obbligatorio');
+  }
+
+  function addValidState(field) {
+    if (!field) return;
+    var label = field.closest('.anagrafica-field');
+    if (!label) return;
+    label.classList.remove('is-invalid');
+    label.classList.add('is-valid');
+    var errorNode = label.querySelector('.anagrafica-field-error');
+    if (errorNode && !errorNode.dataset.serverError) errorNode.textContent = '';
+    field.setCustomValidity('');
   }
 
   function clearInvalidState(field) {
     if (!field) return;
     var label = field.closest('.anagrafica-field');
-    if (label) label.classList.remove('is-invalid');
+    if (!label) return;
+    label.classList.remove('is-invalid');
+    if (!String(field.value || '').trim()) {
+      label.classList.remove('is-valid');
+    }
+    var errorNode = label.querySelector('.anagrafica-field-error');
+    if (errorNode && !errorNode.dataset.serverError) errorNode.textContent = '';
     field.setCustomValidity('');
   }
 
-  function installLiveValidation(scope) {
-    $all('input, select, textarea', scope || document).forEach(function (field) {
-      field.addEventListener('input', function () { clearInvalidState(field); });
-      field.addEventListener('change', function () { clearInvalidState(field); });
+  function fieldIsVisible(field) {
+    if (!field) return false;
+    var label = field.closest('.anagrafica-field');
+    if (label && label.classList.contains('is-hidden')) return false;
+    return !field.disabled && field.type !== 'hidden';
+  }
+
+  function hasMatchingDatalistValue(field) {
+    var listId = field && field.getAttribute('list');
+    if (!listId) return true;
+    var datalist = document.getElementById(listId);
+    if (!datalist) return true;
+    var value = normalizeValue(field.value);
+    if (!value) return false;
+    var options = Array.prototype.slice.call(datalist.options || []);
+    if (!options.length) return true;
+    return options.some(function (option) { return normalizeValue(option.value) === value; });
+  }
+
+  function normalizeStepKey(key) {
+    if (key === 'birth-residence') return 'identity';
+    return key || 'identity';
+  }
+
+  function fieldValidationMessage(field) {
+    if (!field || !fieldIsVisible(field) || field.readOnly) return '';
+    var value = String(field.value || '').trim();
+    var guestScope = field.closest('[data-guest-scope]') || field.closest('form');
+    var role = field.getAttribute('data-place-role') || '';
+    var provinceRole = field.getAttribute('data-province-role') || '';
+    var stateRole = field.getAttribute('data-state-role') || '';
+    if (provinceRole === 'birth') {
+      var birthState = $('[data-state-role="birth"]', guestScope);
+      if (birthState && italySelected(birthState.value) && !value) return 'Seleziona la provincia di nascita.';
+      return '';
+    }
+    if (role === 'birth') {
+      var birthStateField = $('[data-state-role="birth"]', guestScope);
+      if (birthStateField && italySelected(birthStateField.value)) {
+        if (!value) return 'Seleziona il comune di nascita.';
+        if (!hasMatchingDatalistValue(field)) return 'Seleziona un comune di nascita valido.';
+      }
+      return '';
+    }
+    if (provinceRole === 'residence') {
+      var residenceState = $('[data-state-role="residence"]', guestScope);
+      if (residenceState && italySelected(residenceState.value) && !value) return 'Seleziona la provincia di residenza.';
+      return '';
+    }
+    if (role === 'residence') {
+      var residenceStateField = $('[data-state-role="residence"]', guestScope);
+      var residenceProvince = $('[data-province-role="residence"]', guestScope);
+      if (residenceStateField && italySelected(residenceStateField.value)) {
+        if (!String(residenceProvince && residenceProvince.value || '').trim()) return 'Seleziona prima la provincia di residenza.';
+        if (!value) return 'Seleziona il comune di residenza.';
+        if (!hasMatchingDatalistValue(field)) return 'Seleziona un comune di residenza valido.';
+      } else if (!value) {
+        return 'Indica la località o il codice NUTS di residenza.';
+      }
+      return '';
+    }
+    if (stateRole && !value) {
+      return 'Seleziona uno stato.';
+    }
+    if (field.hasAttribute('required') && !value) {
+      if ((field.getAttribute('data-date-role') || '') !== '') return 'Inserisci una data valida.';
+      if (field.tagName === 'SELECT') return 'Seleziona un valore.';
+      return 'Campo obbligatorio.';
+    }
+    if ((field.getAttribute('data-date-role') || '') !== '' && value && !/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
+      return 'Usa il formato gg/mm/aaaa.';
+    }
+    return '';
+  }
+
+  function validateField(field, force) {
+    if (!field || field.type === 'hidden' || field.readOnly) return true;
+    if (!fieldIsVisible(field)) {
+      clearInvalidState(field);
+      return true;
+    }
+    var value = String(field.value || '').trim();
+    var touched = force || field.dataset.touched === '1' || value !== '';
+    if (!touched) {
+      clearInvalidState(field);
+      return false;
+    }
+    var message = fieldValidationMessage(field);
+    if (message) {
+      addInvalidState(field, message);
+      return false;
+    }
+    if (value !== '') addValidState(field); else clearInvalidState(field);
+    return value !== '' || !field.hasAttribute('required');
+  }
+
+  function updateFormProgress(form) {
+    if (!form) return;
+    var progress = $('[data-form-progress]', form.parentNode || form);
+    if (!progress) return;
+    var fields = $all('input, select, textarea', form).filter(function (field) {
+      if (field.type === 'hidden' || field.readOnly || !fieldIsVisible(field)) return false;
+      return field.hasAttribute('required') || field.hasAttribute('data-place-role') || field.hasAttribute('data-province-role') || field.hasAttribute('data-state-role');
     });
+    var total = fields.length;
+    var valid = 0;
+    var stepStates = {};
+    fields.forEach(function (field) {
+      var label = field.closest('.anagrafica-field');
+      var stepSection = field.closest('[data-step-section]');
+      var stepKey = normalizeStepKey(stepSection ? stepSection.getAttribute('data-step-section') : 'identity');
+      if (!stepStates[stepKey]) stepStates[stepKey] = { total: 0, valid: 0 };
+      stepStates[stepKey].total += 1;
+      if (label && label.classList.contains('is-valid')) {
+        valid += 1;
+        stepStates[stepKey].valid += 1;
+      }
+    });
+    var percent = total ? Math.round((valid / total) * 100) : 0;
+    var bar = $('[data-progress-bar]', progress);
+    if (bar) bar.style.width = percent + '%';
+    var textNode = $('[data-progress-text]', progress);
+    if (textNode) {
+      textNode.textContent = total ? (valid + ' campi validi su ' + total + ' · modulo completato al ' + percent + '%') : 'Compila i campi del modulo in sequenza.';
+    }
+    $all('[data-step-key]', progress).forEach(function (stepNode) {
+      var key = stepNode.getAttribute('data-step-key') || '';
+      var state = stepStates[key] || { total: 0, valid: 0 };
+      stepNode.classList.toggle('is-complete', state.total > 0 && state.valid === state.total);
+      stepNode.classList.toggle('is-active', state.valid > 0 && state.valid < state.total);
+    });
+  }
+
+  function focusNextField(field) {
+    var form = field && field.form;
+    if (!form) return;
+    var candidates = $all('input, select, textarea, button', form).filter(function (node) {
+      return fieldIsVisible(node) && !node.readOnly && node.tabIndex !== -1 && node.type !== 'hidden' && !node.disabled;
+    });
+    var index = candidates.indexOf(field);
+    if (index === -1) return;
+    for (var i = index + 1; i < candidates.length; i += 1) {
+      var next = candidates[i];
+      if (next && next !== field) {
+        try { next.focus({ preventScroll: true }); } catch (err) { next.focus(); }
+        break;
+      }
+    }
+  }
+
+  function installLiveValidation(scope) {
+    var form = scope && scope.tagName === 'FORM' ? scope : (scope ? scope.closest('form') : null);
+    if (!form || form.dataset.guidedBound === '1') return;
+    form.dataset.guidedBound = '1';
+
+    ['input', 'change', 'focusout'].forEach(function (eventName) {
+      form.addEventListener(eventName, function (event) {
+        var field = event.target;
+        if (!field || !/^(INPUT|SELECT|TEXTAREA)$/.test(field.tagName)) return;
+        if (eventName !== 'input') field.dataset.touched = '1';
+        if (field.matches('[data-state-role], [data-province-role]')) {
+          updateProvinceFilteredPlaces(form);
+        }
+        validateField(field, eventName === 'focusout');
+        updateFormProgress(form);
+        if ((eventName === 'change' || eventName === 'focusout') && field.dataset.autoAdvance === '1' && validateField(field, true)) {
+          focusNextField(field);
+        }
+      });
+    });
+
+    form.addEventListener('submit', function (event) {
+      updateProvinceFilteredPlaces(form);
+      var invalid = null;
+      $all('input, select, textarea', form).forEach(function (field) {
+        field.dataset.touched = '1';
+        if (!validateField(field, true) && !invalid && fieldIsVisible(field)) {
+          invalid = field;
+        }
+      });
+      updateFormProgress(form);
+      if (invalid) {
+        event.preventDefault();
+        try {
+          invalid.focus({ preventScroll: true });
+          invalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } catch (err) {}
+      }
+    });
+
+    updateProvinceFilteredPlaces(form);
+    $all('input, select, textarea', form).forEach(function (field) {
+      if (String(field.value || '').trim() !== '') {
+        validateField(field, false);
+      }
+    });
+    updateFormProgress(form);
   }
 
   function roleLabelsForRecordType(recordTypeValue) {
@@ -255,13 +523,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function bindProvincePlaceDependencies(scope, rootForm) {
-    $all('[data-state-role], [data-province-role]', scope || document).forEach(function (field) {
-      if (field.dataset.depBound === '1') return;
-      field.dataset.depBound = '1';
-      field.addEventListener('change', function () { updateProvinceFilteredPlaces(rootForm || document); });
-      field.addEventListener('input', function () { updateProvinceFilteredPlaces(rootForm || document); });
-      field.addEventListener('blur', function () { updateProvinceFilteredPlaces(rootForm || document); });
-    });
+    updateProvinceFilteredPlaces(rootForm || scope || document);
   }
 
   function refreshStructureLabels(scope, recordTypeValue) {
@@ -489,8 +751,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function clearClientValidation(scope) {
-      $all('.anagrafica-field.is-invalid', scope || form).forEach(function (field) {
+      $all('.anagrafica-field.is-invalid, .anagrafica-field.is-valid', scope || form).forEach(function (field) {
         field.classList.remove('is-invalid');
+        field.classList.remove('is-valid');
       });
       $all('input, select, textarea', scope || form).forEach(function (field) {
         field.setCustomValidity('');
@@ -498,18 +761,17 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function validateFormBeforeSubmit() {
-      clearClientValidation(form);
       updateGroupState();
       updateProvinceFilteredPlaces(form);
 
       var firstInvalid = null;
       $all('input, select, textarea', form).forEach(function (field) {
-        if (field.disabled || field.type === 'hidden') return;
-        if (!field.checkValidity()) {
-          addInvalidState(field, field.validationMessage || 'Campo obbligatorio');
-          if (!firstInvalid) firstInvalid = field;
+        field.dataset.touched = '1';
+        if (!validateField(field, true) && !firstInvalid && fieldIsVisible(field)) {
+          firstInvalid = field;
         }
       });
+      updateFormProgress(form);
 
       if (firstInvalid) {
         try {
@@ -1026,16 +1288,14 @@ function initMonthRangeConfigurator() {
         var key = field.getAttribute('data-name');
         if (!key) return;
         var value = guest[key];
-        if (field.tagName === 'SELECT') {
-          field.value = value == null ? '' : String(value);
-        } else if ((field.getAttribute('data-date-role') || '') !== '') {
+        if ((field.getAttribute('data-date-role') || '') !== '') {
           if (field._flatpickr && value) {
             try { field._flatpickr.setDate(String(value), true, 'Y-m-d'); } catch (err) { field.value = value || ''; }
           } else {
             field.value = value || '';
           }
         } else {
-          field.value = value == null ? '' : String(value);
+          setFieldValueSmart(field, value);
         }
       });
       updateProvinceFilteredPlaces(card);
@@ -1099,7 +1359,7 @@ function initMonthRangeConfigurator() {
             field.value = value || '';
           }
         } else {
-          field.value = value == null ? '' : String(value);
+          setFieldValueSmart(field, value);
         }
       });
       updateProvinceFilteredPlaces(form);
