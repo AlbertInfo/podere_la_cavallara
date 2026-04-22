@@ -142,6 +142,41 @@ function anagrafica_comune_labels_by_province(): array
     return $cache = $grouped;
 }
 
+function anagrafica_comuni_options_by_province(): array
+{
+    static $cache = null;
+    if ($cache !== null) {
+        return $cache;
+    }
+
+    $grouped = [];
+
+    foreach (anagrafica_comune_rows() as $row) {
+        $province = trim((string) ($row['province'] ?? ''));
+        $code = trim((string) ($row['code'] ?? ''));
+        $label = trim((string) ($row['label'] ?? ''));
+
+        if ($province === '' || $code === '' || $label === '') {
+            continue;
+        }
+
+        $grouped[$province][] = [
+            'code' => $code,
+            'label' => $label,
+        ];
+    }
+
+    foreach ($grouped as $province => $items) {
+        usort($items, static function (array $a, array $b): int {
+            return strcasecmp($a['label'], $b['label']);
+        });
+
+        $grouped[$province] = array_values($items);
+    }
+
+    return $cache = $grouped;
+}
+
 function anagrafica_default_italy_state_code(): string
 {
     return '100000100';
