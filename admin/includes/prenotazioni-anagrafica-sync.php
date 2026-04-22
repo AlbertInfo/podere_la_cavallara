@@ -107,6 +107,47 @@ function anagrafica_booking_record_type(array $booking): string
     return anagrafica_booking_total_guests($booking) > 1 ? 'group' : 'single';
 }
 
+function anagrafica_record_type_from_tipo_code(?string $tipoCode): ?string
+{
+    $tipoCode = trim((string) $tipoCode);
+    if ($tipoCode === '') {
+        return null;
+    }
+    if (in_array($tipoCode, ['17', '19'], true)) {
+        return 'family';
+    }
+    if (in_array($tipoCode, ['18', '20'], true)) {
+        return 'group';
+    }
+    if ($tipoCode === '16') {
+        return 'single';
+    }
+    return null;
+}
+
+function anagrafica_infer_record_type_from_guest_rows(array $guestRows, string $fallback = 'single'): string
+{
+    $seen = [];
+    foreach ($guestRows as $guest) {
+        $tipo = anagrafica_record_type_from_tipo_code((string) ($guest['tipoalloggiato_code'] ?? $guest['tipo_alloggiato_code'] ?? ''));
+        if ($tipo !== null) {
+            $seen[$tipo] = true;
+        }
+    }
+
+    if (isset($seen['family'])) {
+        return 'family';
+    }
+    if (isset($seen['group'])) {
+        return 'group';
+    }
+    if (isset($seen['single'])) {
+        return 'single';
+    }
+
+    return in_array($fallback, ['single', 'family', 'group'], true) ? $fallback : 'single';
+}
+
 function anagrafica_booking_reference(array $booking): string
 {
     $external = trim((string) ($booking['external_reference'] ?? ''));
@@ -183,63 +224,6 @@ function anagrafica_booking_room_type(array $booking): string
     return $roomType !== '' ? $roomType : 'Da definire';
 }
 
-function anagrafica_infer_record_type_from_guest_rows(PDO $pdo, int $recordId): ?string
-{
-    if ($recordId <= 0) {
-        return null;
-    }
-
-    $stmt = $pdo->prepare('SELECT tipoalloggiato_code, tipo_alloggiato_code FROM anagrafica_guests WHERE record_id = :record_id ORDER BY is_group_leader DESC, id ASC');
-    $stmt->execute(['record_id' => $recordId]);
-    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
-    if (!$rows) {
-        return null;
-    }
-
-    $codes = [];
-    foreach ($rows as $row) {
-        $code = trim((string) ($row['tipoalloggiato_code'] ?? $row['tipo_alloggiato_code'] ?? ''));
-        if ($code !== '') {
-            $codes[] = $code;
-        }
-    }
-
-    if (!$codes) {
-        return null;
-    }
-
-    foreach ($codes as $code) {
-        if (in_array($code, ['17', '19'], true)) {
-            return 'family';
-        }
-    }
-    foreach ($codes as $code) {
-        if (in_array($code, ['18', '20'], true)) {
-            return 'group';
-        }
-    }
-
-    return 'single';
-}
-
-function anagrafica_payload_select_value(array $guest, string $codeKey, string $labelKey): string
-{
-    $code = trim((string) ($guest[$codeKey] ?? ''));
-    if ($code !== '') {
-        return $code;
-    }
-    return trim((string) ($guest[$labelKey] ?? ''));
-}
-
-function anagrafica_payload_place_value(array $guest, string $codeKey, string $labelKey): string
-{
-    $code = trim((string) ($guest[$codeKey] ?? ''));
-    if ($code !== '') {
-        return $code;
-    }
-    return trim((string) ($guest[$labelKey] ?? ''));
-}
-
 function anagrafica_sync_booking_to_record(PDO $pdo, array $booking): int
 {
     if (!anagrafica_prenotazione_link_column_ready($pdo)) {
@@ -255,18 +239,16 @@ function anagrafica_sync_booking_to_record(PDO $pdo, array $booking): int
     $stmt->execute(['prenotazione_id' => $bookingId]);
     $existingRecord = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
 
-    $defaultRecordType = anagrafica_booking_record_type($booking);
-    $recordType = $defaultRecordType;
+    $existingGuests = [];
     if ($existingRecord) {
-        $inferredType = anagrafica_infer_record_type_from_guest_rows($pdo, (int) ($existingRecord['id'] ?? 0));
-        if (in_array((string) $inferredType, ['single', 'family', 'group'], true)) {
-            $recordType = (string) $inferredType;
-        } else {
-            $existingType = (string) ($existingRecord['record_type'] ?? '');
-            if (in_array($existingType, ['single', 'family', 'group'], true)) {
-                $recordType = $existingType;
-            }
-        }
+        $existingGuests = anagrafica_fetch_record_guests($pdo, (int) ($existingRecord['id'] ?? 0));
+    }
+
+    $recordType = $existingGuests
+        ? anagrafica_infer_record_type_from_guest_rows($existingGuests, (string) ($existingRecord['record_type'] ?? anagrafica_booking_record_type($booking)))
+        : (string) ($existingRecord['record_type'] ?? anagrafica_booking_record_type($booking));
+    if (!in_array($recordType, ['single', 'family', 'group'], true)) {
+        $recordType = anagrafica_booking_record_type($booking);
     }
     $bookingReference = anagrafica_booking_reference($booking);
     $bookingIdswh = $existingRecord['ross_prenotazione_idswh'] ?? anagrafica_booking_idswh($booking);
@@ -327,8 +309,8 @@ function anagrafica_sync_booking_to_record(PDO $pdo, array $booking): int
         'guest_idswh' => $leader['guest_idswh'] ?? derive_guest_idswh($bookingIdswh, 0),
         'is_group_leader' => 1,
         'leader_idswh' => '',
-        'tipo_alloggiato_code' => $recordType === 'single' ? '16' : '18',
-        'tipoalloggiato_code' => $recordType === 'single' ? '16' : '18',
+        'tipo_alloggiato_code' => anagrafica_tipo_alloggiato_code_for_record_type($recordType, true),
+        'tipoalloggiato_code' => anagrafica_tipo_alloggiato_code_for_record_type($recordType, true),
         'first_name' => trim((string) ($leader['first_name'] ?? $firstName)),
         'last_name' => trim((string) ($leader['last_name'] ?? $lastName)),
         'gender' => trim((string) ($leader['gender'] ?? 'M')),
@@ -431,23 +413,26 @@ function anagrafica_build_record_modal_payload(PDO $pdo, array $record): array
     $departure = substr((string) ($record['departure_date'] ?? ''), 0, 10);
     $reservedRooms = max(1, (int) ($record['reserved_rooms'] ?? 1));
 
+    $guestRows = anagrafica_fetch_record_guests($pdo, $recordId);
+    $recordType = anagrafica_infer_record_type_from_guest_rows($guestRows, $recordType);
+
     $guests = [];
-    foreach (anagrafica_fetch_record_guests($pdo, $recordId) as $guest) {
+    foreach ($guestRows as $guest) {
         $guests[] = [
             'first_name' => (string) ($guest['first_name'] ?? ''),
             'last_name' => (string) ($guest['last_name'] ?? ''),
             'gender' => (string) ($guest['gender'] ?? 'M'),
             'birth_date' => substr((string) ($guest['birth_date'] ?? ''), 0, 10),
-            'citizenship_label' => anagrafica_payload_select_value($guest, 'citizenship_code', 'citizenship_label'),
-            'birth_state_label' => anagrafica_payload_select_value($guest, 'birth_state_code', 'birth_state_label'),
+            'citizenship_label' => (string) ($guest['citizenship_code'] ?? $guest['citizenship_label'] ?? ''),
+            'birth_state_label' => (string) ($guest['birth_state_code'] ?? $guest['birth_state_label'] ?? ''),
             'birth_province' => (string) ($guest['birth_province'] ?? ''),
-            'birth_place_label' => anagrafica_payload_place_value($guest, 'birth_city_code', 'birth_place_label'),
-            'residence_state_label' => anagrafica_payload_select_value($guest, 'residence_state_code', 'residence_state_label'),
+            'birth_place_label' => (string) ($guest['birth_city_code'] ?? $guest['birth_place_label'] ?? ''),
+            'residence_state_label' => (string) ($guest['residence_state_code'] ?? $guest['residence_state_label'] ?? ''),
             'residence_province' => (string) ($guest['residence_province'] ?? ''),
-            'residence_place_label' => anagrafica_payload_place_value($guest, 'residence_place_code', 'residence_place_label'),
-            'document_type_label' => (string) ($guest['document_type_label'] ?? ($guest['document_type'] ?? '')),
+            'residence_place_label' => (string) (((string) ($guest['residence_state_code'] ?? '') === anagrafica_default_italy_state_code()) ? ($guest['residence_place_code'] ?? $guest['residence_place_label'] ?? '') : ($guest['residence_place_label'] ?? '')),
+            'document_type_label' => (string) ($guest['document_type_label'] ?? ''),
             'document_number' => (string) ($guest['document_number'] ?? ''),
-            'document_issue_place' => anagrafica_payload_place_value($guest, 'document_issue_place_code', 'document_issue_place'),
+            'document_issue_place' => (string) ($guest['document_issue_place'] ?? ''),
             'tourism_type' => (string) ($guest['tourism_type'] ?? ''),
             'transport_type' => (string) ($guest['transport_type'] ?? ''),
         ];
@@ -483,9 +468,11 @@ function anagrafica_fetch_standalone_records_touching_day(PDO $pdo, string $day)
                leader.birth_state_label AS leader_birth_state_label,
                leader.birth_province AS leader_birth_province,
                leader.birth_place_label AS leader_birth_place_label,
+               leader.birth_city_code AS leader_birth_city_code,
                leader.residence_state_label AS leader_residence_state_label,
                leader.residence_province AS leader_residence_province,
-               leader.residence_place_label AS leader_residence_place_label
+               leader.residence_place_label AS leader_residence_place_label,
+               leader.residence_place_code AS leader_residence_place_code
         FROM anagrafica_records ar
         LEFT JOIN anagrafica_guests leader ON leader.record_id = ar.id AND leader.is_group_leader = 1
         WHERE (ar.prenotazione_id IS NULL OR ar.prenotazione_id = 0)
@@ -556,22 +543,24 @@ function anagrafica_build_booking_modal_payload(PDO $pdo, array $booking): array
 
     $guests = [];
     if ($linkedRecordId > 0) {
-        foreach (anagrafica_fetch_record_guests($pdo, $linkedRecordId) as $guest) {
+        $linkedGuests = anagrafica_fetch_record_guests($pdo, $linkedRecordId);
+        $recordType = anagrafica_infer_record_type_from_guest_rows($linkedGuests, $recordType);
+        foreach ($linkedGuests as $guest) {
             $guests[] = [
                 'first_name' => (string) ($guest['first_name'] ?? ''),
                 'last_name' => (string) ($guest['last_name'] ?? ''),
                 'gender' => (string) ($guest['gender'] ?? 'M'),
                 'birth_date' => substr((string) ($guest['birth_date'] ?? ''), 0, 10),
-                'citizenship_label' => anagrafica_payload_select_value($guest, 'citizenship_code', 'citizenship_label'),
-                'birth_state_label' => anagrafica_payload_select_value($guest, 'birth_state_code', 'birth_state_label'),
+                'citizenship_label' => (string) ($guest['citizenship_code'] ?? $guest['citizenship_label'] ?? ''),
+                'birth_state_label' => (string) ($guest['birth_state_code'] ?? $guest['birth_state_label'] ?? ''),
                 'birth_province' => (string) ($guest['birth_province'] ?? ''),
-                'birth_place_label' => anagrafica_payload_place_value($guest, 'birth_city_code', 'birth_place_label'),
-                'residence_state_label' => anagrafica_payload_select_value($guest, 'residence_state_code', 'residence_state_label'),
+                'birth_place_label' => (string) ($guest['birth_city_code'] ?? $guest['birth_place_label'] ?? ''),
+                'residence_state_label' => (string) ($guest['residence_state_code'] ?? $guest['residence_state_label'] ?? ''),
                 'residence_province' => (string) ($guest['residence_province'] ?? ''),
-                'residence_place_label' => anagrafica_payload_place_value($guest, 'residence_place_code', 'residence_place_label'),
-                'document_type_label' => (string) ($guest['document_type_label'] ?? ($guest['document_type'] ?? '')),
+                'residence_place_label' => (string) (((string) ($guest['residence_state_code'] ?? '') === anagrafica_default_italy_state_code()) ? ($guest['residence_place_code'] ?? $guest['residence_place_label'] ?? '') : ($guest['residence_place_label'] ?? '')),
+                'document_type_label' => (string) ($guest['document_type_label'] ?? ''),
                 'document_number' => (string) ($guest['document_number'] ?? ''),
-                'document_issue_place' => anagrafica_payload_place_value($guest, 'document_issue_place_code', 'document_issue_place'),
+                'document_issue_place' => (string) ($guest['document_issue_place'] ?? ''),
                 'tourism_type' => (string) ($guest['tourism_type'] ?? ''),
                 'transport_type' => (string) ($guest['transport_type'] ?? ''),
             ];
@@ -590,16 +579,16 @@ function anagrafica_build_booking_modal_payload(PDO $pdo, array $booking): array
             'last_name' => (string) ($booking['leader_last_name'] ?? $lastName),
             'gender' => (string) ($booking['leader_gender'] ?? 'M'),
             'birth_date' => substr((string) ($booking['leader_birth_date'] ?? ''), 0, 10),
-            'citizenship_label' => trim((string) ($booking['leader_citizenship_code'] ?? '')) !== '' ? (string) $booking['leader_citizenship_code'] : (string) ($booking['leader_citizenship_label'] ?? ''),
-            'birth_state_label' => trim((string) ($booking['leader_birth_state_code'] ?? '')) !== '' ? (string) $booking['leader_birth_state_code'] : (string) ($booking['leader_birth_state_label'] ?? ''),
+            'citizenship_label' => (string) ($booking['leader_citizenship_code'] ?? $booking['leader_citizenship_label'] ?? ''),
+            'birth_state_label' => (string) ($booking['leader_birth_state_code'] ?? $booking['leader_birth_state_label'] ?? ''),
             'birth_province' => (string) ($booking['leader_birth_province'] ?? ''),
-            'birth_place_label' => (string) ($booking['leader_birth_place_label'] ?? ''),
-            'residence_state_label' => trim((string) ($booking['leader_residence_state_code'] ?? '')) !== '' ? (string) $booking['leader_residence_state_code'] : (string) ($booking['leader_residence_state_label'] ?? ''),
+            'birth_place_label' => (string) ($booking['leader_birth_city_code'] ?? $booking['leader_birth_place_label'] ?? ''),
+            'residence_state_label' => (string) ($booking['leader_residence_state_code'] ?? $booking['leader_residence_state_label'] ?? ''),
             'residence_province' => (string) ($booking['leader_residence_province'] ?? ''),
-            'residence_place_label' => (string) ($booking['leader_residence_place_label'] ?? ''),
+            'residence_place_label' => (string) (((string) ($booking['leader_residence_state_code'] ?? '') === anagrafica_default_italy_state_code()) ? ($booking['leader_residence_place_code'] ?? $booking['leader_residence_place_label'] ?? '') : ($booking['leader_residence_place_label'] ?? '')),
             'document_type_label' => (string) ($booking['leader_document_type_label'] ?? ''),
             'document_number' => (string) ($booking['leader_document_number'] ?? ''),
-            'document_issue_place' => (string) ($booking['leader_document_issue_place_code'] ?? $booking['leader_document_issue_place'] ?? ''),
+            'document_issue_place' => (string) ($booking['leader_document_issue_place'] ?? ''),
             'tourism_type' => '',
             'transport_type' => '',
         ];
@@ -660,10 +649,12 @@ function anagrafica_fetch_prenotazioni_touching_day(PDO $pdo, string $day): arra
                leader.birth_state_code AS leader_birth_state_code,
                leader.birth_province AS leader_birth_province,
                leader.birth_place_label AS leader_birth_place_label,
+               leader.birth_city_code AS leader_birth_city_code,
                leader.residence_state_label AS leader_residence_state_label,
                leader.residence_state_code AS leader_residence_state_code,
                leader.residence_province AS leader_residence_province,
-               leader.residence_place_label AS leader_residence_place_label
+               leader.residence_place_label AS leader_residence_place_label,
+               leader.residence_place_code AS leader_residence_place_code
         FROM prenotazioni p
         LEFT JOIN anagrafica_records ar ON ar.prenotazione_id = p.id
         LEFT JOIN anagrafica_guests leader ON leader.record_id = ar.id AND leader.is_group_leader = 1

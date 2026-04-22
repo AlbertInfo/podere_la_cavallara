@@ -493,6 +493,29 @@ function alloggiati_record_kind_from_tipo(string $tipoCode): string
     return 'singolo';
 }
 
+function alloggiati_record_kind_from_rows(array $rows): string
+{
+    $hasFamily = false;
+    $hasGroup = false;
+    foreach ($rows as $row) {
+        $payload = (array) ($row['payload'] ?? []);
+        $tipoCode = (string) ($payload['tipo_alloggiato_code'] ?? '');
+        if (in_array($tipoCode, ['17', '19'], true)) {
+            $hasFamily = true;
+        }
+        if (in_array($tipoCode, ['18', '20'], true)) {
+            $hasGroup = true;
+        }
+    }
+    if ($hasFamily) {
+        return 'famiglia';
+    }
+    if ($hasGroup) {
+        return 'gruppo';
+    }
+    return 'singolo';
+}
+
 function alloggiati_record_kind_label(string $kind): string
 {
     if ($kind === 'famiglia') {
@@ -532,7 +555,7 @@ function alloggiati_group_schedine_by_record(array $schedine): array
         $components = array_values(array_filter($rows, static fn(array $row): bool => (int) ($row['id'] ?? 0) !== (int) ($leader['id'] ?? 0)));
         $counts = alloggiati_day_status_counts($rows);
         $payload = (array) ($leader['payload'] ?? []);
-        $kind = alloggiati_record_kind_from_tipo((string) ($payload['tipo_alloggiato_code'] ?? ''));
+        $kind = alloggiati_record_kind_from_rows($rows);
         $traceErrors = [];
         $documentCount = 0;
         foreach ($rows as $row) {

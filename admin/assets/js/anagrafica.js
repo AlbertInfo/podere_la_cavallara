@@ -69,6 +69,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   var provinceMap = parseJsonScript('anagraficaProvinceMap', {});
   var comuniByProvince = parseJsonScript('anagraficaComuniByProvince', {});
+  var comuniOptionsByProvince = parseJsonScript('anagraficaComuniByProvinceOptions', {});
   var globalPlaceListId = 'place-options';
   var globalStateListId = 'state-options';
   var globalProvinceListId = 'province-options';
@@ -108,13 +109,8 @@ document.addEventListener('DOMContentLoaded', function () {
     select.appendChild(firstOption);
     (options || []).forEach(function (item) {
       var option = document.createElement('option');
-      if (typeof item === 'string') {
-        option.value = item;
-        option.textContent = item;
-      } else {
-        option.value = String(item.value || item.label || item.description || item.code || '');
-        option.textContent = String(item.label || item.description || item.value || item.code || '');
-      }
+      option.value = String(item.code || '');
+      option.textContent = String(item.label || item.description || item.code || '');
       if (normalizedSelected !== '' && option.value === normalizedSelected) {
         option.selected = true;
       }
@@ -156,7 +152,7 @@ document.addEventListener('DOMContentLoaded', function () {
         birthPlace.required = birthIsItaly;
         fillSelectOptions(
           birthPlace,
-          birthIsItaly && birthCode ? (comuniByProvince[birthCode] || []) : [],
+          birthIsItaly && birthCode ? (comuniOptionsByProvince[birthCode] || []) : [],
           birthIsItaly ? (birthCode ? 'Seleziona comune di nascita' : 'Seleziona prima la provincia') : 'Non richiesto per estero',
           selectedBirth
         );
@@ -184,7 +180,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         fillSelectOptions(
           residenceSelect,
-          residenceIsItaly && residenceCode ? (comuniByProvince[residenceCode] || []) : [],
+          residenceIsItaly && residenceCode ? (comuniOptionsByProvince[residenceCode] || []) : [],
           residenceIsItaly ? (residenceCode ? 'Seleziona comune di residenza' : 'Seleziona prima la provincia') : 'Seleziona comune di residenza',
           residenceIsItaly ? selectedResidence : ''
         );
@@ -206,11 +202,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var label = field.closest('.anagrafica-field');
     if (!label) return;
 
-    if (field.type === 'hidden' || field.hidden) {
-      return;
-    }
-
-    if (field.disabled) {
+    if (field.disabled || field.type === 'hidden' || field.hidden) {
       label.classList.remove('is-valid');
       return;
     }
@@ -318,7 +310,21 @@ document.addEventListener('DOMContentLoaded', function () {
       field.dataset.depBound = '1';
       field.addEventListener('change', function () { updateProvinceFilteredPlaces(rootForm || document); });
       field.addEventListener('input', function () { updateProvinceFilteredPlaces(rootForm || document); });
-      field.addEventListener('blur', function () { updateProvinceFilteredPlaces(rootForm || document); });
+    });
+
+    $all('[data-place-role="residence-select"], [data-place-role="residence-text"]', scope || document).forEach(function (field) {
+      if (field.dataset.depBound === '1') return;
+      field.dataset.depBound = '1';
+      var sync = function () {
+        var card = field.closest('[data-guest-scope]');
+        if (card) {
+          syncResidenceCanonical(card);
+          refreshFieldVisualStates(card);
+        }
+      };
+      field.addEventListener('change', sync);
+      field.addEventListener('input', sync);
+      field.addEventListener('blur', sync);
     });
   }
 
