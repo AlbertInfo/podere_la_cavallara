@@ -83,8 +83,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function italySelected(value) {
-    var normalized = normalizeValue(value);
-    return normalized === 'italia' || String(value || '').trim() === '100000100';
+    return normalizeValue(value) === 'italia';
   }
 
   function resolveProvinceCode(value) {
@@ -119,16 +118,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  function syncResidenceCanonical(card) {
-    if (!card) return;
-    var canonical = $('[data-place-role="residence"]', card);
-    if (!canonical) return;
-    var residenceState = $('[data-state-role="residence"]', card);
-    var select = $('[data-place-role="residence-select"]', card);
-    var textField = $('[data-place-role="residence-text"]', card);
-    var isItaly = residenceState && residenceState.value === '100000100';
-    canonical.value = isItaly ? String((select && select.value) || '').trim() : String((textField && textField.value) || '').trim();
-  }
 
   function updateProvinceFilteredPlaces(scope) {
     $all('[data-guest-scope]', scope || document).forEach(function (card) {
@@ -140,7 +129,6 @@ document.addEventListener('DOMContentLoaded', function () {
       var residenceProvince = $('[data-province-role="residence"]', card);
       var residenceSelect = $('[data-place-role="residence-select"]', card);
       var residenceText = $('[data-place-role="residence-text"]', card);
-      var residenceCanonical = $('[data-place-role="residence"]', card);
       var residenceLabel = $('[data-residence-place-label]', card);
 
       if (birthState && birthProvince && birthPlace) {
@@ -155,26 +143,22 @@ document.addEventListener('DOMContentLoaded', function () {
           birthPlace,
           birthIsItaly && birthCode ? (comuniOptionsByProvince[birthCode] || []) : [],
           birthIsItaly ? (birthCode ? 'Seleziona comune di nascita' : 'Seleziona prima la provincia') : 'Non richiesto per estero',
-          selectedBirth
+          birthIsItaly ? selectedBirth : ''
         );
         if (!birthIsItaly) {
           birthPlace.value = '';
         }
       }
 
-      if (residenceState && residenceProvince && residenceSelect && residenceText && residenceCanonical) {
+      if (residenceState && residenceProvince && residenceSelect && residenceText) {
         var residenceIsItaly = residenceState.value === '100000100';
         var residenceCode = resolveProvinceCode(residenceProvince.value);
-        var selectedResidence = String(residenceCanonical.value || '').trim();
+        var selectedResidenceCode = String(residenceSelect.value || '').trim();
+        var selectedResidenceText = String(residenceText.value || '').trim();
 
         residenceProvince.disabled = !residenceIsItaly;
         residenceProvince.required = residenceIsItaly;
-        residenceSelect.disabled = !residenceIsItaly;
-        residenceSelect.required = residenceIsItaly;
-        residenceSelect.hidden = !residenceIsItaly;
-        residenceText.disabled = residenceIsItaly;
-        residenceText.required = !residenceIsItaly;
-        residenceText.hidden = residenceIsItaly;
+
         if (residenceLabel) {
           residenceLabel.textContent = residenceIsItaly ? 'Comune residenza' : 'Località / NUTS residenza';
         }
@@ -183,15 +167,33 @@ document.addEventListener('DOMContentLoaded', function () {
           residenceSelect,
           residenceIsItaly && residenceCode ? (comuniOptionsByProvince[residenceCode] || []) : [],
           residenceIsItaly ? (residenceCode ? 'Seleziona comune di residenza' : 'Seleziona prima la provincia') : 'Seleziona comune di residenza',
-          residenceIsItaly ? selectedResidence : ''
+          residenceIsItaly ? selectedResidenceCode : ''
         );
 
-        if (!residenceIsItaly) {
-          residenceSelect.value = '';
+        if (residenceIsItaly) {
+          residenceSelect.hidden = false;
+          residenceSelect.disabled = false;
+          residenceSelect.required = true;
+          residenceText.hidden = true;
+          residenceText.disabled = true;
+          residenceText.required = false;
+          if (residenceText.name) {
+            residenceSelect.name = residenceText.name;
+          }
+          residenceText.name = '';
+        } else {
+          residenceSelect.hidden = true;
+          residenceSelect.disabled = true;
+          residenceSelect.required = false;
+          residenceText.hidden = false;
+          residenceText.disabled = false;
+          residenceText.required = true;
+          if (residenceSelect.name) {
+            residenceText.name = residenceSelect.name;
+          }
+          residenceSelect.name = '';
           residenceText.placeholder = 'Località o codice NUTS';
         }
-
-        syncResidenceCanonical(card);
       }
 
       refreshFieldVisualStates(card);
@@ -248,8 +250,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function installLiveValidation(scope) {
     $all('input, select, textarea', scope || document).forEach(function (field) {
-      field.addEventListener('input', function () { clearInvalidState(field); var card = field.closest('[data-guest-scope]'); if (card && (field.getAttribute('data-place-role') === 'residence-text' || field.getAttribute('data-place-role') === 'residence-select')) { syncResidenceCanonical(card); } });
-      field.addEventListener('change', function () { clearInvalidState(field); var card = field.closest('[data-guest-scope]'); if (card && (field.getAttribute('data-place-role') === 'residence-text' || field.getAttribute('data-place-role') === 'residence-select')) { syncResidenceCanonical(card); } });
+      field.addEventListener('input', function () { clearInvalidState(field); });
+      field.addEventListener('change', function () { clearInvalidState(field); });
       field.addEventListener('blur', function () { setFieldVisualState(field); });
       setFieldVisualState(field);
     });
@@ -306,12 +308,25 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function bindProvincePlaceDependencies(scope, rootForm) {
-    $all('[data-state-role], [data-province-role], [data-place-role="residence-select"], [data-place-role="residence-text"]', scope || document).forEach(function (field) {
+    $all('[data-state-role], [data-province-role]', scope || document).forEach(function (field) {
       if (field.dataset.depBound === '1') return;
       field.dataset.depBound = '1';
       field.addEventListener('change', function () { updateProvinceFilteredPlaces(rootForm || document); });
       field.addEventListener('input', function () { updateProvinceFilteredPlaces(rootForm || document); });
-      field.addEventListener('blur', function () { updateProvinceFilteredPlaces(rootForm || document); });
+    });
+
+    $all('[data-place-role="residence-select"], [data-place-role="residence-text"]', scope || document).forEach(function (field) {
+      if (field.dataset.depBound === '1') return;
+      field.dataset.depBound = '1';
+      var refresh = function () {
+        var card = field.closest('[data-guest-scope]');
+        if (card) {
+          refreshFieldVisualStates(card);
+        }
+      };
+      field.addEventListener('change', refresh);
+      field.addEventListener('input', refresh);
+      field.addEventListener('blur', refresh);
     });
   }
 
@@ -553,7 +568,6 @@ document.addEventListener('DOMContentLoaded', function () {
       clearClientValidation(form);
       updateGroupState();
       updateProvinceFilteredPlaces(form);
-      $all('[data-guest-scope]', form).forEach(syncResidenceCanonical);
 
       var firstInvalid = null;
       $all('input, select, textarea', form).forEach(function (field) {
@@ -1079,6 +1093,10 @@ function initMonthRangeConfigurator() {
       $all('[data-name]', card).forEach(function (field) {
         var key = field.getAttribute('data-name');
         if (!key) return;
+        var placeRole = field.getAttribute('data-place-role') || '';
+        if (placeRole === 'residence-select' || placeRole === 'residence-text') {
+          return;
+        }
         var value = guest[key];
         if (field.tagName === 'SELECT') {
           field.value = value == null ? '' : String(value);
@@ -1093,6 +1111,22 @@ function initMonthRangeConfigurator() {
         }
       });
       updateProvinceFilteredPlaces(card);
+      var birthPlace = $('[data-place-role="birth"]', card);
+      if (birthPlace && guest.birth_place_label != null) {
+        birthPlace.value = String(guest.birth_place_label || '');
+      }
+      var residenceState = $('[data-state-role="residence"]', card);
+      var residenceSelect = $('[data-place-role="residence-select"]', card);
+      var residenceText = $('[data-place-role="residence-text"]', card);
+      var residenceValue = guest.residence_place_label == null ? '' : String(guest.residence_place_label);
+      if (residenceState && residenceState.value === '100000100') {
+        if (residenceSelect) {
+          residenceSelect.value = residenceValue;
+        }
+      } else if (residenceText) {
+        residenceText.value = residenceValue;
+      }
+      refreshFieldVisualStates(card);
     }
 
     function addGuestCard(guest) {
@@ -1124,39 +1158,9 @@ function initMonthRangeConfigurator() {
 
     function setLeaderValues(guest) {
       guest = guest || {};
-      var fields = {
-        'first_name': 'guests[0][first_name]',
-        'last_name': 'guests[0][last_name]',
-        'gender': 'guests[0][gender]',
-        'birth_date': 'guests[0][birth_date]',
-        'citizenship_label': 'guests[0][citizenship_label]',
-        'birth_state_label': 'guests[0][birth_state_label]',
-        'birth_province': 'guests[0][birth_province]',
-        'birth_place_label': 'guests[0][birth_place_label]',
-        'residence_state_label': 'guests[0][residence_state_label]',
-        'residence_province': 'guests[0][residence_province]',
-        'residence_place_label': 'guests[0][residence_place_label]',
-        'document_type_label': 'guests[0][document_type_label]',
-        'document_number': 'guests[0][document_number]',
-        'document_issue_place': 'guests[0][document_issue_place]',
-        'tourism_type': 'guests[0][tourism_type]',
-        'transport_type': 'guests[0][transport_type]'
-      };
-      Object.keys(fields).forEach(function (key) {
-        var field = form.querySelector('[name="' + fields[key] + '"]');
-        if (!field) return;
-        var value = guest[key];
-        if ((field.getAttribute('data-date-role') || '') !== '') {
-          if (field._flatpickr && value) {
-            try { field._flatpickr.setDate(String(value), true, 'Y-m-d'); } catch (err) { field.value = value || ''; }
-          } else {
-            field.value = value || '';
-          }
-        } else {
-          field.value = value == null ? '' : String(value);
-        }
-      });
-      updateProvinceFilteredPlaces(form);
+      var leaderCard = $('[data-guest-scope][data-guest-index="0"]', form);
+      if (!leaderCard) return;
+      setGuestValues(leaderCard, guest);
     }
 
     function updateGroupState() {

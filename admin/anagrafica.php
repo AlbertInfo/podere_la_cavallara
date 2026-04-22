@@ -854,7 +854,7 @@ require_once __DIR__ . '/includes/header.php';
                         $flags = (array) ($booking['flags'] ?? []);
                         $payload = (array) ($booking['modal_payload'] ?? []);
                         ?>
-                        <article class="ross-record-row ross-record-row--booking" tabindex="0" data-booking-row data-booking-payload='<?= e(json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>' role="button" aria-label="Apri scheda <?= e((string) ($booking['customer_name'] ?? ('Prenotazione #' . $bookingId))) ?>">
+                        <article class="ross-record-row ross-record-row--booking" tabindex="0" data-booking-row>
                             <div class="ross-record-row__main">
                                 <strong><?= e((string) ($booking['customer_name'] ?? ('Prenotazione #' . $bookingId))) ?></strong>
                                 <div class="ross-record-row__subline">
@@ -1070,7 +1070,7 @@ require_once __DIR__ . '/includes/header.php';
                         <label class="anagrafica-field" data-italy-only="birth"><span>Comune nascita</span><select data-place-role="birth" data-name="birth_place_label" data-auto-advance="1"><option value="">Seleziona comune di nascita</option></select></label>
                         <label class="anagrafica-field"><span>Stato di residenza</span><select data-state-role="residence" data-name="residence_state_label" required data-auto-advance="1"><option value="">Seleziona uno stato</option><?php foreach ($stateOptions as $stateCode => $stateLabel): ?><option value="<?= e($stateCode) ?>"><?= e($stateLabel) ?></option><?php endforeach; ?></select><small class="anagrafica-field-hint">Per l'estero puoi indicare località libera o codice NUTS.</small></label>
                         <label class="anagrafica-field" data-italy-only="residence"><span>Provincia residenza (se Italia)</span><select data-province-role="residence" data-name="residence_province" data-auto-advance="1"><option value="">Seleziona provincia</option><?php foreach ($province as $provinceCode => $provinceName): ?><option value="<?= e($provinceCode) ?>"><?= e($provinceName) ?></option><?php endforeach; ?></select></label>
-                        <label class="anagrafica-field"><span data-residence-place-label>Comune / località residenza</span><select data-place-role="residence-select" data-auto-advance="1"><option value="">Seleziona comune di residenza</option></select><input type="text" data-place-role="residence-text" placeholder="Località o codice NUTS" hidden disabled data-next-manual="1"><input type="hidden" data-place-role="residence" data-name="residence_place_label" required></label>
+                        <label class="anagrafica-field"><span data-residence-place-label>Comune / località residenza</span><select data-place-role="residence-select" data-name="residence_place_label" data-auto-advance="1" required><option value="">Seleziona comune di residenza</option></select><input type="text" data-place-role="residence-text" data-name="residence_place_label" placeholder="Località o codice NUTS" hidden disabled data-next-manual="1"></label>
                     </div>
                 </section>
                 <section class="anagrafica-subsection" data-step-section="document">
@@ -1225,25 +1225,10 @@ require_once __DIR__ . '/includes/header.php';
                                     <template id="alloggiatiRecordFile<?= $recordId ?>">
                                         <div class="alloggiati-confirm">
                                             <div class="alloggiati-confirm__grid">
-                                                <div><span>Tipologia anagrafica</span><strong><?= e($kindLabel) ?></strong></div>
+                                                <div><span>Anagrafica</span><strong><?= e($kindLabel) ?></strong></div>
                                                 <div><span>Riferimento</span><strong><?= e((string) ($bundle['display_name'] ?? ('Record #' . $recordId))) ?></strong></div>
                                                 <div><span>Arrivo</span><strong><?= e((string) ($bundle['arrival_date_portal'] ?? '')) ?></strong></div>
-                                                <div><span>Permanenza</span><strong><?= (int) ($bundle['permanence_days'] ?? 0) ?> gg</strong></div>
-                                            </div>
-                                            <div class="alloggiati-confirm__list-wrap">
-                                                <strong>Ospiti inclusi</strong>
-                                                <ul class="alloggiati-confirm__list">
-                                                    <?php foreach ($people as $person): ?>
-                                                        <?php $personPayload = (array) ($person['payload'] ?? []); ?>
-                                                        <li>
-                                                            <strong><?= e((string) ($person['display_name'] ?? ($personPayload['display_name'] ?? 'Ospite'))) ?></strong>
-                                                            <span class="muted">· <?= e((string) ($personPayload['tipo_alloggiato_label'] ?? 'Ospite')) ?></span>
-                                                            <?php if (!empty($personPayload['document_type_label']) || !empty($personPayload['document_number'])): ?>
-                                                                <span class="muted">· <?= e(trim(((string) ($personPayload['document_type_label'] ?? '')) . ' · ' . ((string) ($personPayload['document_number'] ?? '')), ' ·')) ?></span>
-                                                            <?php endif; ?>
-                                                        </li>
-                                                    <?php endforeach; ?>
-                                                </ul>
+                                                <div><span>Schedine</span><strong><?= count($people) ?></strong></div>
                                             </div>
                                             <p class="muted">Scaricherai il tracciato completo dell’anagrafica, con ospite principale e componenti collegati nello stesso file.</p>
                                         </div>
@@ -1263,25 +1248,10 @@ require_once __DIR__ . '/includes/header.php';
                                     <template id="alloggiatiRecordConfirm<?= $recordId ?>">
                                         <div class="alloggiati-confirm">
                                             <div class="alloggiati-confirm__grid">
-                                                <div><span>Tipologia anagrafica</span><strong><?= e($kindLabel) ?></strong></div>
+                                                <div><span>Anagrafica</span><strong><?= e($kindLabel) ?></strong></div>
                                                 <div><span>Ospite principale</span><strong><?= e((string) ($bundle['display_name'] ?? ('Record #' . $recordId))) ?></strong></div>
                                                 <div><span>Arrivo</span><strong><?= e((string) ($bundle['arrival_date_portal'] ?? '')) ?></strong></div>
-                                                <div><span>Permanenza</span><strong><?= (int) ($bundle['permanence_days'] ?? 0) ?> gg</strong></div>
-                                            </div>
-                                            <div class="alloggiati-confirm__list-wrap">
-                                                <strong>Ospiti inclusi</strong>
-                                                <ul class="alloggiati-confirm__list">
-                                                    <?php foreach ($people as $person): ?>
-                                                        <?php $personPayload = (array) ($person['payload'] ?? []); ?>
-                                                        <li>
-                                                            <strong><?= e((string) ($person['display_name'] ?? ($personPayload['display_name'] ?? 'Ospite'))) ?></strong>
-                                                            <span class="muted">· <?= e((string) ($personPayload['tipo_alloggiato_label'] ?? 'Ospite')) ?></span>
-                                                            <?php if (!empty($personPayload['document_type_label']) || !empty($personPayload['document_number'])): ?>
-                                                                <span class="muted">· <?= e(trim(((string) ($personPayload['document_type_label'] ?? '')) . ' · ' . ((string) ($personPayload['document_number'] ?? '')), ' ·')) ?></span>
-                                                            <?php endif; ?>
-                                                        </li>
-                                                    <?php endforeach; ?>
-                                                </ul>
+                                                <div><span>Schedine collegate</span><strong><?= count($people) ?></strong></div>
                                             </div>
                                             <p class="muted">L’invio comprende tutta l’anagrafica e tutte le schedine collegate nello stesso flusso verso Alloggiati Web.</p>
                                         </div>
@@ -1452,7 +1422,7 @@ require_once __DIR__ . '/includes/header.php';
                         <label class="anagrafica-field" data-italy-only="birth"><span>Comune nascita</span><select data-place-role="birth" data-name="birth_place_label" data-auto-advance="1"><option value="">Seleziona comune di nascita</option></select></label>
                         <label class="anagrafica-field"><span>Stato di residenza</span><select data-state-role="residence" data-name="residence_state_label" required data-auto-advance="1"><option value="">Seleziona uno stato</option><?php foreach ($stateOptions as $stateCode => $stateLabel): ?><option value="<?= e($stateCode) ?>"><?= e($stateLabel) ?></option><?php endforeach; ?></select><small class="anagrafica-field-hint">Per l'estero puoi indicare località libera o codice NUTS.</small></label>
                         <label class="anagrafica-field" data-italy-only="residence"><span>Provincia residenza (se Italia)</span><select data-province-role="residence" data-name="residence_province" data-auto-advance="1"><option value="">Seleziona provincia</option><?php foreach ($province as $provinceCode => $provinceName): ?><option value="<?= e($provinceCode) ?>"><?= e($provinceName) ?></option><?php endforeach; ?></select></label>
-                        <label class="anagrafica-field"><span data-residence-place-label>Comune / località residenza</span><select data-place-role="residence-select" data-auto-advance="1"><option value="">Seleziona comune di residenza</option></select><input type="text" data-place-role="residence-text" placeholder="Località o codice NUTS" hidden disabled data-next-manual="1"><input type="hidden" data-place-role="residence" data-name="residence_place_label" required></label>
+                        <label class="anagrafica-field"><span data-residence-place-label>Comune / località residenza</span><select data-place-role="residence-select" data-name="residence_place_label" data-auto-advance="1" required><option value="">Seleziona comune di residenza</option></select><input type="text" data-place-role="residence-text" data-name="residence_place_label" placeholder="Località o codice NUTS" hidden disabled data-next-manual="1"></label>
                     </div>
                 </section>
                 <section class="anagrafica-subsection" data-step-section="document">

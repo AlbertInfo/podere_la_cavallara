@@ -189,14 +189,13 @@ $residenceComuneOptions = $currentResidenceProvinceCode !== '' ? ($comuniOptions
 
                 <label class="anagrafica-field<?= e($errorClassFor('residence_place_label')) ?>">
                     <span data-residence-place-label>Comune / località residenza</span>
-                    <select data-place-role="residence-select" data-auto-advance="1" <?= (($currentResidenceState['code'] ?? '') === $italyCode) ? '' : 'hidden disabled' ?>>
+                    <select name="<?= e($prefix) ?>[residence_place_label]" data-place-role="residence-select" data-name="residence_place_label" data-auto-advance="1" <?= (($currentResidenceState['code'] ?? '') === $italyCode) ? 'required' : 'hidden disabled' ?>>
                         <option value=""><?= e($currentResidenceProvinceCode !== '' ? 'Seleziona comune di residenza' : 'Seleziona prima la provincia') ?></option>
                         <?php foreach ($residenceComuneOptions as $option): ?>
                             <option value="<?= e((string) ($option['code'] ?? '')) ?>" <?= $currentResidencePlaceValue === (string) ($option['code'] ?? '') ? 'selected' : '' ?>><?= e((string) ($option['label'] ?? '')) ?></option>
                         <?php endforeach; ?>
                     </select>
-                    <input type="text" data-place-role="residence-text" value="<?= e($currentResidenceTextValue) ?>" placeholder="Località o codice NUTS" <?= (($currentResidenceState['code'] ?? '') === $italyCode) ? 'hidden disabled' : '' ?> data-next-manual="1">
-                    <input type="hidden" name="<?= e($prefix) ?>[residence_place_label]" data-place-role="residence" value="<?= e((($currentResidenceState['code'] ?? '') === $italyCode) ? $currentResidencePlaceValue : $currentResidenceTextValue) ?>" required>
+                    <input type="text" name="<?= e($prefix) ?>[residence_place_label]" data-place-role="residence-text" data-name="residence_place_label" value="<?= e($currentResidenceTextValue) ?>" placeholder="Località o codice NUTS" <?= (($currentResidenceState['code'] ?? '') === $italyCode) ? 'hidden disabled' : 'required' ?> data-next-manual="1">
                     <?php if ($errorTextFor('residence_place_label') !== ''): ?><small class="anagrafica-field-error"><?= e($errorTextFor('residence_place_label')) ?></small><?php endif; ?>
                 </label>
             </div>
