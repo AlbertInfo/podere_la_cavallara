@@ -89,7 +89,16 @@ document.addEventListener('DOMContentLoaded', function () {
   function resolveProvinceCode(value) {
     var normalized = normalizeValue(value);
     if (!normalized) return '';
-    if (provinceMap[value]) return provinceMap[value];
+
+    var rawValue = String(value || '').trim().toUpperCase();
+    if (rawValue && Object.prototype.hasOwnProperty.call(comuniOptionsByProvince, rawValue)) {
+      return rawValue;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(provinceMap, value)) {
+      return provinceMap[value];
+    }
+
     var keys = Object.keys(provinceMap);
     for (var i = 0; i < keys.length; i += 1) {
       if (normalizeValue(keys[i]) === normalized) {
@@ -1129,12 +1138,13 @@ function initMonthRangeConfigurator() {
       });
       updateProvinceFilteredPlaces(card);
       var birthPlace = $('[data-place-role="birth"]', card);
-      var birthValue = guest.birth_place_label != null ? String(guest.birth_place_label) : '';
-      if (!birthValue && guest.birth_city_code != null) {
+      var birthValue = '';
+      if (guest.birth_city_code != null && String(guest.birth_city_code).trim() !== '') {
         birthValue = String(guest.birth_city_code || '');
-      }
-      if (!birthValue && guest.birth_place_code != null) {
+      } else if (guest.birth_place_code != null && String(guest.birth_place_code).trim() !== '') {
         birthValue = String(guest.birth_place_code || '');
+      } else if (guest.birth_place_label != null) {
+        birthValue = String(guest.birth_place_label || '');
       }
       if (birthPlace) {
         birthPlace.value = birthValue;
@@ -1142,15 +1152,24 @@ function initMonthRangeConfigurator() {
       var residenceState = $('[data-state-role="residence"]', card);
       var residenceSelect = $('[data-place-role="residence-select"]', card);
       var residenceText = $('[data-place-role="residence-text"]', card);
-      var residenceValue = guest.residence_place_label == null ? '' : String(guest.residence_place_label);
-      if (!residenceValue && guest.residence_place_code != null) {
-        residenceValue = String(guest.residence_place_code || '');
-      }
+      var residenceValue = '';
       if (residenceState && residenceState.value === '100000100') {
+        if (guest.residence_place_code != null && String(guest.residence_place_code).trim() !== '') {
+          residenceValue = String(guest.residence_place_code || '');
+        } else if (guest.residence_place_label != null) {
+          residenceValue = String(guest.residence_place_label || '');
+        }
         if (residenceSelect) {
           residenceSelect.value = residenceValue;
         }
       } else if (residenceText) {
+        if (guest.residence_place_label != null && String(guest.residence_place_label).trim() !== '') {
+          residenceValue = String(guest.residence_place_label || '');
+        } else if (guest.residence_place != null) {
+          residenceValue = String(guest.residence_place || '');
+        } else if (guest.residence_place_code != null) {
+          residenceValue = String(guest.residence_place_code || '');
+        }
         residenceText.value = residenceValue;
       }
       refreshFieldVisualStates(card);
