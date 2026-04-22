@@ -1358,9 +1358,19 @@ body.is-modal-open {
   justify-content: flex-end;
 }
 
-.booking-sync-dialog .anagrafica-modal__body {
-  max-height: min(78vh, 980px);
+.anagrafica-modal--booking .anagrafica-modal__dialog {
+  width: min(96vw, 1120px);
+  max-height: min(92vh, 980px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.booking-sync-modal .anagrafica-modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .booking-sync-dialog .anagrafica-repeater {
@@ -1381,9 +1391,6 @@ body.is-modal-open {
   align-items: center;
 }
 
-.booking-sync-modal .anagrafica-modal__dialog {
-  max-width: 1120px;
-}
 
 .booking-sync-modal__body .anagrafica-section + .anagrafica-section {
   margin-top: 1rem;
@@ -1452,7 +1459,6 @@ body.is-modal-open {
 }
 
 .booking-sync-modal {
-  overflow: hidden;
   border-radius: 30px;
   background:
     radial-gradient(circle at top right, rgba(49, 88, 224, 0.12), transparent 26%),
