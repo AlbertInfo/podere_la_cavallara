@@ -127,9 +127,17 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  function guestScopes(scope) {
+    var root = scope || document;
+    var scopes = [];
+    if (root && root.nodeType === 1 && root.hasAttribute('data-guest-scope')) {
+      scopes.push(root);
+    }
+    return scopes.concat($all('[data-guest-scope]', root));
+  }
 
   function updateProvinceFilteredPlaces(scope) {
-    $all('[data-guest-scope]', scope || document).forEach(function (card) {
+    guestScopes(scope).forEach(function (card) {
       var birthState = $('[data-state-role="birth"]', card);
       var birthProvince = $('[data-province-role="birth"]', card);
       var birthPlace = $('[data-place-role="birth"]', card);
