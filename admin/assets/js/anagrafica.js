@@ -177,10 +177,6 @@ document.addEventListener('DOMContentLoaded', function () {
           residenceText.hidden = true;
           residenceText.disabled = true;
           residenceText.required = false;
-          if (residenceText.name) {
-            residenceSelect.name = residenceText.name;
-          }
-          residenceText.name = '';
         } else {
           residenceSelect.hidden = true;
           residenceSelect.disabled = true;
@@ -188,10 +184,6 @@ document.addEventListener('DOMContentLoaded', function () {
           residenceText.hidden = false;
           residenceText.disabled = false;
           residenceText.required = true;
-          if (residenceSelect.name) {
-            residenceText.name = residenceSelect.name;
-          }
-          residenceSelect.name = '';
           residenceText.placeholder = 'Località o codice NUTS';
         }
       }
@@ -200,12 +192,26 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  function setFieldVisualState(field) {
-    if (!field) return;
-    var label = field.closest('.anagrafica-field');
+  function getActiveFieldForLabel(label) {
+    if (!label) return null;
+    var fields = $all('input, select, textarea', label);
+    for (var i = 0; i < fields.length; i += 1) {
+      var field = fields[i];
+      if (field.disabled || field.type === 'hidden' || field.hidden) continue;
+      return field;
+    }
+    return null;
+  }
+
+  function setFieldVisualState(fieldOrLabel) {
+    if (!fieldOrLabel) return;
+    var label = fieldOrLabel.classList && fieldOrLabel.classList.contains('anagrafica-field')
+      ? fieldOrLabel
+      : fieldOrLabel.closest('.anagrafica-field');
     if (!label) return;
 
-    if (field.disabled || field.type === 'hidden' || field.hidden) {
+    var field = getActiveFieldForLabel(label);
+    if (!field) {
       label.classList.remove('is-valid');
       return;
     }
@@ -225,8 +231,8 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function refreshFieldVisualStates(scope) {
-    $all('input, select, textarea', scope || document).forEach(function (field) {
-      setFieldVisualState(field);
+    $all('.anagrafica-field', scope || document).forEach(function (label) {
+      setFieldVisualState(label);
     });
   }
 
@@ -245,7 +251,11 @@ document.addEventListener('DOMContentLoaded', function () {
     var label = field.closest('.anagrafica-field');
     if (label) label.classList.remove('is-invalid');
     field.setCustomValidity('');
-    setFieldVisualState(field);
+    if (label) {
+      setFieldVisualState(label);
+    } else {
+      setFieldVisualState(field);
+    }
   }
 
   function installLiveValidation(scope) {

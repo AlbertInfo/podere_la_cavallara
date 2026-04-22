@@ -215,9 +215,22 @@ function anagrafica_infer_record_type_from_guest_rows(array $guests, string $fal
 
 function anagrafica_guest_modal_payload_row(array $guest): array
 {
-    $residencePlaceValue = (string) ($guest['residence_place_label'] ?? '');
-    if ($residencePlaceValue === '') {
-        $residencePlaceValue = (string) ($guest['residence_place'] ?? $guest['residence_place_code'] ?? '');
+    $italyCode = anagrafica_default_italy_state_code();
+    $birthStateCode = (string) ($guest['birth_state_code'] ?? '');
+    $residenceStateCode = (string) ($guest['residence_state_code'] ?? '');
+    $birthProvinceCode = anagrafica_find_province_code((string) ($guest['birth_province'] ?? '')) ?? '';
+    $residenceProvinceCode = anagrafica_find_province_code((string) ($guest['residence_province'] ?? '')) ?? '';
+
+    $birthPlaceValue = '';
+    if ($birthStateCode === $italyCode) {
+        $birthPlaceValue = (string) ($guest['birth_city_code'] ?? $guest['birth_place_code'] ?? $guest['birth_place'] ?? $guest['birth_place_label'] ?? '');
+    }
+
+    $residencePlaceValue = '';
+    if ($residenceStateCode === $italyCode) {
+        $residencePlaceValue = (string) ($guest['residence_place_code'] ?? $guest['residence_place'] ?? $guest['residence_place_label'] ?? '');
+    } else {
+        $residencePlaceValue = (string) ($guest['residence_place_label'] ?? $guest['residence_place'] ?? $guest['residence_place_code'] ?? '');
     }
 
     return [
@@ -226,11 +239,11 @@ function anagrafica_guest_modal_payload_row(array $guest): array
         'gender' => (string) ($guest['gender'] ?? 'M'),
         'birth_date' => substr((string) ($guest['birth_date'] ?? ''), 0, 10),
         'citizenship_label' => (string) ($guest['citizenship_code'] ?? ''),
-        'birth_state_label' => (string) ($guest['birth_state_code'] ?? ''),
-        'birth_province' => (string) ($guest['birth_province'] ?? ''),
-        'birth_place_label' => (string) ($guest['birth_place_label'] ?? $guest['birth_place'] ?? $guest['birth_place_code'] ?? ''),
-        'residence_state_label' => (string) ($guest['residence_state_code'] ?? ''),
-        'residence_province' => (string) ($guest['residence_province'] ?? ''),
+        'birth_state_label' => $birthStateCode,
+        'birth_province' => $birthProvinceCode,
+        'birth_place_label' => $birthPlaceValue,
+        'residence_state_label' => $residenceStateCode,
+        'residence_province' => $residenceProvinceCode,
         'residence_place_label' => $residencePlaceValue,
         'document_type_label' => (string) ($guest['document_type_label'] ?? $guest['document_type'] ?? ''),
         'document_number' => (string) ($guest['document_number'] ?? ''),
@@ -461,9 +474,14 @@ function anagrafica_fetch_standalone_records_touching_day(PDO $pdo, string $day)
                leader.birth_state_label AS leader_birth_state_label,
                leader.birth_province AS leader_birth_province,
                leader.birth_place_label AS leader_birth_place_label,
+               leader.birth_city_code AS leader_birth_city_code,
+               leader.birth_state_code AS leader_birth_state_code,
                leader.residence_state_label AS leader_residence_state_label,
+               leader.residence_state_code AS leader_residence_state_code,
                leader.residence_province AS leader_residence_province,
-               leader.residence_place_label AS leader_residence_place_label
+               leader.residence_place_label AS leader_residence_place_label,
+               leader.residence_place_code AS leader_residence_place_code,
+               leader.citizenship_code AS leader_citizenship_code
         FROM anagrafica_records ar
         LEFT JOIN anagrafica_guests leader ON leader.record_id = ar.id AND leader.is_group_leader = 1
         WHERE (ar.prenotazione_id IS NULL OR ar.prenotazione_id = 0)
@@ -548,18 +566,20 @@ function anagrafica_build_booking_modal_payload(PDO $pdo, array $booking): array
         if ($leaderName !== '') {
             [$firstName, $lastName] = anagrafica_split_full_name($leaderName);
         }
+        $leaderBirthStateCode = (string) ($booking['leader_birth_state_code'] ?? '');
+        $leaderResidenceStateCode = (string) ($booking['leader_residence_state_code'] ?? '');
         $guests[] = [
             'first_name' => (string) ($booking['leader_first_name'] ?? $firstName),
             'last_name' => (string) ($booking['leader_last_name'] ?? $lastName),
             'gender' => (string) ($booking['leader_gender'] ?? 'M'),
             'birth_date' => substr((string) ($booking['leader_birth_date'] ?? ''), 0, 10),
-            'citizenship_label' => (string) ($booking['leader_citizenship_label'] ?? ''),
-            'birth_state_label' => (string) ($booking['leader_birth_state_label'] ?? ''),
-            'birth_province' => (string) ($booking['leader_birth_province'] ?? ''),
-            'birth_place_label' => (string) ($booking['leader_birth_place_label'] ?? ''),
-            'residence_state_label' => (string) ($booking['leader_residence_state_label'] ?? ''),
-            'residence_province' => (string) ($booking['leader_residence_province'] ?? ''),
-            'residence_place_label' => (string) ($booking['leader_residence_place_label'] ?? ''),
+            'citizenship_label' => (string) ($booking['leader_citizenship_code'] ?? ''),
+            'birth_state_label' => $leaderBirthStateCode,
+            'birth_province' => (string) (anagrafica_find_province_code((string) ($booking['leader_birth_province'] ?? '')) ?? ''),
+            'birth_place_label' => $leaderBirthStateCode === anagrafica_default_italy_state_code() ? (string) ($booking['leader_birth_city_code'] ?? '') : '',
+            'residence_state_label' => $leaderResidenceStateCode,
+            'residence_province' => (string) (anagrafica_find_province_code((string) ($booking['leader_residence_province'] ?? '')) ?? ''),
+            'residence_place_label' => $leaderResidenceStateCode === anagrafica_default_italy_state_code() ? (string) ($booking['leader_residence_place_code'] ?? '') : (string) ($booking['leader_residence_place_label'] ?? ''),
             'document_type_label' => (string) ($booking['leader_document_type_label'] ?? ''),
             'document_number' => (string) ($booking['leader_document_number'] ?? ''),
             'document_issue_place' => (string) ($booking['leader_document_issue_place'] ?? ''),

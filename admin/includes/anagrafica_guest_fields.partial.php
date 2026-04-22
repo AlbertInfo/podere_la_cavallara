@@ -83,19 +83,19 @@ $residenceComuneOptions = $currentResidenceProvinceCode !== '' ? ($comuniOptions
             <div class="anagrafica-grid">
                 <label class="anagrafica-field<?= e($errorClassFor('first_name')) ?>">
                     <span>Nome</span>
-                    <input type="text" name="<?= e($prefix) ?>[first_name]" maxlength="100" value="<?= e($fieldValue($guestData, 'first_name')) ?>" required data-next-manual="1">
+                    <input type="text" name="<?= e($prefix) ?>[first_name]" data-name="first_name" maxlength="100" value="<?= e($fieldValue($guestData, 'first_name')) ?>" required data-next-manual="1">
                     <?php if ($errorTextFor('first_name') !== ''): ?><small class="anagrafica-field-error"><?= e($errorTextFor('first_name')) ?></small><?php endif; ?>
                 </label>
 
                 <label class="anagrafica-field<?= e($errorClassFor('last_name')) ?>">
                     <span>Cognome</span>
-                    <input type="text" name="<?= e($prefix) ?>[last_name]" maxlength="100" value="<?= e($fieldValue($guestData, 'last_name')) ?>" required data-next-manual="1">
+                    <input type="text" name="<?= e($prefix) ?>[last_name]" data-name="last_name" maxlength="100" value="<?= e($fieldValue($guestData, 'last_name')) ?>" required data-next-manual="1">
                     <?php if ($errorTextFor('last_name') !== ''): ?><small class="anagrafica-field-error"><?= e($errorTextFor('last_name')) ?></small><?php endif; ?>
                 </label>
 
                 <label class="anagrafica-field<?= e($errorClassFor('gender')) ?>">
                     <span>Sesso</span>
-                    <select name="<?= e($prefix) ?>[gender]" required data-auto-advance="1">
+                    <select name="<?= e($prefix) ?>[gender]" data-name="gender" required data-auto-advance="1">
                         <option value="">Seleziona</option>
                         <option value="M" <?= $fieldValue($guestData, 'gender', 'M') === 'M' ? 'selected' : '' ?>>Maschio</option>
                         <option value="F" <?= $fieldValue($guestData, 'gender') === 'F' ? 'selected' : '' ?>>Femmina</option>
@@ -105,13 +105,13 @@ $residenceComuneOptions = $currentResidenceProvinceCode !== '' ? ($comuniOptions
 
                 <label class="anagrafica-field<?= e($errorClassFor('birth_date')) ?>">
                     <span>Data di nascita</span>
-                    <input type="text" name="<?= e($prefix) ?>[birth_date]" class="js-date" data-date-role="birth" value="<?= e($fieldDate($guestData, 'birth_date')) ?>" placeholder="gg/mm/aaaa" autocomplete="off" required data-auto-advance="1">
+                    <input type="text" name="<?= e($prefix) ?>[birth_date]" data-name="birth_date" class="js-date" data-date-role="birth" value="<?= e($fieldDate($guestData, 'birth_date')) ?>" placeholder="gg/mm/aaaa" autocomplete="off" required data-auto-advance="1">
                     <?php if ($errorTextFor('birth_date') !== ''): ?><small class="anagrafica-field-error"><?= e($errorTextFor('birth_date')) ?></small><?php endif; ?>
                 </label>
 
                 <label class="anagrafica-field<?= e($errorClassFor('citizenship_label')) ?>">
                     <span>Cittadinanza</span>
-                    <select name="<?= e($prefix) ?>[citizenship_label]" required data-state-role="citizenship" data-auto-advance="1">
+                    <select name="<?= e($prefix) ?>[citizenship_label]" data-name="citizenship_label" required data-state-role="citizenship" data-auto-advance="1">
                         <option value="">Seleziona uno stato</option>
                         <?php foreach ($stateOptions as $stateCode => $stateLabel): ?>
                             <option value="<?= e($stateCode) ?>" <?= (($currentCitizenship['code'] ?? '') === $stateCode) ? 'selected' : '' ?>><?= e($stateLabel) ?></option>
@@ -122,7 +122,7 @@ $residenceComuneOptions = $currentResidenceProvinceCode !== '' ? ($comuniOptions
 
                 <label class="anagrafica-field<?= e($errorClassFor('birth_state_label')) ?>">
                     <span>Stato di nascita</span>
-                    <select name="<?= e($prefix) ?>[birth_state_label]" data-state-role="birth" required data-auto-advance="1">
+                    <select name="<?= e($prefix) ?>[birth_state_label]" data-name="birth_state_label" data-state-role="birth" required data-auto-advance="1">
                         <option value="">Seleziona uno stato</option>
                         <?php foreach ($stateOptions as $stateCode => $stateLabel): ?>
                             <option value="<?= e($stateCode) ?>" <?= (($currentBirthState['code'] ?? '') === $stateCode) ? 'selected' : '' ?>><?= e($stateLabel) ?></option>
@@ -144,7 +144,7 @@ $residenceComuneOptions = $currentResidenceProvinceCode !== '' ? ($comuniOptions
             <div class="anagrafica-grid">
                 <label class="anagrafica-field<?= e($errorClassFor('birth_province')) ?>" data-italy-only="birth">
                     <span>Provincia nascita (se Italia)</span>
-                    <select name="<?= e($prefix) ?>[birth_province]" data-province-role="birth" data-auto-advance="1">
+                    <select name="<?= e($prefix) ?>[birth_province]" data-name="birth_province" data-province-role="birth" data-auto-advance="1">
                         <option value="">Seleziona provincia</option>
                         <?php foreach ($province as $provinceCode => $provinceName): ?>
                             <option value="<?= e($provinceCode) ?>" <?= $currentBirthProvinceCode === $provinceCode ? 'selected' : '' ?>><?= e($provinceName) ?></option>
@@ -155,7 +155,7 @@ $residenceComuneOptions = $currentResidenceProvinceCode !== '' ? ($comuniOptions
 
                 <label class="anagrafica-field<?= e($errorClassFor('birth_place_label')) ?>" data-italy-only="birth">
                     <span>Comune nascita</span>
-                    <select name="<?= e($prefix) ?>[birth_place_label]" data-place-role="birth" data-auto-advance="1">
+                    <select name="<?= e($prefix) ?>[birth_place_label]" data-name="birth_place_label" data-place-role="birth" data-auto-advance="1">
                         <option value=""><?= e($currentBirthProvinceCode !== '' ? 'Seleziona comune di nascita' : 'Seleziona prima la provincia') ?></option>
                         <?php foreach ($birthComuneOptions as $option): ?>
                             <option value="<?= e((string) ($option['code'] ?? '')) ?>" <?= $currentBirthPlaceValue === (string) ($option['code'] ?? '') ? 'selected' : '' ?>><?= e((string) ($option['label'] ?? '')) ?></option>
@@ -166,7 +166,7 @@ $residenceComuneOptions = $currentResidenceProvinceCode !== '' ? ($comuniOptions
 
                 <label class="anagrafica-field<?= e($errorClassFor('residence_state_label')) ?>">
                     <span>Stato di residenza</span>
-                    <select name="<?= e($prefix) ?>[residence_state_label]" data-state-role="residence" required data-auto-advance="1">
+                    <select name="<?= e($prefix) ?>[residence_state_label]" data-name="residence_state_label" data-state-role="residence" required data-auto-advance="1">
                         <option value="">Seleziona uno stato</option>
                         <?php foreach ($stateOptions as $stateCode => $stateLabel): ?>
                             <option value="<?= e($stateCode) ?>" <?= (($currentResidenceState['code'] ?? '') === $stateCode) ? 'selected' : '' ?>><?= e($stateLabel) ?></option>
@@ -178,7 +178,7 @@ $residenceComuneOptions = $currentResidenceProvinceCode !== '' ? ($comuniOptions
 
                 <label class="anagrafica-field<?= e($errorClassFor('residence_province')) ?>" data-italy-only="residence">
                     <span>Provincia residenza (se Italia)</span>
-                    <select name="<?= e($prefix) ?>[residence_province]" data-province-role="residence" data-auto-advance="1">
+                    <select name="<?= e($prefix) ?>[residence_province]" data-name="residence_province" data-province-role="residence" data-auto-advance="1">
                         <option value="">Seleziona provincia</option>
                         <?php foreach ($province as $provinceCode => $provinceName): ?>
                             <option value="<?= e($provinceCode) ?>" <?= $currentResidenceProvinceCode === $provinceCode ? 'selected' : '' ?>><?= e($provinceName) ?></option>
@@ -216,7 +216,7 @@ $residenceComuneOptions = $currentResidenceProvinceCode !== '' ? ($comuniOptions
 
                 <label class="anagrafica-field<?= e($errorClassFor('document_type_label')) ?>">
                     <span>Tipo documento</span>
-                    <select name="<?= e($prefix) ?>[document_type_label]" required data-auto-advance="1">
+                    <select name="<?= e($prefix) ?>[document_type_label]" data-name="document_type_label" required data-auto-advance="1">
                         <option value="">Seleziona</option>
                         <?php foreach ($documentTypes as $value => $label): ?>
                             <option value="<?= e($label) ?>" <?= $currentDocumentLabel === $label ? 'selected' : '' ?>><?= e($label) ?></option>
@@ -227,19 +227,19 @@ $residenceComuneOptions = $currentResidenceProvinceCode !== '' ? ($comuniOptions
 
                 <label class="anagrafica-field<?= e($errorClassFor('document_number')) ?>">
                     <span>Numero documento</span>
-                    <input type="text" name="<?= e($prefix) ?>[document_number]" maxlength="50" value="<?= e($fieldValue($guestData, 'document_number')) ?>" required data-next-manual="1">
+                    <input type="text" name="<?= e($prefix) ?>[document_number]" data-name="document_number" maxlength="50" value="<?= e($fieldValue($guestData, 'document_number')) ?>" required data-next-manual="1">
                     <?php if ($errorTextFor('document_number') !== ''): ?><small class="anagrafica-field-error"><?= e($errorTextFor('document_number')) ?></small><?php endif; ?>
                 </label>
 
                 <label class="anagrafica-field<?= e($errorClassFor('document_issue_place')) ?>">
                     <span>Luogo rilascio documento</span>
-                    <input list="document-issue-options" name="<?= e($prefix) ?>[document_issue_place]" value="<?= e($fieldValue($guestData, 'document_issue_place')) ?>" placeholder="Comune italiano o stato estero" required data-next-manual="1">
+                    <input list="document-issue-options" name="<?= e($prefix) ?>[document_issue_place]" data-name="document_issue_place" value="<?= e($fieldValue($guestData, 'document_issue_place')) ?>" placeholder="Comune italiano o stato estero" required data-next-manual="1">
                     <?php if ($errorTextFor('document_issue_place') !== ''): ?><small class="anagrafica-field-error"><?= e($errorTextFor('document_issue_place')) ?></small><?php endif; ?>
                 </label>
 
                 <label class="anagrafica-field<?= e($errorClassFor('tourism_type')) ?>">
                     <span>Tipo turismo</span>
-                    <select name="<?= e($prefix) ?>[tourism_type]" required data-auto-advance="1">
+                    <select name="<?= e($prefix) ?>[tourism_type]" data-name="tourism_type" required data-auto-advance="1">
                         <option value="">Seleziona</option>
                         <?php foreach ($tourismTypes as $value): ?>
                             <option value="<?= e($value) ?>" <?= $fieldValue($guestData, 'tourism_type', 'Non specificato') === $value ? 'selected' : '' ?>><?= e($value) ?></option>
@@ -250,7 +250,7 @@ $residenceComuneOptions = $currentResidenceProvinceCode !== '' ? ($comuniOptions
 
                 <label class="anagrafica-field<?= e($errorClassFor('transport_type')) ?>">
                     <span>Mezzo di trasporto</span>
-                    <select name="<?= e($prefix) ?>[transport_type]" required data-auto-advance="1">
+                    <select name="<?= e($prefix) ?>[transport_type]" data-name="transport_type" required data-auto-advance="1">
                         <option value="">Seleziona</option>
                         <?php foreach ($transportTypes as $value): ?>
                             <option value="<?= e($value) ?>" <?= $fieldValue($guestData, 'transport_type', 'Non Specificato') === $value ? 'selected' : '' ?>><?= e($value) ?></option>
