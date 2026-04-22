@@ -220,13 +220,24 @@ function anagrafica_guest_modal_payload_row(array $guest): array
     $residenceStateCode = (string) ($guest['residence_state_code'] ?? '');
 
     $birthPlaceValue = (string) ($guest['birth_city_code'] ?? $guest['birth_place_code'] ?? '');
-    if ($birthStateCode !== $italyCode || $birthPlaceValue === '') {
-        $birthPlaceValue = (string) ($guest['birth_place_label'] ?? $guest['birth_place'] ?? $guest['birth_place_code'] ?? '');
+    if ($birthPlaceValue === '' && $birthStateCode === $italyCode) {
+        $resolvedBirth = anagrafica_find_comune_by_value((string) ($guest['birth_place_label'] ?? $guest['birth_place'] ?? ''), (string) ($guest['birth_province'] ?? ''));
+        $birthPlaceValue = (string) ($resolvedBirth['code'] ?? '');
+    }
+    if ($birthPlaceValue === '') {
+        $birthPlaceValue = (string) ($guest['birth_place_label'] ?? $guest['birth_place'] ?? '');
     }
 
     $residencePlaceValue = (string) ($guest['residence_place_code'] ?? '');
-    if ($residenceStateCode !== $italyCode || $residencePlaceValue === '') {
-        $residencePlaceValue = (string) ($guest['residence_place_label'] ?? $guest['residence_place'] ?? $guest['residence_place_code'] ?? '');
+    if ($residenceStateCode === $italyCode) {
+        if ($residencePlaceValue === '') {
+            $resolvedResidence = anagrafica_find_comune_by_value((string) ($guest['residence_place_label'] ?? $guest['residence_place'] ?? ''), (string) ($guest['residence_province'] ?? ''));
+            $residencePlaceValue = (string) ($resolvedResidence['code'] ?? '');
+        }
+    } else {
+        if ($residencePlaceValue === '') {
+            $residencePlaceValue = (string) ($guest['residence_place'] ?? $guest['residence_place_label'] ?? '');
+        }
     }
 
     return [

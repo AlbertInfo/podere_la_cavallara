@@ -262,10 +262,13 @@ try {
             'birth_state_code' => $birthState['code'],
             'birth_province' => $birthProvinceCode,
             'birth_place_label' => $birthCity['label'] ?? null,
+            'birth_place' => $birthCity['label'] ?? null,
+            'birth_place_code' => $birthCity['code'] ?? null,
             'birth_city_code' => $birthCity['code'] ?? null,
             'residence_state_label' => $residenceState['description'],
             'residence_state_code' => $residenceState['code'],
             'residence_province' => $residenceProvinceCode,
+            'residence_place' => $residencePlace['label'],
             'residence_place_label' => $residencePlace['label'],
             'residence_place_code' => $residencePlace['code'],
             'document_type_label' => $documentType['description'] ?? null,
@@ -330,7 +333,7 @@ try {
         $recordId = (int) $pdo->lastInsertId();
     }
 
-    $guestStmt = $pdo->prepare('INSERT INTO anagrafica_guests (record_id, guest_idswh, is_group_leader, leader_idswh, tipoalloggiato_code, first_name, last_name, gender, birth_date, citizenship_label, citizenship_code, birth_state_label, birth_state_code, birth_province, birth_place_label, birth_city_code, residence_state_label, residence_state_code, residence_province, residence_place_label, residence_place_code, document_type, document_type_label, document_type_code, document_number, document_issue_date, document_expiry_date, document_issue_place, document_issue_place_code, email, phone, tourism_type, transport_type, education_level, profession, tax_exemption_code, created_at, updated_at) VALUES (:record_id, :guest_idswh, :is_group_leader, :leader_idswh, :tipoalloggiato_code, :first_name, :last_name, :gender, :birth_date, :citizenship_label, :citizenship_code, :birth_state_label, :birth_state_code, :birth_province, :birth_place_label, :birth_city_code, :residence_state_label, :residence_state_code, :residence_province, :residence_place_label, :residence_place_code, :document_type, :document_type_label, :document_type_code, :document_number, NULL, NULL, :document_issue_place, :document_issue_place_code, NULL, NULL, :tourism_type, :transport_type, NULL, NULL, NULL, NOW(), NOW())');
+    $guestStmt = $pdo->prepare('INSERT INTO anagrafica_guests (record_id, guest_idswh, is_group_leader, leader_idswh, tipoalloggiato_code, first_name, last_name, gender, birth_date, citizenship_label, citizenship_code, birth_state_label, birth_state_code, birth_province, birth_place_label, birth_place, birth_place_code, birth_city_code, residence_state_label, residence_state_code, residence_province, residence_place, residence_place_label, residence_place_code, document_type, document_type_label, document_type_code, document_number, document_issue_date, document_expiry_date, document_issue_place, document_issue_place_code, email, phone, tourism_type, transport_type, education_level, profession, tax_exemption_code, created_at, updated_at) VALUES (:record_id, :guest_idswh, :is_group_leader, :leader_idswh, :tipoalloggiato_code, :first_name, :last_name, :gender, :birth_date, :citizenship_label, :citizenship_code, :birth_state_label, :birth_state_code, :birth_province, :birth_place_label, :birth_place, :birth_place_code, :birth_city_code, :residence_state_label, :residence_state_code, :residence_province, :residence_place, :residence_place_label, :residence_place_code, :document_type, :document_type_label, :document_type_code, :document_number, NULL, NULL, :document_issue_place, :document_issue_place_code, NULL, NULL, :tourism_type, :transport_type, NULL, NULL, NULL, NOW(), NOW())');
     $leaderIdswh = '';
     $usedGuestIdswh = [];
     foreach ($normalizedGuests as $index => $guest) {
@@ -358,10 +361,13 @@ try {
             'birth_state_code' => $guest['birth_state_code'],
             'birth_province' => $guest['birth_province'],
             'birth_place_label' => $guest['birth_place_label'],
+            'birth_place' => $guest['birth_place'],
+            'birth_place_code' => $guest['birth_place_code'],
             'birth_city_code' => $guest['birth_city_code'],
             'residence_state_label' => $guest['residence_state_label'],
             'residence_state_code' => $guest['residence_state_code'],
             'residence_province' => $guest['residence_province'],
+            'residence_place' => $guest['residence_place'],
             'residence_place_label' => $guest['residence_place_label'],
             'residence_place_code' => $guest['residence_place_code'],
             'document_type' => $guest['document_type_label'],

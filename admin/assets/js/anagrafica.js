@@ -200,12 +200,30 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  function activeFieldForLabel(label) {
+    if (!label) return null;
+    var fields = $all('input, select, textarea', label);
+    var candidate = null;
+    fields.forEach(function (field) {
+      if (field.disabled || field.type === 'hidden' || field.hidden) {
+        return;
+      }
+      if (field.closest('.anagrafica-field') !== label) {
+        return;
+      }
+      candidate = field;
+    });
+    return candidate;
+  }
+
   function setFieldVisualState(field) {
     if (!field) return;
     var label = field.closest('.anagrafica-field');
     if (!label) return;
 
-    if (field.disabled || field.type === 'hidden' || field.hidden) {
+    var activeField = activeFieldForLabel(label) || field;
+    if (!activeField || activeField.disabled || activeField.type === 'hidden' || activeField.hidden) {
+      label.classList.remove('is-valid');
       return;
     }
 
@@ -214,18 +232,23 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
 
-    var value = String(field.value || '').trim();
-    if (value === '' || field.readOnly) {
+    var value = String(activeField.value || '').trim();
+    if (value === '' || activeField.readOnly) {
       label.classList.remove('is-valid');
       return;
     }
 
-    label.classList.toggle('is-valid', field.checkValidity());
+    label.classList.toggle('is-valid', activeField.checkValidity());
   }
 
   function refreshFieldVisualStates(scope) {
-    $all('input, select, textarea', scope || document).forEach(function (field) {
-      setFieldVisualState(field);
+    $all('.anagrafica-field', scope || document).forEach(function (label) {
+      var activeField = activeFieldForLabel(label);
+      if (activeField) {
+        setFieldVisualState(activeField);
+      } else {
+        label.classList.remove('is-valid');
+      }
     });
   }
 
@@ -1111,13 +1134,17 @@ function initMonthRangeConfigurator() {
       });
       updateProvinceFilteredPlaces(card);
       var birthPlace = $('[data-place-role="birth"]', card);
-      if (birthPlace && guest.birth_place_label != null) {
-        birthPlace.value = String(guest.birth_place_label || '');
+      if (birthPlace) {
+        var birthValue = guest.birth_place_value != null ? guest.birth_place_value : guest.birth_place_label;
+        if (birthValue != null) {
+          birthPlace.value = String(birthValue || '');
+        }
       }
       var residenceState = $('[data-state-role="residence"]', card);
       var residenceSelect = $('[data-place-role="residence-select"]', card);
       var residenceText = $('[data-place-role="residence-text"]', card);
-      var residenceValue = guest.residence_place_label == null ? '' : String(guest.residence_place_label);
+      var residenceValue = guest.residence_place_value != null ? guest.residence_place_value : guest.residence_place_label;
+      residenceValue = residenceValue == null ? '' : String(residenceValue);
       if (residenceState && residenceState.value === '100000100') {
         if (residenceSelect) {
           residenceSelect.value = residenceValue;
