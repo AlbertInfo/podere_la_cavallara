@@ -254,6 +254,72 @@ function alloggiati_payload_hash(array $payload): string
     return sha1((string) json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 }
 
+
+function alloggiati_schedine_table_columns(PDO $pdo): array
+{
+    static $cache = null;
+    if ($cache !== null) {
+        return $cache;
+    }
+
+    $cache = [];
+    $stmt = $pdo->query('SHOW COLUMNS FROM alloggiati_schedine');
+    foreach (($stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : []) as $row) {
+        $field = (string) ($row['Field'] ?? '');
+        if ($field !== '') {
+            $cache[$field] = true;
+        }
+    }
+
+    return $cache;
+}
+
+function alloggiati_sync_optional_schedina_columns(PDO $pdo, int $schedinaId, array $guest, array $payload): void
+{
+    $columns = alloggiati_schedine_table_columns($pdo);
+    $assignments = [];
+    $params = ['id' => $schedinaId];
+
+    $map = [
+        'first_name' => (string) ($guest['first_name'] ?? $payload['first_name'] ?? ''),
+        'last_name' => (string) ($guest['last_name'] ?? $payload['last_name'] ?? ''),
+        'gender' => (string) ($guest['gender'] ?? $payload['gender'] ?? ''),
+        'birth_date' => substr((string) ($guest['birth_date'] ?? $payload['birth_date'] ?? ''), 0, 10),
+        'birth_state_code' => (string) ($guest['birth_state_code'] ?? $payload['birth_state_code'] ?? ''),
+        'birth_province' => (string) ($guest['birth_province'] ?? $payload['birth_province_code'] ?? ''),
+        'birth_place_label' => (string) ($guest['birth_place_label'] ?? ''),
+        'birth_place' => (string) ($guest['birth_place'] ?? ''),
+        'birth_place_code' => (string) ($guest['birth_place_code'] ?? ''),
+        'birth_city_code' => (string) ($guest['birth_city_code'] ?? $payload['birth_city_code'] ?? ''),
+        'citizenship_label' => (string) ($guest['citizenship_label'] ?? ''),
+        'citizenship_code' => (string) ($guest['citizenship_code'] ?? $payload['citizenship_code'] ?? ''),
+        'residence_state_label' => (string) ($guest['residence_state_label'] ?? ''),
+        'residence_state_code' => (string) ($guest['residence_state_code'] ?? ''),
+        'residence_province' => (string) ($guest['residence_province'] ?? ''),
+        'residence_place_label' => (string) ($guest['residence_place_label'] ?? ''),
+        'residence_place' => (string) ($guest['residence_place'] ?? ''),
+        'residence_place_code' => (string) ($guest['residence_place_code'] ?? ''),
+        'tipoalloggiato_code' => (string) ($guest['tipoalloggiato_code'] ?? $guest['tipo_alloggiato_code'] ?? $payload['tipo_alloggiato_code'] ?? ''),
+        'tipo_alloggiato_code' => (string) ($payload['tipo_alloggiato_code'] ?? $guest['tipo_alloggiato_code'] ?? $guest['tipoalloggiato_code'] ?? ''),
+    ];
+
+    foreach ($map as $column => $value) {
+        if (!isset($columns[$column])) {
+            continue;
+        }
+        $assignments[] = "`{$column}` = :{$column}";
+        $params[$column] = $value !== '' ? $value : null;
+    }
+
+    if (!$assignments) {
+        return;
+    }
+
+    $sql = 'UPDATE alloggiati_schedine SET ' . implode(', ', $assignments) . ' WHERE id = :id';
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+}
+
 function alloggiati_sync_record(PDO $pdo, int $recordId): array
 {
     if (!alloggiati_schedine_table_ready($pdo)) {
@@ -340,6 +406,19 @@ function alloggiati_sync_record(PDO $pdo, int $recordId): array
             'last_attempt_at' => $lastAttemptAt,
             'attempt_count' => $attemptCount,
         ]);
+
+        $schedinaId = (int) ($existing['id'] ?? 0);
+        if ($schedinaId <= 0) {
+            $schedinaId = (int) $pdo->lastInsertId();
+            if ($schedinaId <= 0) {
+                $idStmt = $pdo->prepare('SELECT id FROM alloggiati_schedine WHERE guest_idswh = :guest_idswh LIMIT 1');
+                $idStmt->execute(['guest_idswh' => $guestIdswh]);
+                $schedinaId = (int) $idStmt->fetchColumn();
+            }
+        }
+        if ($schedinaId > 0) {
+            alloggiati_sync_optional_schedina_columns($pdo, $schedinaId, $guest, $payload);
+        }
     }
 
     if ($keptGuestIds) {

@@ -220,24 +220,15 @@ function anagrafica_guest_modal_payload_row(array $guest): array
     $residenceStateCode = (string) ($guest['residence_state_code'] ?? '');
 
     $birthPlaceValue = (string) ($guest['birth_city_code'] ?? $guest['birth_place_code'] ?? '');
-    if ($birthPlaceValue === '' && $birthStateCode === $italyCode) {
-        $resolvedBirth = anagrafica_find_comune_by_value((string) ($guest['birth_place_label'] ?? $guest['birth_place'] ?? ''), (string) ($guest['birth_province'] ?? ''));
-        $birthPlaceValue = (string) ($resolvedBirth['code'] ?? '');
-    }
     if ($birthPlaceValue === '') {
-        $birthPlaceValue = (string) ($guest['birth_place_label'] ?? $guest['birth_place'] ?? '');
+        $birthPlaceValue = (string) ($guest['birth_place'] ?? $guest['birth_place_label'] ?? '');
     }
 
-    $residencePlaceValue = (string) ($guest['residence_place_code'] ?? '');
+    $residencePlaceValue = '';
     if ($residenceStateCode === $italyCode) {
-        if ($residencePlaceValue === '') {
-            $resolvedResidence = anagrafica_find_comune_by_value((string) ($guest['residence_place_label'] ?? $guest['residence_place'] ?? ''), (string) ($guest['residence_province'] ?? ''));
-            $residencePlaceValue = (string) ($resolvedResidence['code'] ?? '');
-        }
+        $residencePlaceValue = (string) ($guest['residence_place_code'] ?? $guest['residence_place'] ?? '');
     } else {
-        if ($residencePlaceValue === '') {
-            $residencePlaceValue = (string) ($guest['residence_place'] ?? $guest['residence_place_label'] ?? '');
-        }
+        $residencePlaceValue = (string) ($guest['residence_place'] ?? $guest['residence_place_label'] ?? $guest['residence_place_code'] ?? '');
     }
 
     return [
@@ -254,7 +245,7 @@ function anagrafica_guest_modal_payload_row(array $guest): array
         'residence_place_label' => $residencePlaceValue,
         'document_type_label' => (string) ($guest['document_type_label'] ?? $guest['document_type'] ?? ''),
         'document_number' => (string) ($guest['document_number'] ?? ''),
-        'document_issue_place' => (string) ($guest['document_issue_place'] ?? ''),
+        'document_issue_place' => (string) ($guest['document_issue_place_code'] ?? $guest['document_issue_place'] ?? ''),
         'tourism_type' => (string) ($guest['tourism_type'] ?? ''),
         'transport_type' => (string) ($guest['transport_type'] ?? ''),
         'tipoalloggiato_code' => (string) ($guest['tipoalloggiato_code'] ?? $guest['tipo_alloggiato_code'] ?? ''),

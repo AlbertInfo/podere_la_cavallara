@@ -403,7 +403,7 @@ try {
             'residence_state_label' => $residenceState['description'],
             'residence_state_code' => $residenceState['code'],
             'residence_province' => $residenceProvinceCode,
-            'residence_place' => $residencePlace['label'],
+            'residence_place' => $residencePlace['code'] !== '' ? $residencePlace['code'] : $residencePlace['label'],
             'residence_place_label' => $residencePlace['label'],
             'residence_place_code' => $residencePlace['code'],
             'document_type_label' => $documentType['description'] ?? null,
