@@ -206,7 +206,11 @@ document.addEventListener('DOMContentLoaded', function () {
     var label = field.closest('.anagrafica-field');
     if (!label) return;
 
-    if (field.disabled || field.type === 'hidden' || field.hidden) {
+    if (field.type === 'hidden' || field.hidden) {
+      return;
+    }
+
+    if (field.disabled) {
       label.classList.remove('is-valid');
       return;
     }
@@ -309,7 +313,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function bindProvincePlaceDependencies(scope, rootForm) {
-    $all('[data-state-role], [data-province-role], [data-place-role="residence-select"], [data-place-role="residence-text"]', scope || document).forEach(function (field) {
+    $all('[data-state-role], [data-province-role]', scope || document).forEach(function (field) {
       if (field.dataset.depBound === '1') return;
       field.dataset.depBound = '1';
       field.addEventListener('change', function () { updateProvinceFilteredPlaces(rootForm || document); });
