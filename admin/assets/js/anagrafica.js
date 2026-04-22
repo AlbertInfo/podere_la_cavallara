@@ -69,7 +69,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
   var provinceMap = parseJsonScript('anagraficaProvinceMap', {});
   var comuniByProvince = parseJsonScript('anagraficaComuniByProvince', {});
-  var comuniOptionsByProvince = parseJsonScript('anagraficaComuniByProvinceOptions', {});
   var globalPlaceListId = 'place-options';
   var globalStateListId = 'state-options';
   var globalProvinceListId = 'province-options';
@@ -109,8 +108,13 @@ document.addEventListener('DOMContentLoaded', function () {
     select.appendChild(firstOption);
     (options || []).forEach(function (item) {
       var option = document.createElement('option');
-      option.value = String(item.code || '');
-      option.textContent = String(item.label || item.description || item.code || '');
+      if (typeof item === 'string') {
+        option.value = item;
+        option.textContent = item;
+      } else {
+        option.value = String(item.value || item.label || item.description || item.code || '');
+        option.textContent = String(item.label || item.description || item.value || item.code || '');
+      }
       if (normalizedSelected !== '' && option.value === normalizedSelected) {
         option.selected = true;
       }
@@ -152,7 +156,7 @@ document.addEventListener('DOMContentLoaded', function () {
         birthPlace.required = birthIsItaly;
         fillSelectOptions(
           birthPlace,
-          birthIsItaly && birthCode ? (comuniOptionsByProvince[birthCode] || []) : [],
+          birthIsItaly && birthCode ? (comuniByProvince[birthCode] || []) : [],
           birthIsItaly ? (birthCode ? 'Seleziona comune di nascita' : 'Seleziona prima la provincia') : 'Non richiesto per estero',
           selectedBirth
         );
@@ -180,7 +184,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         fillSelectOptions(
           residenceSelect,
-          residenceIsItaly && residenceCode ? (comuniOptionsByProvince[residenceCode] || []) : [],
+          residenceIsItaly && residenceCode ? (comuniByProvince[residenceCode] || []) : [],
           residenceIsItaly ? (residenceCode ? 'Seleziona comune di residenza' : 'Seleziona prima la provincia') : 'Seleziona comune di residenza',
           residenceIsItaly ? selectedResidence : ''
         );

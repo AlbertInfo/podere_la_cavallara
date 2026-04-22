@@ -48,6 +48,21 @@ $currentBirthState = anagrafica_find_state_by_value($fieldValue($guestData, 'bir
 $currentResidenceState = anagrafica_find_state_by_value($fieldValue($guestData, 'residence_state_label', $fieldValue($guestData, 'residence_state_code')));
 $currentBirthProvinceCode = anagrafica_find_province_code($fieldValue($guestData, 'birth_province')) ?? '';
 $currentResidenceProvinceCode = anagrafica_find_province_code($fieldValue($guestData, 'residence_province')) ?? '';
+$currentBirthPlaceRaw = $fieldValue($guestData, 'birth_place_label', $fieldValue($guestData, 'birth_city_code'));
+$currentBirthPlace = anagrafica_find_comune_by_value($currentBirthPlaceRaw, $currentBirthProvinceCode !== '' ? $currentBirthProvinceCode : null);
+$currentBirthPlaceValue = $currentBirthPlace['label'] ?? $currentBirthPlaceRaw;
+$currentResidenceStateCode = (string) ($currentResidenceState['code'] ?? '');
+$currentResidencePlaceRaw = $fieldValue($guestData, 'residence_place_label', $fieldValue($guestData, 'residence_place_code', $fieldValue($guestData, 'residence_place')));
+$currentResidencePlaceValue = $currentResidencePlaceRaw;
+if ($currentResidenceStateCode === anagrafica_default_italy_state_code()) {
+    $currentResidencePlace = anagrafica_find_comune_by_value($currentResidencePlaceRaw, $currentResidenceProvinceCode !== '' ? $currentResidenceProvinceCode : null);
+    $currentResidencePlaceValue = $currentResidencePlace['label'] ?? $currentResidencePlaceRaw;
+} elseif ($currentResidencePlaceRaw !== '') {
+    $currentResidenceNuts = anagrafica_find_nuts_by_value($currentResidencePlaceRaw);
+    if ($currentResidenceNuts) {
+        $currentResidencePlaceValue = $currentResidenceNuts['label'];
+    }
+}
 ?>
 <div class="anagrafica-guest-card<?= $isRepeaterGuest ? '' : ' anagrafica-guest-card--primary' ?>"<?= $isRepeaterGuest ? ' data-guest-card' : '' ?> data-guest-scope data-guest-index="<?= e((string) $guestIndex) ?>">
     <?php if ($isRepeaterGuest): ?>
@@ -143,8 +158,13 @@ $currentResidenceProvinceCode = anagrafica_find_province_code($fieldValue($guest
 
                 <label class="anagrafica-field<?= e($errorClassFor('birth_place_label')) ?>" data-italy-only="birth">
                     <span>Comune nascita</span>
-                    <input list="<?= e($birthListId) ?>" name="<?= e($prefix) ?>[birth_place_label]" data-place-role="birth" value="<?= e($fieldValue($guestData, 'birth_place_label')) ?>" placeholder="Seleziona il comune di nascita" data-next-manual="1">
-                    <datalist id="<?= e($birthListId) ?>"></datalist>
+                    <select name="<?= e($prefix) ?>[birth_place_label]" data-place-role="birth" data-auto-advance="1">
+                        <?php if ($currentBirthPlaceValue !== ''): ?>
+                            <option value="<?= e($currentBirthPlaceValue) ?>" selected><?= e($currentBirthPlaceValue) ?></option>
+                        <?php else: ?>
+                            <option value="">Seleziona comune di nascita</option>
+                        <?php endif; ?>
+                    </select>
                     <?php if ($errorTextFor('birth_place_label') !== ''): ?><small class="anagrafica-field-error"><?= e($errorTextFor('birth_place_label')) ?></small><?php endif; ?>
                 </label>
 
@@ -173,8 +193,15 @@ $currentResidenceProvinceCode = anagrafica_find_province_code($fieldValue($guest
 
                 <label class="anagrafica-field<?= e($errorClassFor('residence_place_label')) ?>">
                     <span data-residence-place-label>Comune / località residenza</span>
-                    <input list="<?= e($residenceListId) ?>" name="<?= e($prefix) ?>[residence_place_label]" data-place-role="residence" value="<?= e($fieldValue($guestData, 'residence_place_label', $fieldValue($guestData, 'residence_place'))) ?>" placeholder="Comune italiano, NUTS o località" required data-next-manual="1">
-                    <datalist id="<?= e($residenceListId) ?>"></datalist>
+                    <select data-place-role="residence-select" data-auto-advance="1">
+                        <?php if ($currentResidenceStateCode === anagrafica_default_italy_state_code() && $currentResidencePlaceValue !== ''): ?>
+                            <option value="<?= e($currentResidencePlaceValue) ?>" selected><?= e($currentResidencePlaceValue) ?></option>
+                        <?php else: ?>
+                            <option value="">Seleziona comune di residenza</option>
+                        <?php endif; ?>
+                    </select>
+                    <input type="text" data-place-role="residence-text" value="<?= e($currentResidenceStateCode !== anagrafica_default_italy_state_code() ? $currentResidencePlaceValue : '') ?>" placeholder="Località o codice NUTS"<?= $currentResidenceStateCode === anagrafica_default_italy_state_code() ? ' hidden disabled' : '' ?> data-next-manual="1">
+                    <input type="hidden" name="<?= e($prefix) ?>[residence_place_label]" data-place-role="residence" value="<?= e($currentResidencePlaceValue) ?>" required>
                     <?php if ($errorTextFor('residence_place_label') !== ''): ?><small class="anagrafica-field-error"><?= e($errorTextFor('residence_place_label')) ?></small><?php endif; ?>
                 </label>
             </div>

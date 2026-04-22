@@ -974,7 +974,7 @@ require_once __DIR__ . '/includes/header.php';
 
                             <label class="anagrafica-field<?= e($bookingModalFieldClass('reserved_rooms')) ?>">
                                 <span>Numero camere prenotate</span>
-                                <input type="number" min="1" name="reserved_rooms" data-auto-advance="1" value="<?= e((string) $bookingModalRecord['reserved_rooms']) ?>" required>
+                                <input type="number" min="1" max="6" name="reserved_rooms" data-auto-advance="1" value="<?= e((string) $bookingModalRecord['reserved_rooms']) ?>" required>
                                 <?php if ($bookingModalErrorFor('reserved_rooms') !== ''): ?><small class="anagrafica-field-error"><?= e($bookingModalErrorFor('reserved_rooms')) ?></small><?php endif; ?>
                             </label>
                         </div>
@@ -1362,7 +1362,7 @@ require_once __DIR__ . '/includes/header.php';
 
                     <label class="anagrafica-field<?= e($fieldClass('reserved_rooms')) ?>">
                         <span>Numero camere prenotate</span>
-                        <input type="number" min="1" name="reserved_rooms" data-auto-advance="1" value="<?= e((string) $formRecord['reserved_rooms']) ?>" required>
+                        <input type="number" min="1" max="6" name="reserved_rooms" data-auto-advance="1" value="<?= e((string) $formRecord['reserved_rooms']) ?>" required>
                         <?php if ($errorFor('reserved_rooms') !== ''): ?><small class="anagrafica-field-error"><?= e($errorFor('reserved_rooms')) ?></small><?php endif; ?>
                     </label>
                 </div>

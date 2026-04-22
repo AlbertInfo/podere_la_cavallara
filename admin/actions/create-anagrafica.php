@@ -223,6 +223,9 @@ try {
     if ($reservedRooms < 1) {
         add_field_error($fieldErrors, 'reserved_rooms', 'Indica almeno una camera.');
     }
+    if ($reservedRooms > 6) {
+        add_field_error($fieldErrors, 'reserved_rooms', 'Puoi indicare al massimo 6 camere.');
+    }
     if (!$guests) {
         $messages[] = 'Inserisci almeno un ospite.';
     }

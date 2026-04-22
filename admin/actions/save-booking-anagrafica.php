@@ -120,6 +120,7 @@ if (!$arrivalDate) booking_error($errors, 'arrival_date', 'Inserisci una data di
 if (!$departureDate) booking_error($errors, 'departure_date', 'Inserisci una data di partenza valida.');
 if ($arrivalDate && $departureDate && $arrivalDate > $departureDate) booking_error($errors, 'departure_date', 'La partenza non può essere precedente all’arrivo.');
 if ($data['reserved_rooms'] < 1) booking_error($errors, 'reserved_rooms', 'Indica almeno una camera.');
+if ($data['reserved_rooms'] > 6) booking_error($errors, 'reserved_rooms', 'Puoi indicare al massimo 6 camere.');
 if (!$data['guests']) {
     $messages[] = 'Inserisci almeno un ospite.';
 }
