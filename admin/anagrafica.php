@@ -416,6 +416,7 @@ foreach ($province as $provinceCode => $provinceLabel) {
 ksort($provinceNameToCode);
 
 $comuniByProvince = anagrafica_comune_labels_by_province();
+$comuniOptionsByProvince = anagrafica_comuni_options_by_province();
 
 require_once __DIR__ . '/includes/header.php';
 ?>
@@ -1063,14 +1064,13 @@ require_once __DIR__ . '/includes/header.php';
                     </div>
                 </section>
                 <section class="anagrafica-subsection" data-step-section="birth-residence">
-                    <div class="anagrafica-subsection__header"><div><h4>Nascita e residenza</h4><p class="muted">Campi guidati in base a Italia / estero e provincia selezionata.</p></div></div>
+                    <div class="anagrafica-subsection__header"><div><h4>Nascita e residenza</h4><p class="muted">I campi italiani si attivano in base allo stato selezionato.</p></div></div>
                     <div class="anagrafica-grid">
                         <label class="anagrafica-field" data-italy-only="birth"><span>Provincia nascita (se Italia)</span><select data-province-role="birth" data-name="birth_province" data-auto-advance="1"><option value="">Seleziona provincia</option><?php foreach ($province as $provinceCode => $provinceName): ?><option value="<?= e($provinceCode) ?>"><?= e($provinceName) ?></option><?php endforeach; ?></select></label>
-                        <label class="anagrafica-field" data-italy-only="birth" data-place-wrapper="birth-select"><span>Comune nascita</span><input type="hidden" data-name="birth_place_label" data-place-hidden="birth"><select data-place-role="birth" data-auto-advance="1"><option value="">Seleziona prima la provincia</option></select></label>
-                        <label class="anagrafica-field"><span>Stato di residenza</span><select data-state-role="residence" data-name="residence_state_label" required data-auto-advance="1"><option value="">Seleziona uno stato</option><?php foreach ($stateOptions as $stateCode => $stateLabel): ?><option value="<?= e($stateCode) ?>"><?= e($stateLabel) ?></option><?php endforeach; ?></select><small class="anagrafica-field-hint">Italia: scegli provincia e comune. Estero: località libera, con suggerimenti NUTS per l'UE.</small></label>
+                        <label class="anagrafica-field" data-italy-only="birth"><span>Comune nascita</span><select data-place-role="birth" data-name="birth_place_label" data-auto-advance="1"><option value="">Seleziona comune di nascita</option></select></label>
+                        <label class="anagrafica-field"><span>Stato di residenza</span><select data-state-role="residence" data-name="residence_state_label" required data-auto-advance="1"><option value="">Seleziona uno stato</option><?php foreach ($stateOptions as $stateCode => $stateLabel): ?><option value="<?= e($stateCode) ?>"><?= e($stateLabel) ?></option><?php endforeach; ?></select><small class="anagrafica-field-hint">Per l'estero puoi indicare località libera o codice NUTS.</small></label>
                         <label class="anagrafica-field" data-italy-only="residence"><span>Provincia residenza (se Italia)</span><select data-province-role="residence" data-name="residence_province" data-auto-advance="1"><option value="">Seleziona provincia</option><?php foreach ($province as $provinceCode => $provinceName): ?><option value="<?= e($provinceCode) ?>"><?= e($provinceName) ?></option><?php endforeach; ?></select></label>
-                        <label class="anagrafica-field" data-place-wrapper="residence-select"><span data-residence-place-label>Comune residenza</span><input type="hidden" data-name="residence_place_label" data-place-hidden="residence"><select data-place-role="residence-select" data-auto-advance="1"><option value="">Seleziona prima la provincia</option></select></label>
-                        <label class="anagrafica-field" data-place-wrapper="residence-text"><span data-residence-place-label-text>Località / codice NUTS residenza</span><input type="text" data-place-role="residence-text" data-list-template="residence" placeholder="Località o codice NUTS" data-next-manual="1"><small class="anagrafica-field-hint" data-residence-place-hint>Per i paesi UE puoi scegliere un codice NUTS o inserire una località libera.</small></label>
+                        <label class="anagrafica-field"><span data-residence-place-label>Comune / località residenza</span><select data-place-role="residence-select" data-auto-advance="1"><option value="">Seleziona comune di residenza</option></select><input type="text" data-place-role="residence-text" placeholder="Località o codice NUTS" hidden disabled data-next-manual="1"><input type="hidden" data-place-role="residence" data-name="residence_place_label" required></label>
                     </div>
                 </section>
                 <section class="anagrafica-subsection" data-step-section="document">
@@ -1416,14 +1416,13 @@ require_once __DIR__ . '/includes/header.php';
                     </div>
                 </section>
                 <section class="anagrafica-subsection" data-step-section="birth-residence">
-                    <div class="anagrafica-subsection__header"><div><h4>Nascita e residenza</h4><p class="muted">Campi guidati in base a Italia / estero e provincia selezionata.</p></div></div>
+                    <div class="anagrafica-subsection__header"><div><h4>Nascita e residenza</h4><p class="muted">I campi italiani si attivano in base allo stato selezionato.</p></div></div>
                     <div class="anagrafica-grid">
                         <label class="anagrafica-field" data-italy-only="birth"><span>Provincia nascita (se Italia)</span><select data-province-role="birth" data-name="birth_province" data-auto-advance="1"><option value="">Seleziona provincia</option><?php foreach ($province as $provinceCode => $provinceName): ?><option value="<?= e($provinceCode) ?>"><?= e($provinceName) ?></option><?php endforeach; ?></select></label>
-                        <label class="anagrafica-field" data-italy-only="birth" data-place-wrapper="birth-select"><span>Comune nascita</span><input type="hidden" data-name="birth_place_label" data-place-hidden="birth"><select data-place-role="birth" data-auto-advance="1"><option value="">Seleziona prima la provincia</option></select></label>
-                        <label class="anagrafica-field"><span>Stato di residenza</span><select data-state-role="residence" data-name="residence_state_label" required data-auto-advance="1"><option value="">Seleziona uno stato</option><?php foreach ($stateOptions as $stateCode => $stateLabel): ?><option value="<?= e($stateCode) ?>"><?= e($stateLabel) ?></option><?php endforeach; ?></select><small class="anagrafica-field-hint">Italia: scegli provincia e comune. Estero: località libera, con suggerimenti NUTS per l'UE.</small></label>
+                        <label class="anagrafica-field" data-italy-only="birth"><span>Comune nascita</span><select data-place-role="birth" data-name="birth_place_label" data-auto-advance="1"><option value="">Seleziona comune di nascita</option></select></label>
+                        <label class="anagrafica-field"><span>Stato di residenza</span><select data-state-role="residence" data-name="residence_state_label" required data-auto-advance="1"><option value="">Seleziona uno stato</option><?php foreach ($stateOptions as $stateCode => $stateLabel): ?><option value="<?= e($stateCode) ?>"><?= e($stateLabel) ?></option><?php endforeach; ?></select><small class="anagrafica-field-hint">Per l'estero puoi indicare località libera o codice NUTS.</small></label>
                         <label class="anagrafica-field" data-italy-only="residence"><span>Provincia residenza (se Italia)</span><select data-province-role="residence" data-name="residence_province" data-auto-advance="1"><option value="">Seleziona provincia</option><?php foreach ($province as $provinceCode => $provinceName): ?><option value="<?= e($provinceCode) ?>"><?= e($provinceName) ?></option><?php endforeach; ?></select></label>
-                        <label class="anagrafica-field" data-place-wrapper="residence-select"><span data-residence-place-label>Comune residenza</span><input type="hidden" data-name="residence_place_label" data-place-hidden="residence"><select data-place-role="residence-select" data-auto-advance="1"><option value="">Seleziona prima la provincia</option></select></label>
-                        <label class="anagrafica-field" data-place-wrapper="residence-text"><span data-residence-place-label-text>Località / codice NUTS residenza</span><input type="text" data-place-role="residence-text" data-list-template="residence" placeholder="Località o codice NUTS" data-next-manual="1"><small class="anagrafica-field-hint" data-residence-place-hint>Per i paesi UE puoi scegliere un codice NUTS o inserire una località libera.</small></label>
+                        <label class="anagrafica-field"><span data-residence-place-label>Comune / località residenza</span><select data-place-role="residence-select" data-auto-advance="1"><option value="">Seleziona comune di residenza</option></select><input type="text" data-place-role="residence-text" placeholder="Località o codice NUTS" hidden disabled data-next-manual="1"><input type="hidden" data-place-role="residence" data-name="residence_place_label" required></label>
                     </div>
                 </section>
                 <section class="anagrafica-subsection" data-step-section="document">
@@ -1456,5 +1455,5 @@ require_once __DIR__ . '/includes/header.php';
 
 <script type="application/json" id="anagraficaProvinceMap"><?= json_encode($provinceNameToCode, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?></script>
 <script type="application/json" id="anagraficaComuniByProvince"><?= json_encode($comuniByProvince, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?></script>
-<script type="application/json" id="anagraficaNutsByState"><?= json_encode(anagrafica_nuts_labels_by_state_code(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?></script>
+<script type="application/json" id="anagraficaComuniByProvinceOptions"><?= json_encode($comuniOptionsByProvince, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?></script>
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
