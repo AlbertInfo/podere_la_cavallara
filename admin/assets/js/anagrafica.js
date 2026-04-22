@@ -69,6 +69,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   var provinceMap = parseJsonScript('anagraficaProvinceMap', {});
   var comuniByProvince = parseJsonScript('anagraficaComuniByProvince', {});
+  var comuniOptionsByProvince = parseJsonScript('anagraficaComuniByProvinceOptions', {});
   var globalPlaceListId = 'place-options';
   var globalStateListId = 'state-options';
   var globalProvinceListId = 'province-options';
@@ -88,7 +89,16 @@ document.addEventListener('DOMContentLoaded', function () {
   function resolveProvinceCode(value) {
     var normalized = normalizeValue(value);
     if (!normalized) return '';
-    if (provinceMap[value]) return provinceMap[value];
+
+    var rawValue = String(value || '').trim().toUpperCase();
+    if (rawValue && Object.prototype.hasOwnProperty.call(comuniOptionsByProvince, rawValue)) {
+      return rawValue;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(provinceMap, value)) {
+      return provinceMap[value];
+    }
+
     var keys = Object.keys(provinceMap);
     for (var i = 0; i < keys.length; i += 1) {
       if (normalizeValue(keys[i]) === normalized) {
@@ -98,87 +108,108 @@ document.addEventListener('DOMContentLoaded', function () {
     return '';
   }
 
-  function ensureDatalist(input, idPrefix, fallbackListId) {
-    if (!input) return null;
-    if (input.dataset.datalistId) {
-      return document.getElementById(input.dataset.datalistId);
-    }
-
-    var listId = input.getAttribute('list');
-    if (!listId) {
-      listId = idPrefix + '-' + Math.random().toString(36).slice(2, 8);
-      input.setAttribute('list', listId);
-    }
-
-    var datalist = document.getElementById(listId);
-    if (!datalist) {
-      datalist = document.createElement('datalist');
-      datalist.id = listId;
-      input.parentNode.appendChild(datalist);
-    }
-
-    input.dataset.datalistId = listId;
-    if (fallbackListId) {
-      input.dataset.fallbackListId = fallbackListId;
-    }
-    return datalist;
-  }
-
-  function fillDatalist(datalist, values) {
-    if (!datalist) return;
-    datalist.innerHTML = '';
-    (values || []).forEach(function (value) {
+  function fillSelectOptions(select, options, placeholder, selectedValue) {
+    if (!select) return;
+    var normalizedSelected = String(selectedValue || '').trim();
+    select.innerHTML = '';
+    var firstOption = document.createElement('option');
+    firstOption.value = '';
+    firstOption.textContent = placeholder || 'Seleziona';
+    select.appendChild(firstOption);
+    (options || []).forEach(function (item) {
       var option = document.createElement('option');
-      option.value = value;
-      datalist.appendChild(option);
+      option.value = String(item.code || '');
+      option.textContent = String(item.label || item.description || item.code || '');
+      if (normalizedSelected !== '' && option.value === normalizedSelected) {
+        option.selected = true;
+      }
+      select.appendChild(option);
     });
   }
 
-  function configurePlaceField(field, values, placeholder, disabled) {
-    if (!field) return;
-    // UX: non blocchiamo i campi geografici; guidiamo la compilazione con placeholder e datalist.
-    // Il flag disabled resta gestito solo in casi eccezionali, ma qui preferiamo tenerli compilabili.
-    field.disabled = disabled === true ? true : false;
-    if (placeholder) field.placeholder = placeholder;
-    var datalist = ensureDatalist(field, field.getAttribute('data-place-role') || 'place', field.dataset.fallbackListId || globalPlaceListId);
-    fillDatalist(datalist, values);
+  function guestScopes(scope) {
+    var root = scope || document;
+    var scopes = [];
+    if (root && root.nodeType === 1 && root.hasAttribute('data-guest-scope')) {
+      scopes.push(root);
+    }
+    return scopes.concat($all('[data-guest-scope]', root));
   }
 
   function updateProvinceFilteredPlaces(scope) {
-    $all('[data-guest-scope]', scope || document).forEach(function (card) {
+    guestScopes(scope).forEach(function (card) {
       var birthState = $('[data-state-role="birth"]', card);
       var birthProvince = $('[data-province-role="birth"]', card);
       var birthPlace = $('[data-place-role="birth"]', card);
 
       var residenceState = $('[data-state-role="residence"]', card);
       var residenceProvince = $('[data-province-role="residence"]', card);
-      var residencePlace = $('[data-place-role="residence"]', card);
+      var residenceSelect = $('[data-place-role="residence-select"]', card);
+      var residenceText = $('[data-place-role="residence-text"]', card);
+      var residenceLabel = $('[data-residence-place-label]', card);
 
       if (birthState && birthProvince && birthPlace) {
-        var birthIsItaly = italySelected(birthState.value);
-        birthProvince.disabled = false;
+        var birthIsItaly = birthState.value === '100000100';
         var birthCode = resolveProvinceCode(birthProvince.value);
-        if (birthIsItaly && birthCode) {
-          configurePlaceField(birthPlace, comuniByProvince[birthCode] || [], 'Seleziona il comune di nascita', false);
-        } else if (birthIsItaly) {
-          configurePlaceField(birthPlace, [], 'Seleziona prima la provincia', false);
-        } else {
-          configurePlaceField(birthPlace, [], 'Facoltativo per estero', false);
+        var selectedBirth = String(birthPlace.value || '').trim();
+        birthProvince.disabled = !birthIsItaly;
+        birthPlace.disabled = !birthIsItaly;
+        birthProvince.required = birthIsItaly;
+        birthPlace.required = birthIsItaly;
+        fillSelectOptions(
+          birthPlace,
+          birthIsItaly && birthCode ? (comuniOptionsByProvince[birthCode] || []) : [],
+          birthIsItaly ? (birthCode ? 'Seleziona comune di nascita' : 'Seleziona prima la provincia') : 'Non richiesto per estero',
+          birthIsItaly ? selectedBirth : ''
+        );
+        if (!birthIsItaly) {
+          birthPlace.value = '';
         }
       }
 
-      if (residenceState && residenceProvince && residencePlace) {
-        var residenceIsItaly = italySelected(residenceState.value);
-        residenceProvince.disabled = false;
+      if (residenceState && residenceProvince && residenceSelect && residenceText) {
+        var residenceIsItaly = residenceState.value === '100000100';
         var residenceCode = resolveProvinceCode(residenceProvince.value);
-        if (residenceIsItaly && residenceCode) {
-          configurePlaceField(residencePlace, comuniByProvince[residenceCode] || [], 'Seleziona il comune di residenza', false);
-        } else if (residenceIsItaly) {
-          configurePlaceField(residencePlace, [], 'Seleziona prima la provincia', false);
+        var selectedResidenceCode = String(residenceSelect.value || '').trim();
+        var selectedResidenceText = String(residenceText.value || '').trim();
+
+        residenceProvince.disabled = !residenceIsItaly;
+        residenceProvince.required = residenceIsItaly;
+
+        if (residenceLabel) {
+          residenceLabel.textContent = residenceIsItaly ? 'Comune residenza' : 'Località / NUTS residenza';
+        }
+
+        fillSelectOptions(
+          residenceSelect,
+          residenceIsItaly && residenceCode ? (comuniOptionsByProvince[residenceCode] || []) : [],
+          residenceIsItaly ? (residenceCode ? 'Seleziona comune di residenza' : 'Seleziona prima la provincia') : 'Seleziona comune di residenza',
+          residenceIsItaly ? selectedResidenceCode : ''
+        );
+
+        if (residenceIsItaly) {
+          residenceSelect.hidden = false;
+          residenceSelect.disabled = false;
+          residenceSelect.required = true;
+          residenceText.hidden = true;
+          residenceText.disabled = true;
+          residenceText.required = false;
+          if (residenceText.name) {
+            residenceSelect.name = residenceText.name;
+          }
+          residenceText.name = '';
         } else {
-          residencePlace.disabled = false;
-          residencePlace.setAttribute('list', globalPlaceListId);
-          residencePlace.placeholder = 'Comune / località residenza';
+          residenceSelect.hidden = true;
+          residenceSelect.disabled = true;
+          residenceSelect.required = false;
+          residenceText.hidden = false;
+          residenceText.disabled = false;
+          residenceText.required = true;
+          if (residenceSelect.name) {
+            residenceText.name = residenceSelect.name;
+          }
+          residenceSelect.name = '';
+          residenceText.placeholder = 'Località o codice NUTS';
         }
       }
 
@@ -191,7 +222,11 @@ document.addEventListener('DOMContentLoaded', function () {
     var label = field.closest('.anagrafica-field');
     if (!label) return;
 
-    if (field.disabled || field.type === 'hidden') {
+    var candidates = $all('input, select, textarea', label).filter(function (candidate) {
+      return !(candidate.disabled || candidate.type === 'hidden' || candidate.hidden || candidate.readOnly);
+    });
+
+    if (!candidates.length) {
       label.classList.remove('is-valid');
       return;
     }
@@ -201,16 +236,29 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
 
-    var value = String(field.value || '').trim();
-    if (value === '' || field.readOnly) {
+    var activeField = candidates.find(function (candidate) {
+      return candidate.offsetParent !== null || candidate === document.activeElement;
+    }) || candidates[0];
+
+    var value = String(activeField.value || '').trim();
+    if (value === '') {
       label.classList.remove('is-valid');
       return;
     }
 
-    label.classList.toggle('is-valid', field.checkValidity());
+    label.classList.toggle('is-valid', activeField.checkValidity());
   }
 
   function refreshFieldVisualStates(scope) {
+    var labels = $all('.anagrafica-field', scope || document);
+    if (labels.length) {
+      labels.forEach(function (label) {
+        var field = $('input, select, textarea', label);
+        if (field) setFieldVisualState(field);
+      });
+      return;
+    }
+
     $all('input, select, textarea', scope || document).forEach(function (field) {
       setFieldVisualState(field);
     });
@@ -299,7 +347,20 @@ document.addEventListener('DOMContentLoaded', function () {
       field.dataset.depBound = '1';
       field.addEventListener('change', function () { updateProvinceFilteredPlaces(rootForm || document); });
       field.addEventListener('input', function () { updateProvinceFilteredPlaces(rootForm || document); });
-      field.addEventListener('blur', function () { updateProvinceFilteredPlaces(rootForm || document); });
+    });
+
+    $all('[data-place-role="residence-select"], [data-place-role="residence-text"]', scope || document).forEach(function (field) {
+      if (field.dataset.depBound === '1') return;
+      field.dataset.depBound = '1';
+      var refresh = function () {
+        var card = field.closest('[data-guest-scope]');
+        if (card) {
+          refreshFieldVisualStates(card);
+        }
+      };
+      field.addEventListener('change', refresh);
+      field.addEventListener('input', refresh);
+      field.addEventListener('blur', refresh);
     });
   }
 
@@ -851,6 +912,8 @@ function initMonthRangeConfigurator() {
     var nextButton = $('[data-day-carousel-next]');
     if (!carousel || !viewport || !strip) return;
 
+    var prevMonthUrl = carousel.getAttribute('data-prev-month-url') || '';
+    var nextMonthUrl = carousel.getAttribute('data-next-month-url') || '';
     var pointer = {
       down: false,
       dragged: false,
@@ -870,13 +933,43 @@ function initMonthRangeConfigurator() {
       return Math.round(card.getBoundingClientRect().width + gap);
     }
 
-    function updateControls() {
+    function boundaryState() {
       var max = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
-      if (prevButton) prevButton.disabled = viewport.scrollLeft <= 2;
-      if (nextButton) nextButton.disabled = viewport.scrollLeft >= (max - 2);
+      return {
+        atStart: viewport.scrollLeft <= 2,
+        atEnd: viewport.scrollLeft >= (max - 2),
+        max: max
+      };
+    }
+
+    function setNavState(button, isBoundary, boundaryUrl, baseLabel, boundaryLabel) {
+      if (!button) return;
+      button.disabled = false;
+      button.classList.toggle('is-boundary', !!isBoundary && !!boundaryUrl);
+      button.classList.toggle('is-inactive', !!isBoundary && !boundaryUrl);
+      if (isBoundary && !boundaryUrl) {
+        button.disabled = true;
+      }
+      button.setAttribute('title', isBoundary && boundaryUrl ? boundaryLabel : baseLabel);
+      button.setAttribute('aria-label', isBoundary && boundaryUrl ? boundaryLabel : baseLabel);
+    }
+
+    function updateControls() {
+      var state = boundaryState();
+      setNavState(prevButton, state.atStart, prevMonthUrl, 'Scorri ai giorni precedenti', 'Vai al mese precedente');
+      setNavState(nextButton, state.atEnd, nextMonthUrl, 'Scorri ai giorni successivi', 'Vai al mese successivo');
     }
 
     function scrollStep(direction) {
+      var state = boundaryState();
+      if (direction < 0 && state.atStart && prevMonthUrl) {
+        window.location.href = prevMonthUrl;
+        return;
+      }
+      if (direction > 0 && state.atEnd && nextMonthUrl) {
+        window.location.href = nextMonthUrl;
+        return;
+      }
       viewport.scrollBy({ left: getStep() * direction, behavior: 'smooth' });
       window.setTimeout(updateControls, 250);
     }
@@ -894,13 +987,6 @@ function initMonthRangeConfigurator() {
         scrollStep(1);
       });
     }
-
-    viewport.addEventListener('wheel', function (event) {
-      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
-      event.preventDefault();
-      viewport.scrollLeft += event.deltaY;
-      updateControls();
-    }, { passive: false });
 
     viewport.addEventListener('pointerdown', function (event) {
       if (event.pointerType === 'mouse' && event.button !== 0) return;
@@ -1066,6 +1152,10 @@ function initMonthRangeConfigurator() {
       $all('[data-name]', card).forEach(function (field) {
         var key = field.getAttribute('data-name');
         if (!key) return;
+        var placeRole = field.getAttribute('data-place-role') || '';
+        if (placeRole === 'residence-select' || placeRole === 'residence-text') {
+          return;
+        }
         var value = guest[key];
         if (field.tagName === 'SELECT') {
           field.value = value == null ? '' : String(value);
@@ -1080,6 +1170,42 @@ function initMonthRangeConfigurator() {
         }
       });
       updateProvinceFilteredPlaces(card);
+      var birthPlace = $('[data-place-role="birth"]', card);
+      var birthValue = '';
+      if (guest.birth_city_code != null && String(guest.birth_city_code).trim() !== '') {
+        birthValue = String(guest.birth_city_code || '');
+      } else if (guest.birth_place_code != null && String(guest.birth_place_code).trim() !== '') {
+        birthValue = String(guest.birth_place_code || '');
+      } else if (guest.birth_place_label != null) {
+        birthValue = String(guest.birth_place_label || '');
+      }
+      if (birthPlace) {
+        birthPlace.value = birthValue;
+      }
+      var residenceState = $('[data-state-role="residence"]', card);
+      var residenceSelect = $('[data-place-role="residence-select"]', card);
+      var residenceText = $('[data-place-role="residence-text"]', card);
+      var residenceValue = '';
+      if (residenceState && residenceState.value === '100000100') {
+        if (guest.residence_place_code != null && String(guest.residence_place_code).trim() !== '') {
+          residenceValue = String(guest.residence_place_code || '');
+        } else if (guest.residence_place_label != null) {
+          residenceValue = String(guest.residence_place_label || '');
+        }
+        if (residenceSelect) {
+          residenceSelect.value = residenceValue;
+        }
+      } else if (residenceText) {
+        if (guest.residence_place_label != null && String(guest.residence_place_label).trim() !== '') {
+          residenceValue = String(guest.residence_place_label || '');
+        } else if (guest.residence_place != null) {
+          residenceValue = String(guest.residence_place || '');
+        } else if (guest.residence_place_code != null) {
+          residenceValue = String(guest.residence_place_code || '');
+        }
+        residenceText.value = residenceValue;
+      }
+      refreshFieldVisualStates(card);
     }
 
     function addGuestCard(guest) {
@@ -1111,39 +1237,9 @@ function initMonthRangeConfigurator() {
 
     function setLeaderValues(guest) {
       guest = guest || {};
-      var fields = {
-        'first_name': 'guests[0][first_name]',
-        'last_name': 'guests[0][last_name]',
-        'gender': 'guests[0][gender]',
-        'birth_date': 'guests[0][birth_date]',
-        'citizenship_label': 'guests[0][citizenship_label]',
-        'birth_state_label': 'guests[0][birth_state_label]',
-        'birth_province': 'guests[0][birth_province]',
-        'birth_place_label': 'guests[0][birth_place_label]',
-        'residence_state_label': 'guests[0][residence_state_label]',
-        'residence_province': 'guests[0][residence_province]',
-        'residence_place_label': 'guests[0][residence_place_label]',
-        'document_type_label': 'guests[0][document_type_label]',
-        'document_number': 'guests[0][document_number]',
-        'document_issue_place': 'guests[0][document_issue_place]',
-        'tourism_type': 'guests[0][tourism_type]',
-        'transport_type': 'guests[0][transport_type]'
-      };
-      Object.keys(fields).forEach(function (key) {
-        var field = form.querySelector('[name="' + fields[key] + '"]');
-        if (!field) return;
-        var value = guest[key];
-        if ((field.getAttribute('data-date-role') || '') !== '') {
-          if (field._flatpickr && value) {
-            try { field._flatpickr.setDate(String(value), true, 'Y-m-d'); } catch (err) { field.value = value || ''; }
-          } else {
-            field.value = value || '';
-          }
-        } else {
-          field.value = value == null ? '' : String(value);
-        }
-      });
-      updateProvinceFilteredPlaces(form);
+      var leaderCard = $('[data-guest-scope][data-guest-index="0"]', form);
+      if (!leaderCard) return;
+      setGuestValues(leaderCard, guest);
     }
 
     function updateGroupState() {
@@ -1217,17 +1313,30 @@ function initMonthRangeConfigurator() {
       setModalState(true);
     }
 
+    function openTrigger(trigger, event) {
+      if (event && trigger.hasAttribute('data-booking-row') && event.target && event.target.closest('[data-row-ignore]')) {
+        return;
+      }
+      if (event) event.preventDefault();
+      var raw = trigger.getAttribute('data-booking-payload');
+      if (!raw) return;
+      try {
+        loadPayload(JSON.parse(raw));
+      } catch (err) {
+        console.error('Booking modal payload parse failed', err);
+      }
+    }
+
     triggers.forEach(function (button) {
       button.addEventListener('click', function (event) {
-        event.preventDefault();
-        var raw = button.getAttribute('data-booking-payload');
-        if (!raw) return;
-        try {
-          loadPayload(JSON.parse(raw));
-        } catch (err) {
-          console.error('Booking modal payload parse failed', err);
-        }
+        openTrigger(button, event);
       });
+      if (button.hasAttribute('data-booking-row')) {
+        button.addEventListener('keydown', function (event) {
+          if (event.key !== 'Enter' && event.key !== ' ') return;
+          openTrigger(button, event);
+        });
+      }
     });
 
     closeButtons.forEach(function (button) {
