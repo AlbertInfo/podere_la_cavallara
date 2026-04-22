@@ -219,14 +219,22 @@ function anagrafica_guest_modal_payload_row(array $guest): array
     $birthStateCode = (string) ($guest['birth_state_code'] ?? '');
     $residenceStateCode = (string) ($guest['residence_state_code'] ?? '');
 
-    $birthPlaceValue = (string) ($guest['birth_city_code'] ?? $guest['birth_place_code'] ?? '');
-    if ($birthPlaceValue === '') {
+    $birthPlaceValue = '';
+    if ($birthStateCode === $italyCode) {
+        $birthPlaceValue = (string) ($guest['birth_city_code'] ?? $guest['birth_place_code'] ?? '');
+        if ($birthPlaceValue === '') {
+            $birthPlaceValue = (string) ($guest['birth_place'] ?? $guest['birth_place_label'] ?? '');
+        }
+    } else {
         $birthPlaceValue = (string) ($guest['birth_place'] ?? $guest['birth_place_label'] ?? '');
     }
 
     $residencePlaceValue = '';
     if ($residenceStateCode === $italyCode) {
-        $residencePlaceValue = (string) ($guest['residence_place_code'] ?? $guest['residence_place'] ?? '');
+        $residencePlaceValue = (string) ($guest['residence_place_code'] ?? '');
+        if ($residencePlaceValue === '') {
+            $residencePlaceValue = (string) ($guest['residence_place'] ?? $guest['residence_place_label'] ?? '');
+        }
     } else {
         $residencePlaceValue = (string) ($guest['residence_place'] ?? $guest['residence_place_label'] ?? $guest['residence_place_code'] ?? '');
     }
@@ -240,12 +248,15 @@ function anagrafica_guest_modal_payload_row(array $guest): array
         'birth_state_label' => $birthStateCode,
         'birth_province' => (string) ($guest['birth_province'] ?? ''),
         'birth_place_label' => $birthPlaceValue,
+        'birth_place_code' => (string) ($guest['birth_place_code'] ?? ''),
+        'birth_city_code' => (string) ($guest['birth_city_code'] ?? ''),
         'residence_state_label' => $residenceStateCode,
         'residence_province' => (string) ($guest['residence_province'] ?? ''),
         'residence_place_label' => $residencePlaceValue,
+        'residence_place_code' => (string) ($guest['residence_place_code'] ?? ''),
         'document_type_label' => (string) ($guest['document_type_label'] ?? $guest['document_type'] ?? ''),
         'document_number' => (string) ($guest['document_number'] ?? ''),
-        'document_issue_place' => (string) ($guest['document_issue_place_code'] ?? $guest['document_issue_place'] ?? ''),
+        'document_issue_place' => (string) ($guest['document_issue_place'] ?? ''),
         'tourism_type' => (string) ($guest['tourism_type'] ?? ''),
         'transport_type' => (string) ($guest['transport_type'] ?? ''),
         'tipoalloggiato_code' => (string) ($guest['tipoalloggiato_code'] ?? $guest['tipo_alloggiato_code'] ?? ''),
