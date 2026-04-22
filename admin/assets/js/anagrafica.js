@@ -69,20 +69,21 @@ document.addEventListener('DOMContentLoaded', function () {
 
   var provinceMap = parseJsonScript('anagraficaProvinceMap', {});
   var comuniByProvince = parseJsonScript('anagraficaComuniByProvince', {});
+  var nutsByState = parseJsonScript('anagraficaNutsByState', {});
   var globalPlaceListId = 'place-options';
-  var globalStateListId = 'state-options';
-  var globalProvinceListId = 'province-options';
+  var italyStateCode = '100000100';
 
   function normalizeValue(value) {
     return String(value || '')
       .trim()
       .toLowerCase()
       .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '');
+      .replace(/[̀-ͯ]/g, '');
   }
 
   function italySelected(value) {
-    return normalizeValue(value) === 'italia';
+    var normalized = normalizeValue(value);
+    return normalized === 'italia' || normalized === normalizeValue(italyStateCode);
   }
 
   function resolveProvinceCode(value) {
@@ -134,51 +135,145 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  function configurePlaceField(field, values, placeholder, disabled) {
-    if (!field) return;
-    // UX: non blocchiamo i campi geografici; guidiamo la compilazione con placeholder e datalist.
-    // Il flag disabled resta gestito solo in casi eccezionali, ma qui preferiamo tenerli compilabili.
-    field.disabled = disabled === true ? true : false;
-    if (placeholder) field.placeholder = placeholder;
-    var datalist = ensureDatalist(field, field.getAttribute('data-place-role') || 'place', field.dataset.fallbackListId || globalPlaceListId);
-    fillDatalist(datalist, values);
+  function fillSelectOptions(select, values, placeholder, selectedValue) {
+    if (!select) return;
+    var currentValue = String(selectedValue || '');
+    select.innerHTML = '';
+
+    var emptyOption = document.createElement('option');
+    emptyOption.value = '';
+    emptyOption.textContent = placeholder || 'Seleziona';
+    select.appendChild(emptyOption);
+
+    (values || []).forEach(function (value) {
+      var option = document.createElement('option');
+      option.value = value;
+      option.textContent = value;
+      select.appendChild(option);
+    });
+
+    if (!currentValue) {
+      select.value = '';
+      return;
+    }
+
+    var normalizedSelected = normalizeValue(currentValue);
+    var matched = false;
+    Array.prototype.slice.call(select.options).forEach(function (option) {
+      if (normalizeValue(option.value) === normalizedSelected || normalizeValue(option.textContent) === normalizedSelected) {
+        select.value = option.value;
+        matched = true;
+      }
+    });
+
+    if (!matched) {
+      select.value = '';
+    }
+  }
+
+  function toggleFieldWrapper(node, visible) {
+    if (!node) return;
+    node.classList.toggle('is-hidden-by-logic', !visible);
+  }
+
+  function syncHiddenValue(hiddenField, value) {
+    if (!hiddenField) return;
+    hiddenField.value = String(value || '').trim();
   }
 
   function updateProvinceFilteredPlaces(scope) {
     $all('[data-guest-scope]', scope || document).forEach(function (card) {
       var birthState = $('[data-state-role="birth"]', card);
       var birthProvince = $('[data-province-role="birth"]', card);
-      var birthPlace = $('[data-place-role="birth"]', card);
+      var birthPlaceSelect = $('[data-place-role="birth"]', card);
+      var birthPlaceHidden = $('[data-place-hidden="birth"]', card);
+      var birthProvinceWrapper = birthProvince ? birthProvince.closest('.anagrafica-field') : null;
+      var birthPlaceWrapper = birthPlaceSelect ? birthPlaceSelect.closest('.anagrafica-field') : null;
+      var birthIsItaly = birthState && italySelected(birthState.value);
+      var birthSelectedLabel = birthPlaceHidden ? birthPlaceHidden.value : (birthPlaceSelect ? (birthPlaceSelect.dataset.selectedLabel || '') : '');
 
-      var residenceState = $('[data-state-role="residence"]', card);
-      var residenceProvince = $('[data-province-role="residence"]', card);
-      var residencePlace = $('[data-place-role="residence"]', card);
-
-      if (birthState && birthProvince && birthPlace) {
-        var birthIsItaly = italySelected(birthState.value);
-        birthProvince.disabled = false;
-        var birthCode = resolveProvinceCode(birthProvince.value);
-        if (birthIsItaly && birthCode) {
-          configurePlaceField(birthPlace, comuniByProvince[birthCode] || [], 'Seleziona il comune di nascita', false);
-        } else if (birthIsItaly) {
-          configurePlaceField(birthPlace, [], 'Seleziona prima la provincia', false);
+      if (birthState && birthProvince && birthPlaceSelect) {
+        if (birthIsItaly) {
+          var birthCode = resolveProvinceCode(birthProvince.value);
+          toggleFieldWrapper(birthProvinceWrapper, true);
+          toggleFieldWrapper(birthPlaceWrapper, true);
+          birthProvince.disabled = false;
+          birthProvince.required = true;
+          birthPlaceSelect.disabled = false;
+          birthPlaceSelect.required = true;
+          fillSelectOptions(
+            birthPlaceSelect,
+            birthCode ? (comuniByProvince[birthCode] || []) : [],
+            birthCode ? 'Seleziona il comune di nascita' : 'Seleziona prima la provincia',
+            birthSelectedLabel
+          );
+          syncHiddenValue(birthPlaceHidden, birthPlaceSelect.value);
         } else {
-          configurePlaceField(birthPlace, [], 'Facoltativo per estero', false);
+          birthProvince.value = '';
+          birthProvince.required = false;
+          birthProvince.disabled = true;
+          birthPlaceSelect.required = false;
+          birthPlaceSelect.disabled = true;
+          fillSelectOptions(birthPlaceSelect, [], 'Non richiesto per nascita estera', '');
+          syncHiddenValue(birthPlaceHidden, '');
+          toggleFieldWrapper(birthProvinceWrapper, false);
+          toggleFieldWrapper(birthPlaceWrapper, false);
         }
       }
 
-      if (residenceState && residenceProvince && residencePlace) {
-        var residenceIsItaly = italySelected(residenceState.value);
-        residenceProvince.disabled = false;
-        var residenceCode = resolveProvinceCode(residenceProvince.value);
-        if (residenceIsItaly && residenceCode) {
-          configurePlaceField(residencePlace, comuniByProvince[residenceCode] || [], 'Seleziona il comune di residenza', false);
-        } else if (residenceIsItaly) {
-          configurePlaceField(residencePlace, [], 'Seleziona prima la provincia', false);
+      var residenceState = $('[data-state-role="residence"]', card);
+      var residenceProvince = $('[data-province-role="residence"]', card);
+      var residenceSelect = $('[data-place-role="residence-select"]', card);
+      var residenceText = $('[data-place-role="residence-text"]', card);
+      var residenceHidden = $('[data-place-hidden="residence"]', card);
+      var residenceProvinceWrapper = residenceProvince ? residenceProvince.closest('.anagrafica-field') : null;
+      var residenceSelectWrapper = residenceSelect ? residenceSelect.closest('.anagrafica-field') : null;
+      var residenceTextWrapper = residenceText ? residenceText.closest('.anagrafica-field') : null;
+      var residenceHint = $('[data-residence-place-hint]', card);
+      var residenceIsItaly = residenceState && italySelected(residenceState.value);
+      var residenceSelectedLabel = residenceHidden ? residenceHidden.value : '';
+
+      if (residenceState && residenceProvince && residenceSelect && residenceText) {
+        if (residenceIsItaly) {
+          var residenceCode = resolveProvinceCode(residenceProvince.value);
+          toggleFieldWrapper(residenceProvinceWrapper, true);
+          toggleFieldWrapper(residenceSelectWrapper, true);
+          toggleFieldWrapper(residenceTextWrapper, false);
+          residenceProvince.disabled = false;
+          residenceProvince.required = true;
+          residenceSelect.disabled = false;
+          residenceSelect.required = true;
+          residenceText.disabled = true;
+          residenceText.required = false;
+          fillSelectOptions(
+            residenceSelect,
+            residenceCode ? (comuniByProvince[residenceCode] || []) : [],
+            residenceCode ? 'Seleziona il comune di residenza' : 'Seleziona prima la provincia',
+            residenceSelectedLabel
+          );
+          syncHiddenValue(residenceHidden, residenceSelect.value);
         } else {
-          residencePlace.disabled = false;
-          residencePlace.setAttribute('list', globalPlaceListId);
-          residencePlace.placeholder = 'Comune / località residenza';
+          var nutsOptions = nutsByState[residenceState.value] || [];
+          var datalist = ensureDatalist(residenceText, 'residence', globalPlaceListId);
+          fillDatalist(datalist, nutsOptions);
+          toggleFieldWrapper(residenceProvinceWrapper, false);
+          toggleFieldWrapper(residenceSelectWrapper, false);
+          toggleFieldWrapper(residenceTextWrapper, true);
+          residenceProvince.value = '';
+          residenceProvince.required = false;
+          residenceProvince.disabled = true;
+          residenceSelect.required = false;
+          residenceSelect.disabled = true;
+          fillSelectOptions(residenceSelect, [], 'Non richiesto per estero', '');
+          residenceText.disabled = false;
+          residenceText.required = true;
+          residenceText.placeholder = nutsOptions.length ? 'Seleziona un codice NUTS o inserisci una località' : 'Inserisci la località di residenza';
+          if (residenceHint) {
+            residenceHint.textContent = nutsOptions.length
+              ? 'Puoi scegliere un codice NUTS suggerito o inserire una località libera.'
+              : 'Inserisci la località di residenza come da documento o dichiarazione dell’ospite.';
+          }
+          syncHiddenValue(residenceHidden, residenceText.value);
         }
       }
 
@@ -294,7 +389,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function bindProvincePlaceDependencies(scope, rootForm) {
-    $all('[data-state-role], [data-province-role]', scope || document).forEach(function (field) {
+    $all('[data-state-role], [data-province-role], [data-place-role]', scope || document).forEach(function (field) {
       if (field.dataset.depBound === '1') return;
       field.dataset.depBound = '1';
       field.addEventListener('change', function () { updateProvinceFilteredPlaces(rootForm || document); });

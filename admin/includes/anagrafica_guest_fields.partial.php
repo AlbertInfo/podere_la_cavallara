@@ -48,6 +48,8 @@ $currentBirthState = anagrafica_find_state_by_value($fieldValue($guestData, 'bir
 $currentResidenceState = anagrafica_find_state_by_value($fieldValue($guestData, 'residence_state_label', $fieldValue($guestData, 'residence_state_code')));
 $currentBirthProvinceCode = anagrafica_find_province_code($fieldValue($guestData, 'birth_province')) ?? '';
 $currentResidenceProvinceCode = anagrafica_find_province_code($fieldValue($guestData, 'residence_province')) ?? '';
+$currentBirthPlaceLabel = $fieldValue($guestData, 'birth_place_label');
+$currentResidencePlaceLabel = $fieldValue($guestData, 'residence_place_label', $fieldValue($guestData, 'residence_place'));
 ?>
 <div class="anagrafica-guest-card<?= $isRepeaterGuest ? '' : ' anagrafica-guest-card--primary' ?>"<?= $isRepeaterGuest ? ' data-guest-card' : '' ?> data-guest-scope data-guest-index="<?= e((string) $guestIndex) ?>">
     <?php if ($isRepeaterGuest): ?>
@@ -126,7 +128,7 @@ $currentResidenceProvinceCode = anagrafica_find_province_code($fieldValue($guest
             <div class="anagrafica-subsection__header">
                 <div>
                     <h4>Nascita e residenza</h4>
-                    <p class="muted">I campi italiani si attivano in base allo stato selezionato.</p>
+                    <p class="muted">Campi guidati in base a Italia / estero e provincia selezionata.</p>
                 </div>
             </div>
             <div class="anagrafica-grid">
@@ -141,10 +143,12 @@ $currentResidenceProvinceCode = anagrafica_find_province_code($fieldValue($guest
                     <?php if ($errorTextFor('birth_province') !== ''): ?><small class="anagrafica-field-error"><?= e($errorTextFor('birth_province')) ?></small><?php endif; ?>
                 </label>
 
-                <label class="anagrafica-field<?= e($errorClassFor('birth_place_label')) ?>" data-italy-only="birth">
+                <label class="anagrafica-field<?= e($errorClassFor('birth_place_label')) ?>" data-italy-only="birth" data-place-wrapper="birth-select">
                     <span>Comune nascita</span>
-                    <input list="<?= e($birthListId) ?>" name="<?= e($prefix) ?>[birth_place_label]" data-place-role="birth" value="<?= e($fieldValue($guestData, 'birth_place_label')) ?>" placeholder="Seleziona il comune di nascita" data-next-manual="1">
-                    <datalist id="<?= e($birthListId) ?>"></datalist>
+                    <input type="hidden" name="<?= e($prefix) ?>[birth_place_label]" value="<?= e($currentBirthPlaceLabel) ?>" data-place-hidden="birth">
+                    <select data-place-role="birth" data-selected-label="<?= e($currentBirthPlaceLabel) ?>" data-auto-advance="1">
+                        <option value="">Seleziona prima la provincia</option>
+                    </select>
                     <?php if ($errorTextFor('birth_place_label') !== ''): ?><small class="anagrafica-field-error"><?= e($errorTextFor('birth_place_label')) ?></small><?php endif; ?>
                 </label>
 
@@ -156,7 +160,7 @@ $currentResidenceProvinceCode = anagrafica_find_province_code($fieldValue($guest
                             <option value="<?= e($stateCode) ?>" <?= (($currentResidenceState['code'] ?? '') === $stateCode) ? 'selected' : '' ?>><?= e($stateLabel) ?></option>
                         <?php endforeach; ?>
                     </select>
-                    <small class="anagrafica-field-hint">Per l'estero puoi indicare località libera o codice NUTS.</small>
+                    <small class="anagrafica-field-hint">Italia: scegli provincia e comune. Estero: località libera, con suggerimenti NUTS per l'UE.</small>
                     <?php if ($errorTextFor('residence_state_label') !== ''): ?><small class="anagrafica-field-error"><?= e($errorTextFor('residence_state_label')) ?></small><?php endif; ?>
                 </label>
 
@@ -171,10 +175,20 @@ $currentResidenceProvinceCode = anagrafica_find_province_code($fieldValue($guest
                     <?php if ($errorTextFor('residence_province') !== ''): ?><small class="anagrafica-field-error"><?= e($errorTextFor('residence_province')) ?></small><?php endif; ?>
                 </label>
 
-                <label class="anagrafica-field<?= e($errorClassFor('residence_place_label')) ?>">
-                    <span data-residence-place-label>Comune / località residenza</span>
-                    <input list="<?= e($residenceListId) ?>" name="<?= e($prefix) ?>[residence_place_label]" data-place-role="residence" value="<?= e($fieldValue($guestData, 'residence_place_label', $fieldValue($guestData, 'residence_place'))) ?>" placeholder="Comune italiano, NUTS o località" required data-next-manual="1">
+                <label class="anagrafica-field<?= e($errorClassFor('residence_place_label')) ?>" data-place-wrapper="residence-select">
+                    <span data-residence-place-label>Comune residenza</span>
+                    <input type="hidden" name="<?= e($prefix) ?>[residence_place_label]" value="<?= e($currentResidencePlaceLabel) ?>" data-place-hidden="residence">
+                    <select data-place-role="residence-select" data-selected-label="<?= e($currentResidencePlaceLabel) ?>" data-auto-advance="1">
+                        <option value="">Seleziona prima la provincia</option>
+                    </select>
+                    <?php if ($errorTextFor('residence_place_label') !== ''): ?><small class="anagrafica-field-error"><?= e($errorTextFor('residence_place_label')) ?></small><?php endif; ?>
+                </label>
+
+                <label class="anagrafica-field<?= e($errorClassFor('residence_place_label')) ?>" data-place-wrapper="residence-text">
+                    <span data-residence-place-label-text>Località / codice NUTS residenza</span>
+                    <input type="text" value="<?= e($currentResidencePlaceLabel) ?>" data-place-role="residence-text" list="<?= e($residenceListId) ?>" placeholder="Località o codice NUTS" data-next-manual="1">
                     <datalist id="<?= e($residenceListId) ?>"></datalist>
+                    <small class="anagrafica-field-hint" data-residence-place-hint>Per i paesi UE puoi scegliere un codice NUTS o inserire una località libera.</small>
                     <?php if ($errorTextFor('residence_place_label') !== ''): ?><small class="anagrafica-field-error"><?= e($errorTextFor('residence_place_label')) ?></small><?php endif; ?>
                 </label>
             </div>

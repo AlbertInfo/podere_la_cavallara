@@ -152,6 +152,55 @@ function anagrafica_default_state_label(): string
     return 'ITALIA';
 }
 
+
+function anagrafica_eu_state_code_to_sigla(): array
+{
+    static $map = null;
+    if ($map !== null) {
+        return $map;
+    }
+
+    $map = [];
+    foreach (anagrafica_eu_citizenships() as $sigla => $label) {
+        $state = anagrafica_find_state_by_value($label);
+        if ($state) {
+            $map[(string) $state['code']] = $sigla;
+        }
+    }
+
+    return $map;
+}
+
+function anagrafica_nuts_labels_by_state_code(): array
+{
+    static $grouped = null;
+    if ($grouped !== null) {
+        return $grouped;
+    }
+
+    $grouped = [];
+    $siglaMap = anagrafica_eu_state_code_to_sigla();
+    $stateCodeBySigla = array_flip($siglaMap);
+
+    foreach (anagrafica_nuts_rows() as $row) {
+        $sigla = trim((string) ($row['country_sigla'] ?? ''));
+        if ($sigla === '' || !isset($stateCodeBySigla[$sigla])) {
+            continue;
+        }
+
+        $stateCode = $stateCodeBySigla[$sigla];
+        $grouped[$stateCode][] = (string) ($row['label'] ?? '');
+    }
+
+    foreach ($grouped as $stateCode => $labels) {
+        $labels = array_values(array_unique(array_filter($labels)));
+        sort($labels, SORT_NATURAL | SORT_FLAG_CASE);
+        $grouped[$stateCode] = $labels;
+    }
+
+    return $grouped;
+}
+
 function anagrafica_eu_citizenships(): array
 {
     return [
