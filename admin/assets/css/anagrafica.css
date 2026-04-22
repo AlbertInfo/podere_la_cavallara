@@ -1005,6 +1005,7 @@ body.is-modal-open {
   z-index: 80;
   display: grid;
   place-items: center;
+  padding: .75rem;
 }
 
 .anagrafica-modal[hidden] {
@@ -1360,7 +1361,8 @@ body.is-modal-open {
 
 .anagrafica-modal--booking .anagrafica-modal__dialog {
   width: min(96vw, 1120px);
-  max-height: min(92vh, 980px);
+  height: min(92vh, 980px);
+  max-height: calc(100vh - 1.5rem);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1459,29 +1461,25 @@ body.is-modal-open {
 }
 
 .booking-sync-modal {
-<<<<<<< HEAD
   display: flex;
   flex-direction: column;
-  max-height: min(92vh, 980px);
+  height: 100%;
+  min-height: 0;
   overflow: hidden;
-=======
->>>>>>> 0b42e6270c8aef52cb5d937010b03fe31d9f9812
   border-radius: 30px;
   background:
     radial-gradient(circle at top right, rgba(49, 88, 224, 0.12), transparent 26%),
     linear-gradient(180deg, rgba(255,255,255,0.99), rgba(244,247,252,0.98));
 }
 
-<<<<<<< HEAD
 .booking-sync-modal > form {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
+  height: 100%;
 }
 
-=======
->>>>>>> 0b42e6270c8aef52cb5d937010b03fe31d9f9812
 .anagrafica-modal--booking .anagrafica-modal__backdrop {
   background:
     radial-gradient(circle at top, rgba(49, 88, 224, 0.18), transparent 28%),
@@ -1505,23 +1503,23 @@ body.is-modal-open {
 }
 
 .booking-sync-modal .anagrafica-modal__body {
-<<<<<<< HEAD
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   scrollbar-gutter: stable both-edges;
-=======
->>>>>>> 0b42e6270c8aef52cb5d937010b03fe31d9f9812
   padding: 1.35rem;
   gap: 1.1rem;
 }
 
-<<<<<<< HEAD
 .booking-sync-modal .anagrafica-modal__header,
 .booking-sync-modal .anagrafica-modal__actions {
   flex: 0 0 auto;
+}
+
+.booking-sync-modal .anagrafica-grid {
+  align-items: start;
 }
 
 .booking-sync-modal .anagrafica-grid label {
@@ -1534,8 +1532,6 @@ body.is-modal-open {
   align-items: flex-end;
 }
 
-=======
->>>>>>> 0b42e6270c8aef52cb5d937010b03fe31d9f9812
 .booking-sync-modal .anagrafica-guide,
 .booking-sync-modal .anagrafica-section {
   border-radius: 24px;
