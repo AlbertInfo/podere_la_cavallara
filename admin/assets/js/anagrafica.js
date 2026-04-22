@@ -912,6 +912,8 @@ function initMonthRangeConfigurator() {
     var nextButton = $('[data-day-carousel-next]');
     if (!carousel || !viewport || !strip) return;
 
+    var prevMonthUrl = carousel.getAttribute('data-prev-month-url') || '';
+    var nextMonthUrl = carousel.getAttribute('data-next-month-url') || '';
     var pointer = {
       down: false,
       dragged: false,
@@ -931,13 +933,43 @@ function initMonthRangeConfigurator() {
       return Math.round(card.getBoundingClientRect().width + gap);
     }
 
-    function updateControls() {
+    function boundaryState() {
       var max = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
-      if (prevButton) prevButton.disabled = viewport.scrollLeft <= 2;
-      if (nextButton) nextButton.disabled = viewport.scrollLeft >= (max - 2);
+      return {
+        atStart: viewport.scrollLeft <= 2,
+        atEnd: viewport.scrollLeft >= (max - 2),
+        max: max
+      };
+    }
+
+    function setNavState(button, isBoundary, boundaryUrl, baseLabel, boundaryLabel) {
+      if (!button) return;
+      button.disabled = false;
+      button.classList.toggle('is-boundary', !!isBoundary && !!boundaryUrl);
+      button.classList.toggle('is-inactive', !!isBoundary && !boundaryUrl);
+      if (isBoundary && !boundaryUrl) {
+        button.disabled = true;
+      }
+      button.setAttribute('title', isBoundary && boundaryUrl ? boundaryLabel : baseLabel);
+      button.setAttribute('aria-label', isBoundary && boundaryUrl ? boundaryLabel : baseLabel);
+    }
+
+    function updateControls() {
+      var state = boundaryState();
+      setNavState(prevButton, state.atStart, prevMonthUrl, 'Scorri ai giorni precedenti', 'Vai al mese precedente');
+      setNavState(nextButton, state.atEnd, nextMonthUrl, 'Scorri ai giorni successivi', 'Vai al mese successivo');
     }
 
     function scrollStep(direction) {
+      var state = boundaryState();
+      if (direction < 0 && state.atStart && prevMonthUrl) {
+        window.location.href = prevMonthUrl;
+        return;
+      }
+      if (direction > 0 && state.atEnd && nextMonthUrl) {
+        window.location.href = nextMonthUrl;
+        return;
+      }
       viewport.scrollBy({ left: getStep() * direction, behavior: 'smooth' });
       window.setTimeout(updateControls, 250);
     }
@@ -955,13 +987,6 @@ function initMonthRangeConfigurator() {
         scrollStep(1);
       });
     }
-
-    viewport.addEventListener('wheel', function (event) {
-      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
-      event.preventDefault();
-      viewport.scrollLeft += event.deltaY;
-      updateControls();
-    }, { passive: false });
 
     viewport.addEventListener('pointerdown', function (event) {
       if (event.pointerType === 'mouse' && event.button !== 0) return;
@@ -1288,17 +1313,30 @@ function initMonthRangeConfigurator() {
       setModalState(true);
     }
 
+    function openTrigger(trigger, event) {
+      if (event && trigger.hasAttribute('data-booking-row') && event.target && event.target.closest('[data-row-ignore]')) {
+        return;
+      }
+      if (event) event.preventDefault();
+      var raw = trigger.getAttribute('data-booking-payload');
+      if (!raw) return;
+      try {
+        loadPayload(JSON.parse(raw));
+      } catch (err) {
+        console.error('Booking modal payload parse failed', err);
+      }
+    }
+
     triggers.forEach(function (button) {
       button.addEventListener('click', function (event) {
-        event.preventDefault();
-        var raw = button.getAttribute('data-booking-payload');
-        if (!raw) return;
-        try {
-          loadPayload(JSON.parse(raw));
-        } catch (err) {
-          console.error('Booking modal payload parse failed', err);
-        }
+        openTrigger(button, event);
       });
+      if (button.hasAttribute('data-booking-row')) {
+        button.addEventListener('keydown', function (event) {
+          if (event.key !== 'Enter' && event.key !== ' ') return;
+          openTrigger(button, event);
+        });
+      }
     });
 
     closeButtons.forEach(function (button) {

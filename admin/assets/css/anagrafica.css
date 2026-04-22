@@ -1388,3 +1388,280 @@ body.is-modal-open {
 .booking-sync-modal__body .anagrafica-section + .anagrafica-section {
   margin-top: 1rem;
 }
+
+
+.ross-day-carousel__nav.is-boundary {
+  background: linear-gradient(180deg, rgba(49, 88, 224, 0.14), rgba(255,255,255,0.98));
+  border-color: rgba(49, 88, 224, 0.26);
+  color: var(--ross-accent-strong);
+}
+
+.ross-day-carousel__nav.is-inactive {
+  opacity: .38;
+}
+
+.ross-record-row--booking {
+  position: relative;
+  overflow: hidden;
+}
+
+.ross-record-row--booking::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: linear-gradient(180deg, rgba(49, 88, 224, 0.9), rgba(59, 130, 246, 0.4));
+  opacity: 0;
+  transition: opacity .18s ease;
+}
+
+.ross-record-row--booking::after {
+  content: 'Apri scheda';
+  position: absolute;
+  right: 1rem;
+  top: 1rem;
+  padding: .32rem .62rem;
+  border-radius: 999px;
+  background: rgba(49, 88, 224, 0.08);
+  color: var(--ross-accent-strong);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity .18s ease, transform .18s ease;
+  pointer-events: none;
+}
+
+.ross-record-row--booking:hover::before,
+.ross-record-row--booking:focus-visible::before,
+.ross-record-row--booking:hover::after,
+.ross-record-row--booking:focus-visible::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.ross-record-row__cta {
+  display: inline-flex;
+  align-items: center;
+  padding: .18rem .5rem;
+  border-radius: 999px;
+  background: rgba(49, 88, 224, 0.08);
+  color: var(--ross-accent-strong);
+  font-weight: 700;
+}
+
+.booking-sync-modal {
+  overflow: hidden;
+  border-radius: 30px;
+  background:
+    radial-gradient(circle at top right, rgba(49, 88, 224, 0.12), transparent 26%),
+    linear-gradient(180deg, rgba(255,255,255,0.99), rgba(244,247,252,0.98));
+}
+
+.anagrafica-modal--booking .anagrafica-modal__backdrop {
+  background:
+    radial-gradient(circle at top, rgba(49, 88, 224, 0.18), transparent 28%),
+    rgba(15, 23, 42, 0.68);
+  backdrop-filter: blur(10px);
+}
+
+.booking-sync-modal .anagrafica-modal__header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  padding: 1.2rem 1.35rem;
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(244,247,252,0.94));
+  backdrop-filter: blur(10px);
+}
+
+.booking-sync-modal .anagrafica-modal__header h3 {
+  margin: .18rem 0 0;
+  font-size: 1.45rem;
+  line-height: 1.15;
+}
+
+.booking-sync-modal .anagrafica-modal__body {
+  padding: 1.35rem;
+  gap: 1.1rem;
+}
+
+.booking-sync-modal .anagrafica-guide,
+.booking-sync-modal .anagrafica-section {
+  border-radius: 24px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.96));
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.08);
+}
+
+.booking-sync-modal .anagrafica-guide {
+  padding: 1rem 1.1rem;
+}
+
+.booking-sync-modal .anagrafica-section {
+  padding: 1.05rem 1.1rem;
+}
+
+.booking-sync-modal .anagrafica-section__header {
+  margin-bottom: .2rem;
+}
+
+.booking-sync-modal .anagrafica-section__header h3 {
+  margin: 0;
+}
+
+.booking-sync-modal .anagrafica-field span,
+.booking-sync-modal .anagrafica-section .muted {
+  color: #475569;
+}
+
+.booking-sync-modal .anagrafica-field input,
+.booking-sync-modal .anagrafica-field select,
+.booking-sync-modal .anagrafica-field textarea,
+.booking-sync-modal .flatpickr-input {
+  min-height: 48px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  background: linear-gradient(180deg, rgba(255,255,255,1), rgba(248,250,252,0.94));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.75);
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.booking-sync-modal .anagrafica-field input:focus,
+.booking-sync-modal .anagrafica-field select:focus,
+.booking-sync-modal .anagrafica-field textarea:focus,
+.booking-sync-modal .flatpickr-input:focus {
+  border-color: rgba(49, 88, 224, 0.42);
+  box-shadow: 0 0 0 4px rgba(49, 88, 224, 0.10);
+  outline: none;
+}
+
+.booking-sync-modal .anagrafica-guest-card {
+  padding: 1rem 1.05rem;
+  border-radius: 24px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background:
+    radial-gradient(circle at top right, rgba(49, 88, 224, 0.08), transparent 28%),
+    linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.96));
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.06);
+}
+
+.booking-sync-modal .anagrafica-guest-card__top {
+  align-items: flex-start;
+}
+
+.booking-sync-modal .anagrafica-modal__actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  padding: 1rem 1.35rem;
+  background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(248,250,252,0.98));
+  backdrop-filter: blur(10px);
+  box-shadow: 0 -18px 32px rgba(15, 23, 42, 0.08);
+}
+
+.booking-sync-modal .btn {
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.06);
+}
+
+.alloggiati-confirm__bundles {
+  display: grid;
+  gap: .8rem;
+}
+
+.alloggiati-confirm__bundle {
+  display: grid;
+  gap: .7rem;
+  padding: .95rem 1rem;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.96));
+}
+
+.alloggiati-confirm__bundle-head {
+  display: flex;
+  justify-content: space-between;
+  gap: .75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.alloggiati-confirm__bundle-head strong {
+  font-size: 1rem;
+  color: #0f172a;
+}
+
+.alloggiati-confirm__bundle-head span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 .7rem;
+  border-radius: 999px;
+  background: rgba(49, 88, 224, 0.08);
+  color: var(--ross-accent-strong);
+  font-size: .78rem;
+  font-weight: 800;
+}
+
+.alloggiati-confirm__bundle-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .45rem;
+}
+
+.alloggiati-confirm__bundle-meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 .65rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.05);
+  color: #475569;
+  font-size: .78rem;
+  font-weight: 700;
+}
+
+.alloggiati-confirm__people {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: .5rem;
+}
+
+.alloggiati-confirm__people li {
+  display: grid;
+  gap: .18rem;
+  padding: .72rem .8rem;
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.96);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.alloggiati-confirm__people li strong {
+  font-size: .95rem;
+}
+
+.alloggiati-confirm__people li span {
+  color: #64748b;
+  font-size: .82rem;
+}
+
+@media (max-width: 720px) {
+  .ross-record-row--booking::after {
+    position: static;
+    justify-self: start;
+    margin-top: .3rem;
+  }
+
+  .booking-sync-modal .anagrafica-modal__body,
+  .booking-sync-modal .anagrafica-modal__actions,
+  .booking-sync-modal .anagrafica-modal__header {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .alloggiati-confirm__bundle-head {
+    align-items: flex-start;
+  }
+}

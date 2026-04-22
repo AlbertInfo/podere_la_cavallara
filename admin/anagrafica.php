@@ -58,6 +58,29 @@ function anagrafica_weekday_label(string $date): string
     return $label ? mb_strtoupper((string) $label, 'UTF-8') : strtoupper(date('D', strtotime($date)));
 }
 
+
+function anagrafica_alloggiati_bundle_reference_label(array $bundle): string
+{
+    $name = trim((string) ($bundle['display_name'] ?? ''));
+    $kind = (string) ($bundle['kind'] ?? 'single');
+
+    if ($kind === 'family') {
+        return $name !== '' ? 'Capofamiglia · ' . $name : 'Capofamiglia';
+    }
+    if ($kind === 'group') {
+        return $name !== '' ? 'Capogruppo · ' . $name : 'Capogruppo';
+    }
+
+    return $name !== '' ? 'Ospite principale · ' . $name : 'Ospite singolo';
+}
+
+function anagrafica_alloggiati_person_document_label(array $person): string
+{
+    $payload = (array) ($person['payload'] ?? []);
+    $document = trim(((string) ($payload['document_type_label'] ?? '')) . ' · ' . ((string) ($payload['document_number'] ?? '')), ' ·');
+    return $document !== '' ? $document : 'Documento non valorizzato';
+}
+
 $recordTableReady = false;
 $dayStatusTableReady = false;
 $prenotazioneLinkReady = false;
@@ -389,8 +412,12 @@ $bookingModalAdditionalGuests = $bookingModalGuests ? array_slice($bookingModalG
 $forceOpenForm = isset($_GET['new']) || $formIsEdit || (bool) $oldFormData;
 $basePageUrl = admin_url('anagrafica.php?month=' . rawurlencode($selectedMonth) . '&day=' . rawurlencode($selectedDay));
 $newPageUrl = admin_url('anagrafica.php?month=' . rawurlencode($selectedMonth) . '&day=' . rawurlencode($selectedDay) . '&new=1');
-$prevMonthUrl = admin_url('anagrafica.php?month=' . rawurlencode($monthStart->modify('-1 month')->format('Y-m')));
-$nextMonthUrl = admin_url('anagrafica.php?month=' . rawurlencode($monthStart->modify('+1 month')->format('Y-m')));
+$prevMonthStart = $monthStart->modify('-1 month');
+$nextMonthStart = $monthStart->modify('+1 month');
+$prevMonthUrl = admin_url('anagrafica.php?month=' . rawurlencode($prevMonthStart->format('Y-m')));
+$nextMonthUrl = admin_url('anagrafica.php?month=' . rawurlencode($nextMonthStart->format('Y-m')));
+$prevMonthEdgeUrl = admin_url('anagrafica.php?month=' . rawurlencode($prevMonthStart->format('Y-m')) . '&day=' . rawurlencode($prevMonthStart->modify('last day of this month')->format('Y-m-d')));
+$nextMonthEdgeUrl = admin_url('anagrafica.php?month=' . rawurlencode($nextMonthStart->format('Y-m')) . '&day=' . rawurlencode($nextMonthStart->format('Y-m-d')));
 $selectedDayState = $dayStates[$selectedDay] ?? ross1000_default_day_state($config, $selectedDay);
 $selectedDayOpen = (int) ($selectedDayState['is_open'] ?? 1) === 1;
 $selectedDayAvailableRooms = (int) ($selectedDayState['available_rooms'] ?? ($selectedDayOpen ? (int) ($config['camere_disponibili'] ?? 0) : 0));
@@ -481,7 +508,7 @@ require_once __DIR__ . '/includes/header.php';
             </div>
         </div>
 
-        <div class="ross-day-carousel" data-day-carousel>
+        <div class="ross-day-carousel" data-day-carousel data-prev-month-url="<?= e($prevMonthEdgeUrl) ?>" data-next-month-url="<?= e($nextMonthEdgeUrl) ?>">
             <button class="ross-day-carousel__nav ross-day-carousel__nav--prev" type="button" data-day-carousel-prev aria-label="Scorri ai giorni precedenti">
                 <span aria-hidden="true">‹</span>
             </button>
@@ -854,7 +881,7 @@ require_once __DIR__ . '/includes/header.php';
                         $flags = (array) ($booking['flags'] ?? []);
                         $payload = (array) ($booking['modal_payload'] ?? []);
                         ?>
-                        <article class="ross-record-row ross-record-row--booking" tabindex="0" data-booking-row>
+                        <article class="ross-record-row ross-record-row--booking" tabindex="0" role="button" aria-label="Apri scheda di <?= e((string) ($booking['customer_name'] ?? ('Prenotazione #' . $bookingId))) ?>" data-booking-row data-booking-modal-trigger data-booking-payload='<?= e(json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>'>
                             <div class="ross-record-row__main">
                                 <strong><?= e((string) ($booking['customer_name'] ?? ('Prenotazione #' . $bookingId))) ?></strong>
                                 <div class="ross-record-row__subline">
@@ -862,6 +889,7 @@ require_once __DIR__ . '/includes/header.php';
                                     <span><?= (int) ($booking['adults'] ?? 0) ?> adulti · <?= (int) ($booking['children_count'] ?? 0) ?> bambini</span>
                                     <span><?= e((string) ($booking['room_type'] ?? '')) ?></span>
                                     <span>Stato <?= e((string) ($booking['status'] ?? '')) ?></span>
+                                    <span class="ross-record-row__cta">Clicca per aprire</span>
                                     <?php if (!empty($booking['sync_issue_message'])): ?><span class="text-warning"><?= e((string) $booking['sync_issue_message']) ?></span><?php endif; ?>
                                 </div>
                             </div>
@@ -1152,7 +1180,36 @@ require_once __DIR__ . '/includes/header.php';
                             <div><span>Schedine da ritentare</span><strong><?= (int) $selectedSchedineCounts['errore'] ?></strong></div>
                             <div><span>Documenti valorizzati</span><strong><?= (int) $alloggiatiDayDocumentCount ?></strong></div>
                         </div>
-                        <p class="muted">Il download contiene le schedine valide del giorno di arrivo selezionato, ordinate per record con il capo famiglia/gruppo prima dei componenti.</p>
+                        <div class="alloggiati-confirm__bundles">
+                            <?php foreach ($selectedSchedineGroups as $bundle): ?>
+                                <?php
+                                $bundlePeople = (array) ($bundle['people'] ?? []);
+                                $bundleReference = anagrafica_alloggiati_bundle_reference_label($bundle);
+                                ?>
+                                <section class="alloggiati-confirm__bundle">
+                                    <div class="alloggiati-confirm__bundle-head">
+                                        <strong><?= e((string) ($bundle['kind_label'] ?? 'Anagrafica')) ?></strong>
+                                        <span><?= e($bundleReference) ?></span>
+                                    </div>
+                                    <div class="alloggiati-confirm__bundle-meta">
+                                        <span>Arrivo <?= e((string) ($bundle['arrival_date_portal'] ?? '')) ?></span>
+                                        <span>Permanenza <?= (int) ($bundle['permanence_days'] ?? 0) ?> gg</span>
+                                        <span><?= count($bundlePeople) ?> <?= count($bundlePeople) === 1 ? 'schedina' : 'schedine' ?></span>
+                                    </div>
+                                    <ul class="alloggiati-confirm__people">
+                                        <?php foreach ($bundlePeople as $person): ?>
+                                            <?php $personPayload = (array) ($person['payload'] ?? []); ?>
+                                            <li>
+                                                <strong><?= e((string) ($person['display_name'] ?? ($personPayload['display_name'] ?? 'Ospite'))) ?></strong>
+                                                <span><?= e((string) ($personPayload['tipo_alloggiato_label'] ?? 'Ospite')) ?></span>
+                                                <span><?= e(anagrafica_alloggiati_person_document_label($person)) ?></span>
+                                            </li>
+                                        <?php endforeach; ?>
+                                    </ul>
+                                </section>
+                            <?php endforeach; ?>
+                        </div>
+                        <p class="muted">Il download contiene le schedine valide del giorno di arrivo selezionato, ordinate per record con il capo famiglia o capogruppo prima dei componenti.</p>
                     </div>
                 </template>
 
@@ -1167,7 +1224,36 @@ require_once __DIR__ . '/includes/header.php';
                             <div><span>Documenti valorizzati</span><strong><?= (int) $alloggiatiDayDocumentCount ?></strong></div>
                             <div><span>WS</span><strong><?= $alloggiatiWsReady ? (!empty($alloggiatiWsConfig['simulate_send_without_ws']) ? 'Simulazione' : 'Live pronto') : 'Da configurare' ?></strong></div>
                         </div>
-                        <p class="muted">Conferma l'invio delle schedine pronte del giorno selezionato, includendo eventuali schedine in errore ma con tracciato ancora valido. Il backend esegue GenerateToken, Authentication_Test, Test e Send, registrando sempre request/response ed errori.</p>
+                        <div class="alloggiati-confirm__bundles">
+                            <?php foreach ($selectedSchedineGroups as $bundle): ?>
+                                <?php
+                                $bundlePeople = (array) ($bundle['people'] ?? []);
+                                $bundleReference = anagrafica_alloggiati_bundle_reference_label($bundle);
+                                ?>
+                                <section class="alloggiati-confirm__bundle">
+                                    <div class="alloggiati-confirm__bundle-head">
+                                        <strong><?= e((string) ($bundle['kind_label'] ?? 'Anagrafica')) ?></strong>
+                                        <span><?= e($bundleReference) ?></span>
+                                    </div>
+                                    <div class="alloggiati-confirm__bundle-meta">
+                                        <span>Arrivo <?= e((string) ($bundle['arrival_date_portal'] ?? '')) ?></span>
+                                        <span>Permanenza <?= (int) ($bundle['permanence_days'] ?? 0) ?> gg</span>
+                                        <span><?= count($bundlePeople) ?> <?= count($bundlePeople) === 1 ? 'schedina' : 'schedine' ?></span>
+                                    </div>
+                                    <ul class="alloggiati-confirm__people">
+                                        <?php foreach ($bundlePeople as $person): ?>
+                                            <?php $personPayload = (array) ($person['payload'] ?? []); ?>
+                                            <li>
+                                                <strong><?= e((string) ($person['display_name'] ?? ($personPayload['display_name'] ?? 'Ospite'))) ?></strong>
+                                                <span><?= e((string) ($personPayload['tipo_alloggiato_label'] ?? 'Ospite')) ?></span>
+                                                <span><?= e(anagrafica_alloggiati_person_document_label($person)) ?></span>
+                                            </li>
+                                        <?php endforeach; ?>
+                                    </ul>
+                                </section>
+                            <?php endforeach; ?>
+                        </div>
+                        <p class="muted">Conferma l'invio delle schedine pronte del giorno selezionato. Il backend esegue GenerateToken, Authentication_Test, Test e Send, registrando sempre request, response ed eventuali errori.</p>
                     </div>
                 </template>
 
@@ -1182,6 +1268,7 @@ require_once __DIR__ . '/includes/header.php';
                         $statusClassMap = ['bozza' => 'ross-badge', 'pronta' => 'ross-badge ross-badge--blue', 'inviata' => 'ross-badge ross-badge--green', 'errore' => 'ross-badge ross-badge--amber', 'mista' => 'ross-badge'];
                         $kindLabel = (string) ($bundle['kind_label'] ?? 'Ospite singolo');
                         $sendLabel = $status === 'errore' ? 'Ritenta invio' : 'Invia anagrafica';
+                        $bundleReference = anagrafica_alloggiati_bundle_reference_label($bundle);
                         ?>
                         <article class="ross-record-row alloggiati-schedina-row alloggiati-record-bundle">
                             <div class="ross-record-row__main">
@@ -1225,11 +1312,29 @@ require_once __DIR__ . '/includes/header.php';
                                     <template id="alloggiatiRecordFile<?= $recordId ?>">
                                         <div class="alloggiati-confirm">
                                             <div class="alloggiati-confirm__grid">
-                                                <div><span>Anagrafica</span><strong><?= e($kindLabel) ?></strong></div>
-                                                <div><span>Riferimento</span><strong><?= e((string) ($bundle['display_name'] ?? ('Record #' . $recordId))) ?></strong></div>
+                                                <div><span>Tipo anagrafica</span><strong><?= e($kindLabel) ?></strong></div>
+                                                <div><span>Riferimento</span><strong><?= e($bundleReference) ?></strong></div>
                                                 <div><span>Arrivo</span><strong><?= e((string) ($bundle['arrival_date_portal'] ?? '')) ?></strong></div>
+                                                <div><span>Permanenza</span><strong><?= (int) ($bundle['permanence_days'] ?? 0) ?> gg</strong></div>
                                                 <div><span>Schedine</span><strong><?= count($people) ?></strong></div>
+                                                <div><span>Documenti</span><strong><?= (int) ($bundle['document_count'] ?? 0) ?>/<?= count($people) ?></strong></div>
                                             </div>
+                                            <section class="alloggiati-confirm__bundle">
+                                                <div class="alloggiati-confirm__bundle-head">
+                                                    <strong><?= e((string) ($bundle['display_name'] ?? ('Record #' . $recordId))) ?></strong>
+                                                    <span><?= e($bundleReference) ?></span>
+                                                </div>
+                                                <ul class="alloggiati-confirm__people">
+                                                    <?php foreach ($people as $person): ?>
+                                                        <?php $personPayload = (array) ($person['payload'] ?? []); ?>
+                                                        <li>
+                                                            <strong><?= e((string) ($person['display_name'] ?? ($personPayload['display_name'] ?? 'Ospite'))) ?></strong>
+                                                            <span><?= e((string) ($personPayload['tipo_alloggiato_label'] ?? 'Ospite')) ?></span>
+                                                            <span><?= e(anagrafica_alloggiati_person_document_label($person)) ?></span>
+                                                        </li>
+                                                    <?php endforeach; ?>
+                                                </ul>
+                                            </section>
                                             <p class="muted">Scaricherai il tracciato completo dell’anagrafica, con ospite principale e componenti collegati nello stesso file.</p>
                                         </div>
                                     </template>
@@ -1248,11 +1353,29 @@ require_once __DIR__ . '/includes/header.php';
                                     <template id="alloggiatiRecordConfirm<?= $recordId ?>">
                                         <div class="alloggiati-confirm">
                                             <div class="alloggiati-confirm__grid">
-                                                <div><span>Anagrafica</span><strong><?= e($kindLabel) ?></strong></div>
-                                                <div><span>Ospite principale</span><strong><?= e((string) ($bundle['display_name'] ?? ('Record #' . $recordId))) ?></strong></div>
+                                                <div><span>Tipo anagrafica</span><strong><?= e($kindLabel) ?></strong></div>
+                                                <div><span>Riferimento</span><strong><?= e($bundleReference) ?></strong></div>
                                                 <div><span>Arrivo</span><strong><?= e((string) ($bundle['arrival_date_portal'] ?? '')) ?></strong></div>
+                                                <div><span>Permanenza</span><strong><?= (int) ($bundle['permanence_days'] ?? 0) ?> gg</strong></div>
                                                 <div><span>Schedine collegate</span><strong><?= count($people) ?></strong></div>
+                                                <div><span>Documenti</span><strong><?= (int) ($bundle['document_count'] ?? 0) ?>/<?= count($people) ?></strong></div>
                                             </div>
+                                            <section class="alloggiati-confirm__bundle">
+                                                <div class="alloggiati-confirm__bundle-head">
+                                                    <strong><?= e((string) ($bundle['display_name'] ?? ('Record #' . $recordId))) ?></strong>
+                                                    <span><?= e($bundleReference) ?></span>
+                                                </div>
+                                                <ul class="alloggiati-confirm__people">
+                                                    <?php foreach ($people as $person): ?>
+                                                        <?php $personPayload = (array) ($person['payload'] ?? []); ?>
+                                                        <li>
+                                                            <strong><?= e((string) ($person['display_name'] ?? ($personPayload['display_name'] ?? 'Ospite'))) ?></strong>
+                                                            <span><?= e((string) ($personPayload['tipo_alloggiato_label'] ?? 'Ospite')) ?></span>
+                                                            <span><?= e(anagrafica_alloggiati_person_document_label($person)) ?></span>
+                                                        </li>
+                                                    <?php endforeach; ?>
+                                                </ul>
+                                            </section>
                                             <p class="muted">L’invio comprende tutta l’anagrafica e tutte le schedine collegate nello stesso flusso verso Alloggiati Web.</p>
                                         </div>
                                     </template>
