@@ -854,7 +854,7 @@ require_once __DIR__ . '/includes/header.php';
                         $flags = (array) ($booking['flags'] ?? []);
                         $payload = (array) ($booking['modal_payload'] ?? []);
                         ?>
-                        <article class="ross-record-row ross-record-row--booking" tabindex="0" data-booking-row>
+                        <article class="ross-record-row ross-record-row--booking" tabindex="0" data-booking-row data-booking-payload='<?= e(json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>' role="button" aria-label="Apri scheda <?= e((string) ($booking['customer_name'] ?? ('Prenotazione #' . $bookingId))) ?>">
                             <div class="ross-record-row__main">
                                 <strong><?= e((string) ($booking['customer_name'] ?? ('Prenotazione #' . $bookingId))) ?></strong>
                                 <div class="ross-record-row__subline">
@@ -1225,10 +1225,25 @@ require_once __DIR__ . '/includes/header.php';
                                     <template id="alloggiatiRecordFile<?= $recordId ?>">
                                         <div class="alloggiati-confirm">
                                             <div class="alloggiati-confirm__grid">
-                                                <div><span>Anagrafica</span><strong><?= e($kindLabel) ?></strong></div>
+                                                <div><span>Tipologia anagrafica</span><strong><?= e($kindLabel) ?></strong></div>
                                                 <div><span>Riferimento</span><strong><?= e((string) ($bundle['display_name'] ?? ('Record #' . $recordId))) ?></strong></div>
                                                 <div><span>Arrivo</span><strong><?= e((string) ($bundle['arrival_date_portal'] ?? '')) ?></strong></div>
-                                                <div><span>Schedine</span><strong><?= count($people) ?></strong></div>
+                                                <div><span>Permanenza</span><strong><?= (int) ($bundle['permanence_days'] ?? 0) ?> gg</strong></div>
+                                            </div>
+                                            <div class="alloggiati-confirm__list-wrap">
+                                                <strong>Ospiti inclusi</strong>
+                                                <ul class="alloggiati-confirm__list">
+                                                    <?php foreach ($people as $person): ?>
+                                                        <?php $personPayload = (array) ($person['payload'] ?? []); ?>
+                                                        <li>
+                                                            <strong><?= e((string) ($person['display_name'] ?? ($personPayload['display_name'] ?? 'Ospite'))) ?></strong>
+                                                            <span class="muted">· <?= e((string) ($personPayload['tipo_alloggiato_label'] ?? 'Ospite')) ?></span>
+                                                            <?php if (!empty($personPayload['document_type_label']) || !empty($personPayload['document_number'])): ?>
+                                                                <span class="muted">· <?= e(trim(((string) ($personPayload['document_type_label'] ?? '')) . ' · ' . ((string) ($personPayload['document_number'] ?? '')), ' ·')) ?></span>
+                                                            <?php endif; ?>
+                                                        </li>
+                                                    <?php endforeach; ?>
+                                                </ul>
                                             </div>
                                             <p class="muted">Scaricherai il tracciato completo dell’anagrafica, con ospite principale e componenti collegati nello stesso file.</p>
                                         </div>
@@ -1248,10 +1263,25 @@ require_once __DIR__ . '/includes/header.php';
                                     <template id="alloggiatiRecordConfirm<?= $recordId ?>">
                                         <div class="alloggiati-confirm">
                                             <div class="alloggiati-confirm__grid">
-                                                <div><span>Anagrafica</span><strong><?= e($kindLabel) ?></strong></div>
+                                                <div><span>Tipologia anagrafica</span><strong><?= e($kindLabel) ?></strong></div>
                                                 <div><span>Ospite principale</span><strong><?= e((string) ($bundle['display_name'] ?? ('Record #' . $recordId))) ?></strong></div>
                                                 <div><span>Arrivo</span><strong><?= e((string) ($bundle['arrival_date_portal'] ?? '')) ?></strong></div>
-                                                <div><span>Schedine collegate</span><strong><?= count($people) ?></strong></div>
+                                                <div><span>Permanenza</span><strong><?= (int) ($bundle['permanence_days'] ?? 0) ?> gg</strong></div>
+                                            </div>
+                                            <div class="alloggiati-confirm__list-wrap">
+                                                <strong>Ospiti inclusi</strong>
+                                                <ul class="alloggiati-confirm__list">
+                                                    <?php foreach ($people as $person): ?>
+                                                        <?php $personPayload = (array) ($person['payload'] ?? []); ?>
+                                                        <li>
+                                                            <strong><?= e((string) ($person['display_name'] ?? ($personPayload['display_name'] ?? 'Ospite'))) ?></strong>
+                                                            <span class="muted">· <?= e((string) ($personPayload['tipo_alloggiato_label'] ?? 'Ospite')) ?></span>
+                                                            <?php if (!empty($personPayload['document_type_label']) || !empty($personPayload['document_number'])): ?>
+                                                                <span class="muted">· <?= e(trim(((string) ($personPayload['document_type_label'] ?? '')) . ' · ' . ((string) ($personPayload['document_number'] ?? '')), ' ·')) ?></span>
+                                                            <?php endif; ?>
+                                                        </li>
+                                                    <?php endforeach; ?>
+                                                </ul>
                                             </div>
                                             <p class="muted">L’invio comprende tutta l’anagrafica e tutte le schedine collegate nello stesso flusso verso Alloggiati Web.</p>
                                         </div>

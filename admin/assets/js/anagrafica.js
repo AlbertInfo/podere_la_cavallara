@@ -101,21 +101,31 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function fillSelectOptions(select, options, placeholder, selectedValue) {
     if (!select) return;
-    var normalizedSelected = String(selectedValue || '').trim();
+    var normalizedSelected = String(selectedValue || select.getAttribute('data-pending-value') || '').trim();
     select.innerHTML = '';
     var firstOption = document.createElement('option');
     firstOption.value = '';
     firstOption.textContent = placeholder || 'Seleziona';
     select.appendChild(firstOption);
+    var matched = false;
     (options || []).forEach(function (item) {
       var option = document.createElement('option');
       option.value = String(item.code || '');
       option.textContent = String(item.label || item.description || item.code || '');
       if (normalizedSelected !== '' && option.value === normalizedSelected) {
         option.selected = true;
+        matched = true;
       }
       select.appendChild(option);
     });
+    if (matched) {
+      select.value = normalizedSelected;
+      select.removeAttribute('data-pending-value');
+    } else if (normalizedSelected !== '') {
+      select.setAttribute('data-pending-value', normalizedSelected);
+    } else {
+      select.removeAttribute('data-pending-value');
+    }
   }
 
   function syncResidenceCanonical(card) {
@@ -145,7 +155,7 @@ document.addEventListener('DOMContentLoaded', function () {
       if (birthState && birthProvince && birthPlace) {
         var birthIsItaly = birthState.value === '100000100';
         var birthCode = resolveProvinceCode(birthProvince.value);
-        var selectedBirth = String(birthPlace.value || '').trim();
+        var selectedBirth = String(birthPlace.value || birthPlace.getAttribute('data-pending-value') || '').trim();
         birthProvince.disabled = !birthIsItaly;
         birthPlace.disabled = !birthIsItaly;
         birthProvince.required = birthIsItaly;
@@ -203,7 +213,6 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!label) return;
 
     if (field.disabled || field.type === 'hidden' || field.hidden) {
-      label.classList.remove('is-valid');
       return;
     }
 
@@ -1094,7 +1103,15 @@ function initMonthRangeConfigurator() {
         if (!key) return;
         var value = guest[key];
         if (field.tagName === 'SELECT') {
-          field.value = value == null ? '' : String(value);
+          var stringValue = value == null ? '' : String(value);
+          field.value = stringValue;
+          if ((field.getAttribute('data-place-role') || '') === 'birth' || (field.getAttribute('data-place-role') || '') === 'residence-select') {
+            if (stringValue !== '') {
+              field.setAttribute('data-pending-value', stringValue);
+            } else {
+              field.removeAttribute('data-pending-value');
+            }
+          }
         } else if ((field.getAttribute('data-date-role') || '') !== '') {
           if (field._flatpickr && value) {
             try { field._flatpickr.setDate(String(value), true, 'Y-m-d'); } catch (err) { field.value = value || ''; }
@@ -1243,16 +1260,33 @@ function initMonthRangeConfigurator() {
       setModalState(true);
     }
 
+    function openPayloadFromNode(node) {
+      var raw = node ? node.getAttribute('data-booking-payload') : '';
+      if (!raw) return;
+      try {
+        loadPayload(JSON.parse(raw));
+      } catch (err) {
+        console.error('Booking modal payload parse failed', err);
+      }
+    }
+
     triggers.forEach(function (button) {
       button.addEventListener('click', function (event) {
         event.preventDefault();
-        var raw = button.getAttribute('data-booking-payload');
-        if (!raw) return;
-        try {
-          loadPayload(JSON.parse(raw));
-        } catch (err) {
-          console.error('Booking modal payload parse failed', err);
-        }
+        openPayloadFromNode(button);
+      });
+    });
+
+    $all('[data-booking-row]').forEach(function (row) {
+      row.addEventListener('click', function (event) {
+        if (event.target.closest('[data-row-ignore], button, a, form, input, select, textarea, label')) return;
+        openPayloadFromNode(row);
+      });
+      row.addEventListener('keydown', function (event) {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        if (event.target.closest('[data-row-ignore], button, a, form, input, select, textarea, label')) return;
+        event.preventDefault();
+        openPayloadFromNode(row);
       });
     });
 
