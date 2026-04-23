@@ -386,6 +386,323 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  function formatOcrDateForDisplay(value) {
+    if (!value) return '';
+    var raw = String(value || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+    return raw.slice(8, 10) + '/' + raw.slice(5, 7) + '/' + raw.slice(0, 4);
+  }
+
+  function cardGuestTitle(card) {
+    if (!card) return 'ospite selezionato';
+    var firstName = $('[data-name="first_name"]', card);
+    var lastName = $('[data-name="last_name"]', card);
+    var role = $('[data-guest-role-label]', card);
+    var number = $('[data-guest-number]', card);
+    var name = [firstName && firstName.value ? firstName.value.trim() : '', lastName && lastName.value ? lastName.value.trim() : '']
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+    if (name) return name;
+    if (role && number && number.textContent) {
+      return (role.textContent || 'Ospite').trim() + ' ' + number.textContent.trim();
+    }
+    if (role && role.textContent) return role.textContent.trim();
+    return 'ospite selezionato';
+  }
+
+  function setCardOcrFeedback(card, message, variant) {
+    if (!card) return;
+    var box = $('[data-document-ocr-status]', card);
+    if (!box) return;
+    if (!message) {
+      box.hidden = true;
+      box.className = 'anagrafica-ocr-feedback';
+      box.textContent = '';
+      return;
+    }
+    box.hidden = false;
+    box.className = 'anagrafica-ocr-feedback is-' + (variant || 'info');
+    box.textContent = message;
+  }
+
+  function applyGuestPayloadToCard(card, payload) {
+    payload = payload || {};
+    if (!card) return;
+
+    $all('[data-name]', card).forEach(function (field) {
+      var key = field.getAttribute('data-name');
+      if (!key) return;
+      var value = payload[key];
+      if (value == null || String(value).trim() === '') return;
+
+      var placeRole = field.getAttribute('data-place-role') || '';
+      if (placeRole === 'residence-select' || placeRole === 'residence-text' || placeRole === 'birth') {
+        return;
+      }
+
+      if ((field.getAttribute('data-date-role') || '') !== '') {
+        if (field._flatpickr) {
+          try {
+            field._flatpickr.setDate(String(value), true, 'Y-m-d');
+          } catch (err) {
+            field.value = formatOcrDateForDisplay(value);
+          }
+        } else {
+          field.value = formatOcrDateForDisplay(value);
+        }
+        return;
+      }
+
+      if (field.tagName === 'SELECT') {
+        field.value = String(value);
+      } else {
+        field.value = String(value);
+      }
+    });
+
+    updateProvinceFilteredPlaces(card);
+
+    var birthPlace = $('[data-place-role="birth"]', card);
+    var birthValue = payload.birth_city_code || payload.birth_place_code || payload.birth_place_label || '';
+    if (birthPlace && String(birthValue || '').trim() !== '') {
+      birthPlace.value = String(birthValue);
+    }
+
+    var residenceState = $('[data-state-role="residence"]', card);
+    var residenceSelect = $('[data-place-role="residence-select"]', card);
+    var residenceText = $('[data-place-role="residence-text"]', card);
+    var residenceValue = payload.residence_place_code || payload.residence_place_label || payload.residence_place || '';
+    if (residenceState && residenceState.value === '100000100') {
+      if (residenceSelect && String(residenceValue || '').trim() !== '') {
+        residenceSelect.value = String(residenceValue);
+      }
+    } else if (residenceText && String(residenceValue || '').trim() !== '') {
+      residenceText.value = String(residenceValue);
+    }
+
+    updateProvinceFilteredPlaces(card);
+    refreshFieldVisualStates(card);
+  }
+
+  function initDocumentOcr() {
+    var config = parseJsonScript('documentOcrConfig', null);
+    if (!config || !config.enabled) return;
+
+    var modal = document.getElementById('documentOcrModal');
+    var form = document.getElementById('documentOcrForm');
+    if (!modal || !form) return;
+
+    var frontInput = document.getElementById('documentOcrFront');
+    var backInput = document.getElementById('documentOcrBack');
+    var frontName = $('[data-document-ocr-front-name]', modal);
+    var backName = $('[data-document-ocr-back-name]', modal);
+    var statusPanel = $('[data-document-ocr-status-panel]', modal);
+    var resultPanel = $('[data-document-ocr-result]', modal);
+    var summaryPanel = $('[data-document-ocr-summary]', modal);
+    var warningsPanel = $('[data-document-ocr-warnings]', modal);
+    var submitButton = $('[data-document-ocr-submit]', modal);
+    var applyButton = $('[data-document-ocr-apply]', modal);
+    var targetTitle = $('[data-document-ocr-target-title]', modal);
+    var targetSubtitle = $('[data-document-ocr-target-subtitle]', modal);
+    var hiddenTargetForm = $('[name="target_form_id"]', form);
+    var hiddenTargetGuest = $('[name="target_guest_index"]', form);
+    var activeCard = null;
+    var activePayload = null;
+
+    function updateFilename(input, node, emptyText) {
+      if (!node) return;
+      if (!input || !input.files || !input.files.length) {
+        node.textContent = emptyText;
+        return;
+      }
+      node.textContent = input.files[0].name;
+    }
+
+    function showStatus(message, variant) {
+      if (!statusPanel) return;
+      if (!message) {
+        statusPanel.hidden = true;
+        statusPanel.className = 'document-ocr-status';
+        statusPanel.textContent = '';
+        return;
+      }
+      statusPanel.hidden = false;
+      statusPanel.className = 'document-ocr-status is-' + (variant || 'info');
+      statusPanel.textContent = message;
+    }
+
+    function resetModal() {
+      form.reset();
+      updateFilename(frontInput, frontName, 'Nessun file selezionato');
+      updateFilename(backInput, backName, 'Nessun file selezionato');
+      showStatus('', 'info');
+      if (resultPanel) resultPanel.hidden = true;
+      if (summaryPanel) summaryPanel.innerHTML = '';
+      if (warningsPanel) {
+        warningsPanel.hidden = true;
+        warningsPanel.innerHTML = '';
+      }
+      if (applyButton) applyButton.hidden = true;
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.textContent = 'Analizza documento';
+      }
+      activePayload = null;
+      activeCard = null;
+    }
+
+    function closeModal() {
+      modal.hidden = true;
+      modal.classList.remove('is-open');
+      document.body.classList.remove('is-modal-open');
+      resetModal();
+    }
+
+    function openModalForCard(card) {
+      activeCard = card;
+      activePayload = null;
+      updateFilename(frontInput, frontName, 'Nessun file selezionato');
+      updateFilename(backInput, backName, 'Nessun file selezionato');
+      if (hiddenTargetForm) hiddenTargetForm.value = (card.closest('form') || {}).id || '';
+      if (hiddenTargetGuest) hiddenTargetGuest.value = card.getAttribute('data-guest-index') || '0';
+      if (targetTitle) targetTitle.textContent = 'Scansione documento · ' + cardGuestTitle(card);
+      if (targetSubtitle) targetSubtitle.textContent = 'Il JSON OCR verrà applicato solo alla card selezionata.';
+      showStatus('', 'info');
+      if (resultPanel) resultPanel.hidden = true;
+      if (applyButton) applyButton.hidden = true;
+      modal.hidden = false;
+      modal.classList.add('is-open');
+      document.body.classList.add('is-modal-open');
+    }
+
+    function renderSummary(result) {
+      if (!summaryPanel || !resultPanel) return;
+      var display = result.display_payload || {};
+      var rows = Object.keys(display).map(function (label) {
+        return '<div><span>' + label + '</span><strong>' + String(display[label]) + '</strong></div>';
+      });
+      if (!rows.length) {
+        rows.push('<div><span>Esito</span><strong>Nessun campo riconosciuto con sicurezza</strong></div>');
+      }
+      summaryPanel.innerHTML = rows.join('');
+      resultPanel.hidden = false;
+
+      var warnings = Array.isArray(result.warnings) ? result.warnings.filter(Boolean) : [];
+      if (warningsPanel) {
+        if (warnings.length) {
+          warningsPanel.hidden = false;
+          warningsPanel.innerHTML = '<strong>Controlli consigliati</strong><ul>' + warnings.map(function (msg) {
+            return '<li>' + String(msg) + '</li>';
+          }).join('') + '</ul>';
+        } else {
+          warningsPanel.hidden = true;
+          warningsPanel.innerHTML = '';
+        }
+      }
+    }
+
+    frontInput.addEventListener('change', function () {
+      updateFilename(frontInput, frontName, 'Nessun file selezionato');
+    });
+    backInput.addEventListener('change', function () {
+      updateFilename(backInput, backName, 'Nessun file selezionato');
+    });
+
+    document.addEventListener('click', function (event) {
+      var trigger = event.target.closest('[data-document-ocr-trigger]');
+      if (trigger) {
+        if (trigger.disabled || trigger.classList.contains('is-disabled')) return;
+        event.preventDefault();
+        var card = trigger.closest('[data-guest-scope]');
+        if (!card) return;
+        openModalForCard(card);
+        return;
+      }
+
+      var closeTrigger = event.target.closest('[data-document-ocr-close]');
+      if (closeTrigger) {
+        event.preventDefault();
+        closeModal();
+        return;
+      }
+    });
+
+    modal.addEventListener('click', function (event) {
+      if (event.target === modal || event.target.classList.contains('anagrafica-modal__backdrop')) {
+        closeModal();
+      }
+    });
+
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && !modal.hidden) {
+        closeModal();
+      }
+    });
+
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+      if (!activeCard) return;
+      if (!frontInput.files || !frontInput.files.length) {
+        showStatus('Carica il fronte del documento prima di avviare l\'OCR.', 'error');
+        return;
+      }
+
+      if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.textContent = 'Analisi in corso…';
+      }
+      if (applyButton) applyButton.hidden = true;
+      showStatus('Invio immagini al processore OCR e costruzione del JSON in corso…', 'loading');
+
+      var formData = new FormData(form);
+      fetch(config.processUrl, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      })
+        .then(function (response) {
+          return response.json().catch(function () {
+            return { success: false, message: 'Risposta OCR non valida.' };
+          }).then(function (data) {
+            data._httpStatus = response.status;
+            return data;
+          });
+        })
+        .then(function (data) {
+          if (!data || !data.success) {
+            throw new Error((data && data.message) ? data.message : 'Analisi OCR non riuscita.');
+          }
+          activePayload = data.result || {};
+          renderSummary(activePayload);
+          showStatus(data.message || 'Documento analizzato correttamente.', 'success');
+          if (applyButton) applyButton.hidden = false;
+        })
+        .catch(function (error) {
+          activePayload = null;
+          showStatus(error && error.message ? error.message : 'Analisi OCR non riuscita.', 'error');
+        })
+        .finally(function () {
+          if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.textContent = 'Analizza documento';
+          }
+        });
+    });
+
+    if (applyButton) {
+      applyButton.addEventListener('click', function () {
+        if (!activeCard || !activePayload || !activePayload.form_payload) return;
+        applyGuestPayloadToCard(activeCard, activePayload.form_payload);
+        setCardOcrFeedback(activeCard, 'Dati OCR applicati. Controlla i campi evidenziati prima del salvataggio.', 'success');
+        closeModal();
+      });
+    }
+  }
+
   function initFormPanel() {
     var formCard = document.getElementById('anagraficaFormCard');
     var form = document.getElementById('anagraficaForm');
@@ -1385,6 +1702,7 @@ function initMonthRangeConfigurator() {
   try { initCarousel(); } catch (err) { console.error('Carousel init failed', err); }
   try { initAlloggiatiModal(); } catch (err) { console.error('Alloggiati modal init failed', err); }
   try { initBookingSyncModal(); } catch (err) { console.error('Booking sync modal init failed', err); }
+  try { initDocumentOcr(); } catch (err) { console.error('Document OCR init failed', err); }
   try { triggerPendingDownload(); } catch (err) { console.error('Pending download init failed', err); }
 });
 

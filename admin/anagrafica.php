@@ -11,6 +11,8 @@ require_once __DIR__ . '/includes/alloggiati.php';
 require_once __DIR__ . '/includes/ross1000-ws.php';
 require_once __DIR__ . '/includes/alloggiati-ws.php';
 require_once __DIR__ . '/includes/prenotazioni-anagrafica-sync.php';
+$documentOcrConfig = require __DIR__ . '/includes/document-ocr-config.php';
+$documentOcrReady = !empty($documentOcrConfig['enabled']) && trim((string) ($documentOcrConfig['endpoint'] ?? '')) !== '';
 require_admin();
 
 $pageTitle = 'Sezione anagrafica';
@@ -936,7 +938,7 @@ require_once __DIR__ . '/includes/header.php';
                                     <span><?= (int) ($booking['adults'] ?? 0) ?> adulti · <?= (int) ($booking['children_count'] ?? 0) ?> bambini</span>
                                     <span><?= e((string) ($booking['room_type'] ?? '')) ?></span>
                                     <span>Stato <?= e((string) ($booking['status'] ?? '')) ?></span>
-                                    
+                                    <!-- <span class="ross-record-row__cta">Clicca per aprire</span> -->
                                 </div>
                                 <?php if ($rowAlertMessage !== ''): ?>
                                     <p class="ross-record-row__alert"><?= e($rowAlertMessage) ?></p>
@@ -1151,7 +1153,8 @@ require_once __DIR__ . '/includes/header.php';
                     </div>
                 </section>
                 <section class="anagrafica-subsection" data-step-section="document">
-                    <div class="anagrafica-subsection__header"><div><h4>Documento e dettaglio soggiorno</h4><p class="muted">Documento sempre raccolto anche per familiari e membri gruppo.</p></div></div>
+                    <div class="anagrafica-subsection__header"><div><h4>Documento e dettaglio soggiorno</h4><p class="muted">Documento sempre raccolto anche per familiari e membri gruppo.</p></div><div class="anagrafica-subsection__actions"><button class="btn btn-light btn-sm anagrafica-ocr-trigger<?= $documentOcrReady ? '' : ' is-disabled' ?>" type="button" data-document-ocr-trigger<?= $documentOcrReady ? '' : ' disabled' ?>>Scansiona documento OCR</button></div></div>
+                    <div class="anagrafica-ocr-feedback" data-document-ocr-status hidden></div>
                     <div class="anagrafica-grid">
                         <label class="anagrafica-field anagrafica-field--readonly"><span>Tipologia alloggiato</span><input type="text" data-alloggiati-type-display readonly></label>
                         <label class="anagrafica-field"><span>Tipo documento</span><select data-name="document_type_label" required data-auto-advance="1"><option value="">Seleziona</option><?php foreach ($documentTypes as $docCode => $docLabel): ?><option value="<?= e($docLabel) ?>"><?= e($docLabel) ?></option><?php endforeach; ?></select></label>
@@ -1608,7 +1611,8 @@ require_once __DIR__ . '/includes/header.php';
                     </div>
                 </section>
                 <section class="anagrafica-subsection" data-step-section="document">
-                    <div class="anagrafica-subsection__header"><div><h4>Documento e dettaglio soggiorno</h4><p class="muted">Documento sempre raccolto anche per familiari e membri gruppo.</p></div></div>
+                    <div class="anagrafica-subsection__header"><div><h4>Documento e dettaglio soggiorno</h4><p class="muted">Documento sempre raccolto anche per familiari e membri gruppo.</p></div><div class="anagrafica-subsection__actions"><button class="btn btn-light btn-sm anagrafica-ocr-trigger<?= $documentOcrReady ? '' : ' is-disabled' ?>" type="button" data-document-ocr-trigger<?= $documentOcrReady ? '' : ' disabled' ?>>Scansiona documento OCR</button></div></div>
+                    <div class="anagrafica-ocr-feedback" data-document-ocr-status hidden></div>
                     <div class="anagrafica-grid">
                         <label class="anagrafica-field anagrafica-field--readonly"><span>Tipologia alloggiato</span><input type="text" data-alloggiati-type-display readonly></label>
                         <label class="anagrafica-field"><span>Tipo documento</span><select data-name="document_type_label" required data-auto-advance="1"><option value="">Seleziona</option><?php foreach ($documentTypes as $docCode => $docLabel): ?><option value="<?= e($docLabel) ?>"><?= e($docLabel) ?></option><?php endforeach; ?></select></label>
@@ -1629,6 +1633,65 @@ require_once __DIR__ . '/includes/header.php';
     </section>
 </div>
 
+<div class="anagrafica-modal anagrafica-modal--ocr" id="documentOcrModal" hidden>
+    <div class="anagrafica-modal__backdrop" data-document-ocr-close></div>
+    <div class="anagrafica-modal__dialog document-ocr-modal" role="dialog" aria-modal="true" aria-labelledby="documentOcrModalTitle">
+        <form id="documentOcrForm" class="document-ocr-form" novalidate>
+            <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+            <input type="hidden" name="target_form_id" value="">
+            <input type="hidden" name="target_guest_index" value="">
+            <div class="anagrafica-modal__header">
+                <div>
+                    <span class="eyebrow">Document OCR · Google Cloud AI</span>
+                    <h3 id="documentOcrModalTitle">Carica fronte e retro del documento</h3>
+                    <p class="muted">L'OCR estrae i dati dal documento e prepara un JSON già compatibile con il form dell'anagrafica. Verifica sempre il riepilogo prima di applicarlo.</p>
+                </div>
+                <button class="btn btn-light btn-sm" type="button" data-document-ocr-close>Chiudi</button>
+            </div>
+            <div class="anagrafica-modal__body">
+                <div class="document-ocr-target">
+                    <strong data-document-ocr-target-title>Ospite selezionato</strong>
+                    <span class="muted" data-document-ocr-target-subtitle>Il risultato verrà applicato solo alla card corrente.</span>
+                </div>
+
+                <div class="document-ocr-grid">
+                    <label class="document-ocr-upload" for="documentOcrFront">
+                        <span class="document-ocr-upload__eyebrow">Obbligatorio</span>
+                        <strong>Fronte documento</strong>
+                        <small>JPG, PNG, WEBP o PDF</small>
+                        <span class="document-ocr-upload__filename" data-document-ocr-front-name>Nessun file selezionato</span>
+                    </label>
+                    <input id="documentOcrFront" name="document_front" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" required hidden>
+
+                    <label class="document-ocr-upload" for="documentOcrBack">
+                        <span class="document-ocr-upload__eyebrow">Opzionale ma consigliato</span>
+                        <strong>Retro documento</strong>
+                        <small>Utile per residenza, rilascio e dati aggiuntivi</small>
+                        <span class="document-ocr-upload__filename" data-document-ocr-back-name>Nessun file selezionato</span>
+                    </label>
+                    <input id="documentOcrBack" name="document_back" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" hidden>
+                </div>
+
+                <div class="document-ocr-status" data-document-ocr-status-panel hidden></div>
+
+                <div class="document-ocr-result" data-document-ocr-result hidden>
+                    <div class="document-ocr-result__head">
+                        <h4>Riepilogo dati estratti</h4>
+                        <p class="muted">Questi valori verranno inseriti nella card selezionata. I campi già valorizzati non saranno svuotati se l'OCR non li riconosce.</p>
+                    </div>
+                    <div class="document-ocr-result__summary" data-document-ocr-summary></div>
+                    <div class="document-ocr-result__warnings" data-document-ocr-warnings hidden></div>
+                </div>
+            </div>
+            <div class="anagrafica-modal__actions">
+                <button class="btn btn-light" type="button" data-document-ocr-close>Annulla</button>
+                <button class="btn btn-light" type="submit" data-document-ocr-submit>Analizza documento</button>
+                <button class="btn btn-primary" type="button" data-document-ocr-apply hidden>Applica dati al form</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <datalist id="state-options"><?php foreach ($stateOptions as $code => $label): ?><option value="<?= e($label) ?>"><?php endforeach; ?></datalist>
 <datalist id="province-options"><?php foreach ($province as $code => $provinceName): ?><option value="<?= e($provinceName) ?>"><?php endforeach; ?></datalist>
 <datalist id="city-options"><?php foreach ($cityOptions as $city): ?><option value="<?= e($city) ?>"><?php endforeach; ?></datalist>
@@ -1638,4 +1701,9 @@ require_once __DIR__ . '/includes/header.php';
 <script type="application/json" id="anagraficaProvinceMap"><?= json_encode($provinceNameToCode, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?></script>
 <script type="application/json" id="anagraficaComuniByProvince"><?= json_encode($comuniByProvince, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?></script>
 <script type="application/json" id="anagraficaComuniByProvinceOptions"><?= json_encode($comuniOptionsByProvince, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?></script>
+<script type="application/json" id="documentOcrConfig"><?= json_encode([
+    'enabled' => $documentOcrReady,
+    'processUrl' => admin_url('actions/process-document-ocr.php'),
+    'maxFileSize' => (int) ($documentOcrConfig['max_file_size_bytes'] ?? 0),
+], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?></script>
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
