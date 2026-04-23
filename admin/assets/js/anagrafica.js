@@ -487,7 +487,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function initDocumentOcr() {
     var config = parseJsonScript('documentOcrConfig', null);
-    if (!config || !config.enabled) return;
+    if (!config) return;
 
     var modal = document.getElementById('documentOcrModal');
     var form = document.getElementById('documentOcrForm');
@@ -506,6 +506,14 @@ document.addEventListener('DOMContentLoaded', function () {
     var targetTitle = $('[data-document-ocr-target-title]', modal);
     var targetSubtitle = $('[data-document-ocr-target-subtitle]', modal);
     var hiddenTargetForm = $('[name="target_form_id"]', form);
+    var configMessage = '';
+    if (!config.enabled) {
+      configMessage = 'OCR documento non attivo nel pannello di configurazione.';
+    } else if (!config.hasEndpoint) {
+      configMessage = 'Endpoint Google Document AI non configurato.';
+    } else if (!config.hasCredentials) {
+      configMessage = 'Credenziali Google Document AI mancanti o non configurate.';
+    }
     var hiddenTargetGuest = $('[name="target_guest_index"]', form);
     var activeCard = null;
     var activePayload = null;
@@ -545,8 +553,8 @@ document.addEventListener('DOMContentLoaded', function () {
       }
       if (applyButton) applyButton.hidden = true;
       if (submitButton) {
-        submitButton.disabled = false;
-        submitButton.textContent = 'Analizza documento';
+        submitButton.disabled = !config.ready;
+        submitButton.textContent = config.ready ? 'Analizza documento' : 'Configurazione OCR incompleta';
       }
       activePayload = null;
       activeCard = null;
@@ -568,9 +576,13 @@ document.addEventListener('DOMContentLoaded', function () {
       if (hiddenTargetGuest) hiddenTargetGuest.value = card.getAttribute('data-guest-index') || '0';
       if (targetTitle) targetTitle.textContent = 'Scansione documento · ' + cardGuestTitle(card);
       if (targetSubtitle) targetSubtitle.textContent = 'Il JSON OCR verrà applicato solo alla card selezionata.';
-      showStatus('', 'info');
+      showStatus(configMessage, config.ready ? 'info' : 'error');
       if (resultPanel) resultPanel.hidden = true;
       if (applyButton) applyButton.hidden = true;
+      if (submitButton) {
+        submitButton.disabled = !config.ready;
+        submitButton.textContent = config.ready ? 'Analizza documento' : 'Configurazione OCR incompleta';
+      }
       modal.hidden = false;
       modal.classList.add('is-open');
       document.body.classList.add('is-modal-open');
@@ -643,6 +655,10 @@ document.addEventListener('DOMContentLoaded', function () {
     form.addEventListener('submit', function (event) {
       event.preventDefault();
       if (!activeCard) return;
+      if (!config.ready) {
+        showStatus(configMessage || 'Configurazione OCR incompleta.', 'error');
+        return;
+      }
       if (!frontInput.files || !frontInput.files.length) {
         showStatus('Carica il fronte del documento prima di avviare l\'OCR.', 'error');
         return;

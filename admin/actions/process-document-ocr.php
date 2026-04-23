@@ -150,6 +150,19 @@ if ($credentialsPath !== '' && !preg_match('/^(\/|[A-Za-z]:\\)/', $credentialsPa
     }
 }
 
+if ($credentialsPath === '' && trim((string) ($config['bearer_token'] ?? '')) === '') {
+    ocr_fail('Credenziali OCR mancanti: configura il percorso del service account JSON o un bearer token valido.', 500);
+}
+
+if ($credentialsPath !== '') {
+    if (!file_exists($credentialsPath)) {
+        ocr_fail('Il file credenziali OCR non esiste nel percorso configurato.', 500);
+    }
+    if (!is_readable($credentialsPath)) {
+        ocr_fail('Il file credenziali OCR non è leggibile dal server.', 500);
+    }
+}
+
 $runtimeConfig = [
     'endpoint' => (string) ($config['endpoint'] ?? ''),
     'credentials_path' => $credentialsPath,

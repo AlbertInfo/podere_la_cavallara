@@ -1922,3 +1922,14 @@ body.is-modal-open {
     align-items: flex-start;
   }
 }
+
+
+.anagrafica-ocr-inline-note {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(208, 162, 59, 0.28);
+  background: rgba(255, 243, 205, 0.72);
+  color: #6f5500;
+  border-radius: 12px;
+  font-size: 0.9rem;
+}

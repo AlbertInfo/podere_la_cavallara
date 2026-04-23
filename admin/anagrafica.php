@@ -12,7 +12,13 @@ require_once __DIR__ . '/includes/ross1000-ws.php';
 require_once __DIR__ . '/includes/alloggiati-ws.php';
 require_once __DIR__ . '/includes/prenotazioni-anagrafica-sync.php';
 $documentOcrConfig = require __DIR__ . '/includes/document-ocr-config.php';
-$documentOcrReady = !empty($documentOcrConfig['enabled']) && trim((string) ($documentOcrConfig['endpoint'] ?? '')) !== '';
+$documentOcrEnabled = array_key_exists('enabled', $documentOcrConfig) ? !empty($documentOcrConfig['enabled']) : true;
+$documentOcrHasEndpoint = trim((string) ($documentOcrConfig['endpoint'] ?? '')) !== '';
+$documentOcrCredentialsPath = trim((string) ($documentOcrConfig['credentials_path'] ?? ''));
+$documentOcrHasBearerToken = trim((string) ($documentOcrConfig['bearer_token'] ?? '')) !== '';
+$documentOcrHasCredentials = $documentOcrHasBearerToken || $documentOcrCredentialsPath !== '';
+$documentOcrReady = $documentOcrEnabled && $documentOcrHasEndpoint;
+$documentOcrServerReady = $documentOcrReady && $documentOcrHasCredentials;
 require_admin();
 
 $pageTitle = 'Sezione anagrafica';
@@ -1153,7 +1159,10 @@ require_once __DIR__ . '/includes/header.php';
                     </div>
                 </section>
                 <section class="anagrafica-subsection" data-step-section="document">
-                    <div class="anagrafica-subsection__header"><div><h4>Documento e dettaglio soggiorno</h4><p class="muted">Documento sempre raccolto anche per familiari e membri gruppo.</p></div><div class="anagrafica-subsection__actions"><button class="btn btn-light btn-sm anagrafica-ocr-trigger<?= $documentOcrReady ? '' : ' is-disabled' ?>" type="button" data-document-ocr-trigger<?= $documentOcrReady ? '' : ' disabled' ?>>Scansiona documento OCR</button></div></div>
+                    <div class="anagrafica-subsection__header"><div><h4>Documento e dettaglio soggiorno</h4><p class="muted">Documento sempre raccolto anche per familiari e membri gruppo.</p></div><div class="anagrafica-subsection__actions"><button class="btn btn-light btn-sm anagrafica-ocr-trigger<?= $documentOcrEnabled ? '' : ' is-disabled' ?>" type="button" data-document-ocr-trigger<?= $documentOcrEnabled ? '' : ' disabled' ?> data-ocr-ready="<?= $documentOcrServerReady ? '1' : '0' ?>">Scansiona documento OCR</button></div></div>
+                    <?php if ($documentOcrEnabled && !$documentOcrServerReady): ?>
+                        <div class="anagrafica-ocr-inline-note">OCR configurato parzialmente: completa endpoint e credenziali per attivare l'analisi del documento.</div>
+                    <?php endif; ?>
                     <div class="anagrafica-ocr-feedback" data-document-ocr-status hidden></div>
                     <div class="anagrafica-grid">
                         <label class="anagrafica-field anagrafica-field--readonly"><span>Tipologia alloggiato</span><input type="text" data-alloggiati-type-display readonly></label>
@@ -1611,7 +1620,10 @@ require_once __DIR__ . '/includes/header.php';
                     </div>
                 </section>
                 <section class="anagrafica-subsection" data-step-section="document">
-                    <div class="anagrafica-subsection__header"><div><h4>Documento e dettaglio soggiorno</h4><p class="muted">Documento sempre raccolto anche per familiari e membri gruppo.</p></div><div class="anagrafica-subsection__actions"><button class="btn btn-light btn-sm anagrafica-ocr-trigger<?= $documentOcrReady ? '' : ' is-disabled' ?>" type="button" data-document-ocr-trigger<?= $documentOcrReady ? '' : ' disabled' ?>>Scansiona documento OCR</button></div></div>
+                    <div class="anagrafica-subsection__header"><div><h4>Documento e dettaglio soggiorno</h4><p class="muted">Documento sempre raccolto anche per familiari e membri gruppo.</p></div><div class="anagrafica-subsection__actions"><button class="btn btn-light btn-sm anagrafica-ocr-trigger<?= $documentOcrEnabled ? '' : ' is-disabled' ?>" type="button" data-document-ocr-trigger<?= $documentOcrEnabled ? '' : ' disabled' ?> data-ocr-ready="<?= $documentOcrServerReady ? '1' : '0' ?>">Scansiona documento OCR</button></div></div>
+                    <?php if ($documentOcrEnabled && !$documentOcrServerReady): ?>
+                        <div class="anagrafica-ocr-inline-note">OCR configurato parzialmente: completa endpoint e credenziali per attivare l'analisi del documento.</div>
+                    <?php endif; ?>
                     <div class="anagrafica-ocr-feedback" data-document-ocr-status hidden></div>
                     <div class="anagrafica-grid">
                         <label class="anagrafica-field anagrafica-field--readonly"><span>Tipologia alloggiato</span><input type="text" data-alloggiati-type-display readonly></label>
@@ -1702,7 +1714,10 @@ require_once __DIR__ . '/includes/header.php';
 <script type="application/json" id="anagraficaComuniByProvince"><?= json_encode($comuniByProvince, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?></script>
 <script type="application/json" id="anagraficaComuniByProvinceOptions"><?= json_encode($comuniOptionsByProvince, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?></script>
 <script type="application/json" id="documentOcrConfig"><?= json_encode([
-    'enabled' => $documentOcrReady,
+    'enabled' => $documentOcrEnabled,
+    'ready' => $documentOcrServerReady,
+    'hasEndpoint' => $documentOcrHasEndpoint,
+    'hasCredentials' => $documentOcrHasCredentials,
     'processUrl' => admin_url('actions/process-document-ocr.php'),
     'maxFileSize' => (int) ($documentOcrConfig['max_file_size_bytes'] ?? 0),
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?></script>
