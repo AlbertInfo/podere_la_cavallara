@@ -114,6 +114,9 @@ $days = [];
 $selectedSnapshot = null;
 $selectedRecords = [];
 $selectedBookings = [];
+$selectedBookingsRossIncluded = 0;
+$selectedBookingsRossPending = 0;
+$selectedBookingsRossAlerts = [];
 $bookingModalState = $_SESSION['_anagrafica_booking_modal_state'] ?? null;
 unset($_SESSION['_anagrafica_booking_modal_state']);
 $bookingModalErrors = is_array($bookingModalState['field_errors'] ?? null) ? $bookingModalState['field_errors'] : [];
@@ -241,6 +244,23 @@ if ($bookingSyncIssues) {
     }
     unset($selectedBookingRow);
 }
+
+foreach ($selectedBookings as &$selectedBookingRow) {
+    $rowAlertMessage = trim((string) ($selectedBookingRow['ross_issue_message'] ?? ''));
+    if ($rowAlertMessage === '') {
+        $rowAlertMessage = trim((string) ($selectedBookingRow['sync_issue_message'] ?? ''));
+    }
+    $selectedBookingRow['row_alert_message'] = $rowAlertMessage;
+    $selectedBookingRow['ross_export_ready'] = $rowAlertMessage === '';
+    if ($rowAlertMessage === '') {
+        $selectedBookingsRossIncluded++;
+    } else {
+        $selectedBookingsRossPending++;
+        $selectedBookingsRossAlerts[] = $rowAlertMessage;
+    }
+}
+unset($selectedBookingRow);
+$selectedBookingsRossAlerts = array_values(array_unique(array_filter($selectedBookingsRossAlerts)));
 
 try {
     if ($recordTableReady) {
@@ -861,7 +881,11 @@ require_once __DIR__ . '/includes/header.php';
                     <h3>Prenotazioni e anagrafiche che toccano il giorno</h3>
                     <p class="muted">La lista unisce prenotazioni e anagrafiche manuali che hanno check-in, presenza o check-out sul giorno selezionato, mantenendo la sincronizzazione con documenti ed export.</p>
                 </div>
-                <span class="ross-badge ross-badge--blue"><?= count($selectedBookings) ?> elementi</span>
+                <div class="ross-day-records__stats">
+                    <span class="ross-badge ross-badge--blue"><?= count($selectedBookings) ?> record totali</span>
+                    <span class="ross-badge ross-badge--green"><?= $selectedBookingsRossIncluded ?> inclusi in ROSS</span>
+                    <?php if ($selectedBookingsRossPending > 0): ?><span class="ross-badge ross-badge--amber"><?= $selectedBookingsRossPending ?> da completare</span><?php endif; ?>
+                </div>
             </div>
             <?php if (!$prenotazioneLinkReady): ?>
                 <div class="anagrafica-empty-state">
@@ -874,6 +898,12 @@ require_once __DIR__ . '/includes/header.php';
                     <p class="muted">Per il giorno selezionato non risultano check-in, presenze o check-out né prenotazioni né anagrafiche manuali.</p>
                 </div>
             <?php else: ?>
+                <?php if ($selectedBookingsRossPending > 0): ?>
+                    <div class="anagrafica-form-alert anagrafica-form-alert--warning ross-day-records__alert" role="status">
+                        <strong>Attenzione: <?= $selectedBookingsRossPending ?> record incomplet<?= $selectedBookingsRossPending === 1 ? 'o non è' : 'i non sono' ?> inclus<?= $selectedBookingsRossPending === 1 ? 'o' : 'i' ?> nell'export/invio ROSS-1000.</strong>
+                        <p>Completa gli ospiti mancanti nelle righe evidenziate con “Da completare” per includerle in arrivi, presenze e partenze ufficiali.</p>
+                    </div>
+                <?php endif; ?>
                 <div class="ross-record-list">
                     <?php foreach ($selectedBookings as $booking): ?>
                         <?php
@@ -881,7 +911,8 @@ require_once __DIR__ . '/includes/header.php';
                         $flags = (array) ($booking['flags'] ?? []);
                         $payload = (array) ($booking['modal_payload'] ?? []);
                         ?>
-                        <article class="ross-record-row ross-record-row--booking" tabindex="0" role="button" aria-label="Apri scheda di <?= e((string) ($booking['customer_name'] ?? ('Prenotazione #' . $bookingId))) ?>" data-booking-row data-booking-modal-trigger data-booking-payload='<?= e(json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>'>
+                        <?php $rowAlertMessage = trim((string) ($booking['row_alert_message'] ?? '')); ?>
+                        <article class="ross-record-row ross-record-row--booking<?= $rowAlertMessage !== '' ? ' ross-record-row--warning' : '' ?>" tabindex="0" role="button" aria-label="Apri scheda di <?= e((string) ($booking['customer_name'] ?? ('Prenotazione #' . $bookingId))) ?>" data-booking-row data-booking-modal-trigger data-booking-payload='<?= e(json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>'>
                             <div class="ross-record-row__main">
                                 <strong><?= e((string) ($booking['customer_name'] ?? ('Prenotazione #' . $bookingId))) ?></strong>
                                 <div class="ross-record-row__subline">
@@ -889,9 +920,11 @@ require_once __DIR__ . '/includes/header.php';
                                     <span><?= (int) ($booking['adults'] ?? 0) ?> adulti · <?= (int) ($booking['children_count'] ?? 0) ?> bambini</span>
                                     <span><?= e((string) ($booking['room_type'] ?? '')) ?></span>
                                     <span>Stato <?= e((string) ($booking['status'] ?? '')) ?></span>
-                                    <span class="ross-record-row__cta">Clicca per aprire</span>
-                                    <?php if (!empty($booking['sync_issue_message'])): ?><span class="text-warning"><?= e((string) $booking['sync_issue_message']) ?></span><?php endif; ?>
+                                    <!-- <span class="ross-record-row__cta">Clicca per aprire</span> -->
                                 </div>
+                                <?php if ($rowAlertMessage !== ''): ?>
+                                    <p class="ross-record-row__alert"><?= e($rowAlertMessage) ?></p>
+                                <?php endif; ?>
                             </div>
                             <div class="ross-record-row__badges" data-row-ignore>
                                 <?php if (!empty($flags['arrival'])): ?><span class="ross-badge ross-badge--green">Check-in</span><?php endif; ?>
@@ -900,7 +933,7 @@ require_once __DIR__ . '/includes/header.php';
                                 <?php if (($booking['row_source'] ?? '') === 'manual_record'): ?><span class="ross-badge">Anagrafica manuale</span><?php endif; ?>
                                 <?php if (!empty($booking['linked_record_id'])): ?><span class="ross-badge">Scheda collegata</span><?php endif; ?>
                                 <?php if (!empty($booking['document_ready'])): ?><span class="ross-badge ross-badge--green">Documento presente</span><?php endif; ?>
-                                <?php if (!empty($booking['sync_issue_message'])): ?><span class="ross-badge ross-badge--amber">Da completare</span><?php endif; ?>
+                                <?php if ($rowAlertMessage !== ''): ?><span class="ross-badge ross-badge--amber">Non incluso in ROSS-1000</span><?php endif; ?>
                             </div>
                             <div class="ross-record-row__actions" data-row-ignore>
                                 <button class="btn btn-light btn-sm" type="button" data-booking-modal-trigger data-booking-payload='<?= e(json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>'>Apri scheda</button>

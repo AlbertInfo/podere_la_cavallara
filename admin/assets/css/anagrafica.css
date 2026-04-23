@@ -59,6 +59,13 @@
   gap: .9rem;
 }
 
+.ross-day-records__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  justify-content: flex-end;
+}
+
 .card-lite,
 .ross-surface {
   padding: 1.05rem 1.1rem;
@@ -560,6 +567,25 @@
   gap: .55rem;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.ross-day-records__alert {
+  margin-bottom: .9rem;
+}
+
+.ross-record-row--warning {
+  border-color: rgba(245, 158, 11, 0.26);
+  background: linear-gradient(180deg, rgba(255,255,255,1), rgba(255, 251, 235, 0.92));
+}
+
+.ross-record-row__alert {
+  margin: .55rem 0 0;
+  padding: .62rem .78rem;
+  border-radius: 14px;
+  background: rgba(245, 158, 11, 0.12);
+  color: #92400e;
+  font-size: .84rem;
+  font-weight: 700;
 }
 
 .btn-danger-soft {

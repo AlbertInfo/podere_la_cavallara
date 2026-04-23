@@ -102,6 +102,50 @@ function anagrafica_booking_total_guests(array $booking): int
     return max(1, (int) ($booking['adults'] ?? 0) + (int) ($booking['children_count'] ?? 0));
 }
 
+function anagrafica_row_expected_guests(array $row): int
+{
+    if ((string) ($row['row_source'] ?? '') === 'manual_record') {
+        return max(0, (int) ($row['expected_guests'] ?? 0));
+    }
+
+    return max(0, (int) ($row['adults'] ?? 0) + (int) ($row['children_count'] ?? 0));
+}
+
+function anagrafica_row_saved_guest_count(array $row): int
+{
+    return max(0, (int) ($row['saved_guest_count'] ?? 0));
+}
+
+function anagrafica_row_ross_issue_message(array $row): string
+{
+    $expectedGuests = anagrafica_row_expected_guests($row);
+    $savedGuests = anagrafica_row_saved_guest_count($row);
+    $hasLinkedRecord = (int) ($row['linked_record_id'] ?? 0) > 0 || (string) ($row['row_source'] ?? '') === 'manual_record';
+
+    if (!$hasLinkedRecord) {
+        return 'Record non valorizzato: apri la scheda e salva i dati anagrafici per includerlo nell\'invio ROSS-1000.';
+    }
+
+    if ($expectedGuests <= 0) {
+        return 'Record non valorizzato: inserisci almeno un ospite per includerlo nell\'invio ROSS-1000.';
+    }
+
+    if ($savedGuests <= 0) {
+        return 'Record non valorizzato: inserisci i dati mancanti per includerlo nell\'invio ROSS-1000.';
+    }
+
+    if ($savedGuests < $expectedGuests) {
+        return 'Record parziale: risultano salvati ' . $savedGuests . ' ospiti su ' . $expectedGuests . ' previsti. Completa la scheda per includerlo interamente nell\'invio ROSS-1000.';
+    }
+
+    return '';
+}
+
+function anagrafica_row_is_ross_ready(array $row): bool
+{
+    return anagrafica_row_ross_issue_message($row) === '';
+}
+
 function anagrafica_booking_record_type(array $booking): string
 {
     return anagrafica_booking_total_guests($booking) > 1 ? 'group' : 'single';
@@ -485,9 +529,15 @@ function anagrafica_fetch_standalone_records_touching_day(PDO $pdo, string $day)
                leader.birth_place_label AS leader_birth_place_label,
                leader.residence_state_label AS leader_residence_state_label,
                leader.residence_province AS leader_residence_province,
-               leader.residence_place_label AS leader_residence_place_label
+               leader.residence_place_label AS leader_residence_place_label,
+               COALESCE(guest_stats.saved_guest_count, 0) AS saved_guest_count
         FROM anagrafica_records ar
         LEFT JOIN anagrafica_guests leader ON leader.record_id = ar.id AND leader.is_group_leader = 1
+        LEFT JOIN (
+            SELECT record_id, COUNT(*) AS saved_guest_count
+            FROM anagrafica_guests
+            GROUP BY record_id
+        ) guest_stats ON guest_stats.record_id = ar.id
         WHERE (ar.prenotazione_id IS NULL OR ar.prenotazione_id = 0)
           AND ar.arrival_date <= :day AND ar.departure_date >= :day
         ORDER BY ar.arrival_date ASC, ar.id ASC
@@ -519,6 +569,9 @@ function anagrafica_fetch_standalone_records_touching_day(PDO $pdo, string $day)
         ];
         $row['total_guests'] = $totalGuests;
         $row['document_ready'] = trim((string) ($row['leader_document_number'] ?? '')) !== '';
+        $row['ross_expected_guests'] = anagrafica_row_expected_guests($row);
+        $row['ross_issue_message'] = anagrafica_row_ross_issue_message($row);
+        $row['ross_export_ready'] = anagrafica_row_is_ross_ready($row);
         $row['modal_payload'] = anagrafica_build_record_modal_payload($pdo, $row);
     }
     unset($row);
@@ -648,10 +701,16 @@ function anagrafica_fetch_prenotazioni_touching_day(PDO $pdo, string $day): arra
                leader.residence_state_label AS leader_residence_state_label,
                leader.residence_state_code AS leader_residence_state_code,
                leader.residence_province AS leader_residence_province,
-               leader.residence_place_label AS leader_residence_place_label
+               leader.residence_place_label AS leader_residence_place_label,
+               COALESCE(guest_stats.saved_guest_count, 0) AS saved_guest_count
         FROM prenotazioni p
         LEFT JOIN anagrafica_records ar ON ar.prenotazione_id = p.id
         LEFT JOIN anagrafica_guests leader ON leader.record_id = ar.id AND leader.is_group_leader = 1
+        LEFT JOIN (
+            SELECT record_id, COUNT(*) AS saved_guest_count
+            FROM anagrafica_guests
+            GROUP BY record_id
+        ) guest_stats ON guest_stats.record_id = ar.id
         WHERE p.check_in <= :day AND p.check_out >= :day
         ORDER BY p.check_in ASC, p.id ASC
     ";
@@ -668,6 +727,9 @@ function anagrafica_fetch_prenotazioni_touching_day(PDO $pdo, string $day): arra
         ];
         $row['total_guests'] = anagrafica_booking_total_guests($row);
         $row['document_ready'] = trim((string) ($row['leader_document_number'] ?? '')) !== '';
+        $row['ross_expected_guests'] = anagrafica_row_expected_guests($row);
+        $row['ross_issue_message'] = anagrafica_row_ross_issue_message($row);
+        $row['ross_export_ready'] = anagrafica_row_is_ross_ready($row);
         $row['modal_payload'] = anagrafica_build_booking_modal_payload($pdo, $row);
     }
     unset($row);
