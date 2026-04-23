@@ -135,7 +135,12 @@ function ross1000_fetch_records_for_range(PDO $pdo, string $from, string $to): a
         SELECT
             ar.*,
             leader.first_name AS leader_first_name,
-            leader.last_name AS leader_last_name
+            leader.last_name AS leader_last_name,
+            (
+                SELECT COUNT(*)
+                FROM anagrafica_guests ag_count
+                WHERE ag_count.record_id = ar.id
+            ) AS guest_count
         FROM anagrafica_records ar
         LEFT JOIN anagrafica_guests leader
             ON leader.record_id = ar.id
@@ -210,6 +215,11 @@ function ross1000_record_label(array $record): string
     return trim((string) ($record['booking_reference'] ?? ('Record #' . ($record['id'] ?? ''))));
 }
 
+function ross1000_record_guest_count(array $record): int
+{
+    return max(0, (int) ($record['guest_count'] ?? 0));
+}
+
 function ross1000_build_day_snapshot(string $date, array $records, array $dayState, array $config): array
 {
     $presentRecords = [];
@@ -263,19 +273,23 @@ function ross1000_build_day_snapshot(string $date, array $records, array $daySta
     $presentGuests = 0;
     if ($isOpen) {
         foreach ($presentRecords as $record) {
+            $guestCount = ross1000_record_guest_count($record);
+            if ($guestCount <= 0) {
+                continue;
+            }
             $occupiedRooms += (int) ($record['reserved_rooms'] ?? 0);
-            $presentGuests += (int) ($record['expected_guests'] ?? 0);
+            $presentGuests += $guestCount;
         }
     }
 
     $arrivalsGuests = 0;
     foreach ($arrivalRecords as $record) {
-        $arrivalsGuests += (int) ($record['expected_guests'] ?? 0);
+        $arrivalsGuests += ross1000_record_guest_count($record);
     }
 
     $departuresGuests = 0;
     foreach ($departureRecords as $record) {
-        $departuresGuests += (int) ($record['expected_guests'] ?? 0);
+        $departuresGuests += ross1000_record_guest_count($record);
     }
 
     $availableRooms = $isOpen ? (int) ($dayState['available_rooms'] ?? ($config['camere_disponibili'] ?? 0)) : 0;
@@ -288,6 +302,25 @@ function ross1000_build_day_snapshot(string $date, array $records, array $daySta
     if ($availableRooms > 0 && $occupiedRooms > $availableRooms) {
         $warnings[] = 'Le camere occupate superano le camere disponibili impostate per il giorno.';
     }
+
+    foreach ($touchingRecords as $entry) {
+        $record = (array) ($entry['record'] ?? []);
+        $flags = (array) ($entry['flags'] ?? []);
+        $guestCount = ross1000_record_guest_count($record);
+        $expectedGuests = max(0, (int) ($record['expected_guests'] ?? 0));
+        $label = ross1000_record_label($record);
+
+        if (($flags['arrival'] || $flags['departure'] || $flags['present']) && $guestCount <= 0) {
+            $warnings[] = $label . ': la scheda anagrafica non contiene ospiti salvati, quindi arrivi/partenze/presenze ROSS non sono esportabili.';
+            continue;
+        }
+
+        if (($flags['arrival'] || $flags['departure'] || $flags['present']) && $expectedGuests > 0 && $guestCount !== $expectedGuests) {
+            $warnings[] = $label . ': ospiti salvati ' . $guestCount . ' ma persone attese ' . $expectedGuests . '.';
+        }
+    }
+
+    $warnings = array_values(array_unique($warnings));
 
     return [
         'date' => $date,
@@ -412,9 +445,16 @@ function ross1000_validate_day_export(array $snapshot, array $config, array $gue
 
     foreach ((array) ($snapshot['departure_records'] ?? []) as $record) {
         $recordId = (int) ($record['id'] ?? 0);
+        $recordLabel = ross1000_record_label($record);
         $guests = $guestsGrouped[$recordId] ?? [];
-        if (!$guests) {
-            $errors[] = 'Record #' . $recordId . ': nessun ospite associato per la partenza del giorno.';
+        $guestCount = count($guests);
+        $expectedGuests = max(0, (int) ($record['expected_guests'] ?? 0));
+        if ($guestCount <= 0) {
+            $errors[] = $recordLabel . ' (record #' . $recordId . '): nessun ospite associato per la partenza del giorno.';
+            continue;
+        }
+        if ($expectedGuests > 0 && $guestCount !== $expectedGuests) {
+            $errors[] = $recordLabel . ' (record #' . $recordId . '): ospiti associati ' . $guestCount . ' ma persone attese ' . $expectedGuests . ' alla partenza.';
         }
     }
 
