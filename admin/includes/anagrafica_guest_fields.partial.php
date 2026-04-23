@@ -60,6 +60,11 @@ $currentResidenceTextValue = ($currentResidenceState && ($currentResidenceState[
     : $fieldValue($guestData, 'residence_place_label', $fieldValue($guestData, 'residence_place'));
 $birthComuneOptions = $currentBirthProvinceCode !== '' ? ($comuniOptionsByProvince[$currentBirthProvinceCode] ?? []) : [];
 $residenceComuneOptions = $currentResidenceProvinceCode !== '' ? ($comuniOptionsByProvince[$currentResidenceProvinceCode] ?? []) : [];
+if (!isset($documentOcrReady)) {
+    $documentOcrConfigLocal = require __DIR__ . '/document-ocr-config.php';
+    $documentOcrReady = !empty($documentOcrConfigLocal['enabled'])
+        && trim((string) ($documentOcrConfigLocal['endpoint'] ?? '')) !== '';
+}
 ?>
 <div class="anagrafica-guest-card<?= $isRepeaterGuest ? '' : ' anagrafica-guest-card--primary' ?>"<?= $isRepeaterGuest ? ' data-guest-card' : '' ?> data-guest-scope data-guest-index="<?= e((string) $guestIndex) ?>">
     <?php if ($isRepeaterGuest): ?>
