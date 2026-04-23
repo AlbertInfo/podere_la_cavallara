@@ -60,11 +60,6 @@ $currentResidenceTextValue = ($currentResidenceState && ($currentResidenceState[
     : $fieldValue($guestData, 'residence_place_label', $fieldValue($guestData, 'residence_place'));
 $birthComuneOptions = $currentBirthProvinceCode !== '' ? ($comuniOptionsByProvince[$currentBirthProvinceCode] ?? []) : [];
 $residenceComuneOptions = $currentResidenceProvinceCode !== '' ? ($comuniOptionsByProvince[$currentResidenceProvinceCode] ?? []) : [];
-if (!isset($documentOcrReady)) {
-    $documentOcrConfigLocal = require __DIR__ . '/document-ocr-config.php';
-    $documentOcrReady = !empty($documentOcrConfigLocal['enabled'])
-        && trim((string) ($documentOcrConfigLocal['endpoint'] ?? '')) !== '';
-}
 ?>
 <div class="anagrafica-guest-card<?= $isRepeaterGuest ? '' : ' anagrafica-guest-card--primary' ?>"<?= $isRepeaterGuest ? ' data-guest-card' : '' ?> data-guest-scope data-guest-index="<?= e((string) $guestIndex) ?>">
     <?php if ($isRepeaterGuest): ?>
@@ -82,9 +77,13 @@ if (!isset($documentOcrReady)) {
             <div class="anagrafica-subsection__header">
                 <div>
                     <h4>Dati persona</h4>
-                    <p class="muted">Nome, cognome, sesso, nascita e cittadinanza.</p>
+                    <p class="muted">Carica prima il documento per compilare automaticamente gran parte del form, poi completa eventuali campi mancanti.</p>
+                </div>
+                <div class="anagrafica-subsection__actions">
+                    <button class="btn btn-light btn-sm anagrafica-ocr-trigger<?= !empty($documentOcrReady) ? '' : ' is-disabled' ?>" type="button" data-document-ocr-trigger<?= !empty($documentOcrReady) ? '' : ' disabled' ?>>Scansiona documento OCR</button>
                 </div>
             </div>
+            <div class="anagrafica-ocr-feedback" data-document-ocr-status hidden></div>
             <div class="anagrafica-grid">
                 <label class="anagrafica-field<?= e($errorClassFor('first_name')) ?>">
                     <span>Nome</span>
@@ -212,11 +211,7 @@ if (!isset($documentOcrReady)) {
                     <h4>Documento e dettaglio soggiorno</h4>
                     <p class="muted">Documento sempre raccolto anche per familiari e membri gruppo.</p>
                 </div>
-                <div class="anagrafica-subsection__actions">
-                    <button class="btn btn-light btn-sm anagrafica-ocr-trigger<?= !empty($documentOcrReady) ? '' : ' is-disabled' ?>" type="button" data-document-ocr-trigger<?= !empty($documentOcrReady) ? '' : ' disabled' ?>>Scansiona documento OCR</button>
-                </div>
             </div>
-            <div class="anagrafica-ocr-feedback" data-document-ocr-status hidden></div>
             <div class="anagrafica-grid">
                 <label class="anagrafica-field anagrafica-field--readonly">
                     <span>Tipologia alloggiato</span>
