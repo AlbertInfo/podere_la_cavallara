@@ -258,6 +258,26 @@ function alloggiati_ws_mark_schedine_failed(PDO $pdo, array $schedine, string $m
     }
 }
 
+function alloggiati_ws_send_block_messages(array $schedine): array
+{
+    $messages = [];
+    foreach ($schedine as $schedina) {
+        if (!empty($schedina['can_send_ws'])) {
+            continue;
+        }
+        $label = trim((string) ($schedina['display_name'] ?? 'Schedina'));
+        $reason = trim((string) ($schedina['send_window_message'] ?? ''));
+        if ($reason === '' && !empty($schedina['trace_errors'])) {
+            $reason = implode(' | ', array_map('strval', (array) $schedina['trace_errors']));
+        }
+        if ($reason === '') {
+            continue;
+        }
+        $messages[] = ($label !== '' ? $label . ': ' : '') . $reason;
+    }
+    return array_values(array_unique($messages));
+}
+
 function alloggiati_ws_build_envelope(string $method, string $innerXml): string
 {
     return '<?xml version="1.0" encoding="UTF-8"?>'
@@ -386,15 +406,21 @@ function alloggiati_ws_send_day(PDO $pdo, string $arrivalDate): array
     $bundle = alloggiati_collect_day_export($pdo, $arrivalDate);
     $schedine = [];
     $lines = [];
+    $blockedMessages = alloggiati_ws_send_block_messages((array) ($bundle['schedine'] ?? []));
     foreach (($bundle['schedine'] ?? []) as $row) {
-        if (alloggiati_is_ws_sendable_status((string) ($row['status'] ?? ''))) {
+        if (!empty($row['can_send_ws'])) {
             $schedine[] = $row;
             $lines[] = (string) ($row['trace_record'] ?? '');
         }
     }
 
     if (!$schedine) {
-        return ['sent' => 0, 'errors' => array_values($bundle['errors'] ?? ['Nessuna schedina pronta o ritentabile da inviare.'])];
+        $errors = array_values(array_unique(array_merge((array) ($bundle['errors'] ?? []), $blockedMessages)));
+        $errors = array_values(array_unique(array_merge($errors, $blockedMessages)));
+        if (!$errors) {
+            $errors[] = 'Nessuna schedina pronta o ritentabile da inviare.';
+        }
+        return ['sent' => 0, 'errors' => $errors];
     }
 
     $config = alloggiati_ws_config();
@@ -431,7 +457,7 @@ function alloggiati_ws_send_day(PDO $pdo, string $arrivalDate): array
         throw $e;
     }
 
-    $errors = array_values($bundle['errors'] ?? []);
+    $errors = array_values(array_unique(array_merge((array) ($bundle['errors'] ?? []), $blockedMessages)));
     $sendableRows = [];
     $sendableLines = [];
 
@@ -483,11 +509,17 @@ function alloggiati_ws_send_day(PDO $pdo, string $arrivalDate): array
 function alloggiati_ws_send_record(PDO $pdo, int $recordId): array
 {
     $bundle = alloggiati_collect_record_export($pdo, $recordId, ['pronta', 'errore']);
-    $schedine = (array) ($bundle['schedine'] ?? []);
+    $allRows = (array) ($bundle['schedine'] ?? []);
+    $blockedMessages = alloggiati_ws_send_block_messages($allRows);
+    $schedine = array_values(array_filter($allRows, static fn(array $row): bool => !empty($row['can_send_ws'])));
     $lines = array_values(array_map(static fn(array $row): string => (string) ($row['trace_record'] ?? ''), $schedine));
 
     if (!$schedine || count($lines) !== count($schedine) || trim((string) ($bundle['content'] ?? '')) === '') {
-        return ['sent' => 0, 'errors' => array_values($bundle['errors'] ?? ['L’anagrafica selezionata non è pronta per l’invio.'])];
+        $errors = array_values(array_unique(array_merge((array) ($bundle['errors'] ?? []), $blockedMessages)));
+        if (!$errors) {
+            $errors[] = 'L’anagrafica selezionata non è pronta per l’invio.';
+        }
+        return ['sent' => 0, 'errors' => $errors];
     }
 
     $config = alloggiati_ws_config();
@@ -579,6 +611,13 @@ function alloggiati_ws_send_schedina(PDO $pdo, int $schedinaId): array
     $line = (string) ($bundle['content'] ?? '');
     if (!$schedina || trim($line) === '') {
         return ['sent' => 0, 'errors' => array_values($bundle['errors'] ?? ['Schedina non pronta.']), 'arrival_date' => (string) (($schedina['arrival_date'] ?? '') ?: '')];
+    }
+    if (empty($schedina['can_send_ws'])) {
+        $errors = alloggiati_ws_send_block_messages([$schedina]);
+        if (!$errors) {
+            $errors = ['Schedina non pronta per l’invio.'];
+        }
+        return ['sent' => 0, 'errors' => $errors, 'arrival_date' => (string) ($schedina['arrival_date'] ?? '')];
     }
 
     $config = alloggiati_ws_config();

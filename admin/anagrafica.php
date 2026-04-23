@@ -125,8 +125,11 @@ $bookingModalData = is_array($bookingModalState['data'] ?? null) ? $bookingModal
 $bookingModalOpen = (bool) ($bookingModalState['open'] ?? false);
 $alloggiatiTableReady = false;
 $selectedSchedine = [];
-$selectedSchedineCounts = ['total' => 0, 'bozza' => 0, 'pronta' => 0, 'inviata' => 0, 'errore' => 0];
+$selectedSchedineCounts = ['total' => 0, 'bozza' => 0, 'pronta' => 0, 'storica' => 0, 'inviata' => 0, 'errore' => 0];
 $selectedSchedineGroups = [];
+$selectedSchedineWsSendableCount = 0;
+$selectedSchedineHistoricalCount = 0;
+$selectedSchedineHistoricalBundles = 0;
 $alloggiatiWsConfig = alloggiati_ws_config();
 $alloggiatiWsReady = alloggiati_ws_config_ready($alloggiatiWsConfig);
 $rossWsConfig = ross1000_ws_runtime_config();
@@ -269,12 +272,25 @@ try {
             $selectedSchedine = alloggiati_sync_day($pdo, $selectedDay);
             $selectedSchedineCounts = alloggiati_day_status_counts($selectedSchedine);
             $selectedSchedineGroups = alloggiati_group_schedine_by_record($selectedSchedine);
+            foreach ($selectedSchedine as $selectedSchedinaRuntime) {
+                if (!empty($selectedSchedinaRuntime['can_send_ws'])) {
+                    $selectedSchedineWsSendableCount++;
+                }
+                if ((string) ($selectedSchedinaRuntime['send_window_state'] ?? '') === 'expired' && (string) ($selectedSchedinaRuntime['status'] ?? '') !== 'inviata') {
+                    $selectedSchedineHistoricalCount++;
+                }
+            }
+            foreach ($selectedSchedineGroups as $selectedSchedinaBundle) {
+                if ((string) ($selectedSchedinaBundle['overall_status'] ?? '') === 'storica') {
+                    $selectedSchedineHistoricalBundles++;
+                }
+            }
         }
     }
 } catch (Throwable $e) {
     $alloggiatiTableReady = false;
     $selectedSchedine = [];
-    $selectedSchedineCounts = ['total' => 0, 'bozza' => 0, 'pronta' => 0, 'inviata' => 0, 'errore' => 0];
+    $selectedSchedineCounts = ['total' => 0, 'bozza' => 0, 'pronta' => 0, 'storica' => 0, 'inviata' => 0, 'errore' => 0];
     $selectedSchedineGroups = [];
 }
 
@@ -294,7 +310,7 @@ foreach ($days as $snapshotCount) {
     }
 }
 $monthPendingCount = max(0, $monthDayCount - $monthFinalizedCount);
-$alloggiatiDayExportableCount = (int) ($selectedSchedineCounts['pronta'] + $selectedSchedineCounts['inviata']);
+$alloggiatiDayExportableCount = (int) count(array_filter($selectedSchedine, static fn(array $row): bool => !empty($row['can_generate_file'])));
 $alloggiatiDayDocumentCount = 0;
 foreach ($selectedSchedine as $schedinaCount) {
     $payloadCount = is_array($schedinaCount['payload'] ?? null) ? $schedinaCount['payload'] : [];
@@ -920,7 +936,7 @@ require_once __DIR__ . '/includes/header.php';
                                     <span><?= (int) ($booking['adults'] ?? 0) ?> adulti · <?= (int) ($booking['children_count'] ?? 0) ?> bambini</span>
                                     <span><?= e((string) ($booking['room_type'] ?? '')) ?></span>
                                     <span>Stato <?= e((string) ($booking['status'] ?? '')) ?></span>
-                                    <!-- <span class="ross-record-row__cta">Clicca per aprire</span> -->
+                                    
                                 </div>
                                 <?php if ($rowAlertMessage !== ''): ?>
                                     <p class="ross-record-row__alert"><?= e($rowAlertMessage) ?></p>
@@ -1169,13 +1185,13 @@ require_once __DIR__ . '/includes/header.php';
                     <form method="get" action="<?= e(admin_url('actions/generate-alloggiati-day.php')) ?>" class="alloggiati-day-send-form">
                         <input type="hidden" name="month" value="<?= e($selectedMonth) ?>">
                         <input type="hidden" name="day" value="<?= e($selectedDay) ?>">
-                        <button class="btn btn-light<?= $selectedSchedineCounts['pronta'] > 0 || $selectedSchedineCounts['inviata'] > 0 || $selectedSchedineCounts['errore'] > 0 ? '' : ' is-disabled' ?> js-alloggiati-modal-trigger" type="submit" <?= ($selectedSchedineCounts['pronta'] > 0 || $selectedSchedineCounts['inviata'] > 0 || $selectedSchedineCounts['errore'] > 0) ? '' : 'disabled' ?> data-modal-template-id="alloggiatiDayFileTemplate">Genera file Alloggiati del giorno</button>
+                        <button class="btn btn-light<?= $alloggiatiDayExportableCount > 0 ? '' : ' is-disabled' ?> js-alloggiati-modal-trigger" type="submit" <?= $alloggiatiDayExportableCount > 0 ? '' : 'disabled' ?> data-modal-template-id="alloggiatiDayFileTemplate">Genera file Alloggiati del giorno</button>
                     </form>
                     <form method="post" action="<?= e(admin_url('actions/send-alloggiati-day.php')) ?>" class="alloggiati-day-send-form">
                         <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
                         <input type="hidden" name="month" value="<?= e($selectedMonth) ?>">
                         <input type="hidden" name="day" value="<?= e($selectedDay) ?>">
-                        <button class="btn btn-primary<?= $selectedSchedineCounts['pronta'] > 0 || $selectedSchedineCounts['errore'] > 0 ? '' : ' is-disabled' ?> js-alloggiati-modal-trigger" type="submit" <?= $selectedSchedineCounts['pronta'] > 0 || $selectedSchedineCounts['errore'] > 0 ? '' : 'disabled' ?> data-modal-template-id="alloggiatiDayConfirmTemplate">Invia tutte le schedine del giorno</button>
+                        <button class="btn btn-primary<?= $selectedSchedineWsSendableCount > 0 ? '' : ' is-disabled' ?> js-alloggiati-modal-trigger" type="submit" <?= $selectedSchedineWsSendableCount > 0 ? '' : 'disabled' ?> data-modal-template-id="alloggiatiDayConfirmTemplate">Invia tutte le schedine del giorno</button>
                     </form>
                 <?php endif; ?>
             </div>
@@ -1189,14 +1205,21 @@ require_once __DIR__ . '/includes/header.php';
         <?php else: ?>
             <div class="ross-day-stats">
                 <article class="ross-day-stat"><span>Totale schedine</span><strong><?= (int) $selectedSchedineCounts['total'] ?></strong><small>generate dal giorno di arrivo</small></article>
-                <article class="ross-day-stat"><span>Bozza</span><strong><?= (int) $selectedSchedineCounts['bozza'] ?></strong><small>arrivo futuro o non ancora inviabile</small></article>
-                <article class="ross-day-stat"><span>Pronte</span><strong><?= (int) $selectedSchedineCounts['pronta'] ?></strong><small>inviabili ora</small></article>
+                <article class="ross-day-stat"><span>Bozza</span><strong><?= (int) $selectedSchedineCounts['bozza'] ?></strong><small>arrivo futuro o dati ancora incompleti</small></article>
+                <article class="ross-day-stat"><span>Pronte / Storiche</span><strong><?= (int) $selectedSchedineWsSendableCount ?> / <?= (int) $selectedSchedineCounts['storica'] ?></strong><small>inviabili ora / solo scaricabili come file</small></article>
                 <article class="ross-day-stat"><span>Inviate / Errore</span><strong><?= (int) $selectedSchedineCounts['inviata'] ?> / <?= (int) $selectedSchedineCounts['errore'] ?></strong><small>stato aggiornato delle schedine</small></article>
             </div>
             <div class="ross-day-warning">
                 <div><strong>Tracciato giornaliero pronto</strong> · Le schedine vengono esportate come file testuale a righe fisse da 168 caratteri, in linea con il tracciato Alloggiati. Le righe corrette possono essere inviate in blocco o singolarmente.</div>
                 <div><strong>Web service</strong> · <?= $alloggiatiWsReady ? (!empty($alloggiatiWsConfig['simulate_send_without_ws']) ? 'Modalità simulazione attiva.' : 'Configurazione WS live presente.') : 'Compila utente, password e WSKEY in includes/alloggiati-config.php.' ?></div>
             </div>
+
+            <?php if ($selectedSchedineHistoricalBundles > 0): ?>
+                <div class="alert alert-warning">
+                    <strong>Invio Alloggiati non disponibile per <?= (int) $selectedSchedineHistoricalBundles ?> <?= $selectedSchedineHistoricalBundles === 1 ? 'anagrafica storica' : 'anagrafiche storiche' ?>.</strong>
+                    Le schedine con arrivo precedente a ieri possono essere scaricate come tracciato, ma non ritentate via web service perché Alloggiati Web accetta solo arrivi di oggi o ieri.
+                </div>
+            <?php endif; ?>
 
             <?php if (!$selectedSchedine): ?>
                 <div class="anagrafica-empty-state">
@@ -1210,7 +1233,7 @@ require_once __DIR__ . '/includes/header.php';
                             <div><span>Giorno</span><strong><?= e((new DateTimeImmutable($selectedDay))->format('d/m/Y')) ?></strong></div>
                             <div><span>Schedine esportabili</span><strong><?= (int) ($selectedSchedineCounts['pronta'] + $selectedSchedineCounts['inviata']) ?></strong></div>
                             <div><span>Schedine pronte</span><strong><?= (int) $selectedSchedineCounts['pronta'] ?></strong></div>
-                            <div><span>Schedine da ritentare</span><strong><?= (int) $selectedSchedineCounts['errore'] ?></strong></div>
+                            <div><span>Schedine inviabili ora</span><strong><?= (int) $selectedSchedineWsSendableCount ?></strong></div>
                             <div><span>Documenti valorizzati</span><strong><?= (int) $alloggiatiDayDocumentCount ?></strong></div>
                         </div>
                         <div class="alloggiati-confirm__bundles">
@@ -1251,9 +1274,9 @@ require_once __DIR__ . '/includes/header.php';
                         <div class="alloggiati-confirm__grid">
                             <div><span>Giorno</span><strong><?= e((new DateTimeImmutable($selectedDay))->format('d/m/Y')) ?></strong></div>
                             <div><span>Schedine pronte</span><strong><?= (int) $selectedSchedineCounts['pronta'] ?></strong></div>
-                            <div><span>Schedine da ritentare</span><strong><?= (int) $selectedSchedineCounts['errore'] ?></strong></div>
+                            <div><span>Schedine inviabili ora</span><strong><?= (int) $selectedSchedineWsSendableCount ?></strong></div>
                             <div><span>Schedine già inviate</span><strong><?= (int) $selectedSchedineCounts['inviata'] ?></strong></div>
-                            <div><span>Schedine con errore</span><strong><?= (int) $selectedSchedineCounts['errore'] ?></strong></div>
+                            <div><span>Schedine storiche</span><strong><?= (int) $selectedSchedineCounts['storica'] ?></strong></div>
                             <div><span>Documenti valorizzati</span><strong><?= (int) $alloggiatiDayDocumentCount ?></strong></div>
                             <div><span>WS</span><strong><?= $alloggiatiWsReady ? (!empty($alloggiatiWsConfig['simulate_send_without_ws']) ? 'Simulazione' : 'Live pronto') : 'Da configurare' ?></strong></div>
                         </div>
@@ -1297,8 +1320,8 @@ require_once __DIR__ . '/includes/header.php';
                         $people = (array) ($bundle['people'] ?? []);
                         $counts = (array) ($bundle['counts'] ?? []);
                         $status = (string) ($bundle['overall_status'] ?? 'bozza');
-                        $statusLabelMap = ['bozza' => 'Bozza', 'pronta' => 'Pronta', 'inviata' => 'Inviata', 'errore' => 'Errore', 'mista' => 'Parziale'];
-                        $statusClassMap = ['bozza' => 'ross-badge', 'pronta' => 'ross-badge ross-badge--blue', 'inviata' => 'ross-badge ross-badge--green', 'errore' => 'ross-badge ross-badge--amber', 'mista' => 'ross-badge'];
+                        $statusLabelMap = ['bozza' => 'Bozza', 'pronta' => 'Pronta', 'storica' => 'Storica', 'inviata' => 'Inviata', 'errore' => 'Errore', 'mista' => 'Parziale'];
+                        $statusClassMap = ['bozza' => 'ross-badge', 'pronta' => 'ross-badge ross-badge--blue', 'storica' => 'ross-badge ross-badge--amber', 'inviata' => 'ross-badge ross-badge--green', 'errore' => 'ross-badge ross-badge--amber', 'mista' => 'ross-badge'];
                         $kindLabel = (string) ($bundle['kind_label'] ?? 'Ospite singolo');
                         $sendLabel = $status === 'errore' ? 'Ritenta invio' : 'Invia anagrafica';
                         $bundleReference = anagrafica_alloggiati_bundle_reference_label($bundle);
@@ -1327,6 +1350,9 @@ require_once __DIR__ . '/includes/header.php';
                                 <?php if (!empty($bundle['trace_errors'])): ?>
                                     <div class="alloggiati-schedina-row__error"><?= nl2br(e(implode("
 ", (array) $bundle['trace_errors']))) ?></div>
+                                <?php endif; ?>
+                                <?php if ($status === 'storica'): ?>
+                                    <div class="alloggiati-schedina-row__error">Invio non disponibile: arrivo precedente a ieri. Puoi scaricare il tracciato, ma Alloggiati Web non consente il reinvio via WS per questa data.</div>
                                 <?php endif; ?>
                             </div>
                             <div class="ross-record-row__badges" data-row-ignore>
@@ -1413,7 +1439,7 @@ require_once __DIR__ . '/includes/header.php';
                                         </div>
                                     </template>
                                 <?php else: ?>
-                                    <button class="btn btn-light btn-sm is-disabled" type="button" disabled><?= $status === 'inviata' ? 'Già inviata' : 'Invio non disponibile' ?></button>
+                                    <button class="btn btn-light btn-sm is-disabled" type="button" disabled><?= $status === 'inviata' ? 'Già inviata' : ($status === 'storica' ? 'Invio scaduto' : 'Invio non disponibile') ?></button>
                                 <?php endif; ?>
                             </div>
                         </article>

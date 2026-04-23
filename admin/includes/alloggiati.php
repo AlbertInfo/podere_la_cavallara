@@ -93,6 +93,41 @@ function alloggiati_document_required(string $tipoAlloggiatoCode): bool
     return in_array($tipoAlloggiatoCode, ['16', '17', '18'], true);
 }
 
+function alloggiati_send_window_state(?string $arrivalDate): string
+{
+    $arrivalDate = substr(trim((string) ($arrivalDate ?? '')), 0, 10);
+    if ($arrivalDate === '') {
+        return 'invalid';
+    }
+
+    $today = date('Y-m-d');
+    $yesterday = date('Y-m-d', strtotime('-1 day'));
+
+    if ($arrivalDate > $today) {
+        return 'future';
+    }
+    if ($arrivalDate < $yesterday) {
+        return 'expired';
+    }
+
+    return 'sendable';
+}
+
+function alloggiati_send_window_message(string $windowState): string
+{
+    if ($windowState === 'future') {
+        return 'Invio non disponibile: la data di arrivo è futura.';
+    }
+    if ($windowState === 'expired') {
+        return 'Invio non disponibile: Alloggiati Web accetta solo schedine con arrivo di oggi o ieri.';
+    }
+    if ($windowState === 'invalid') {
+        return 'Invio non disponibile: data di arrivo mancante o non valida.';
+    }
+
+    return '';
+}
+
 function alloggiati_persistence_days(?string $arrivalDate, ?string $departureDate): int
 {
     $arrivalTs = strtotime((string) $arrivalDate);
@@ -225,16 +260,9 @@ function alloggiati_validate_schedina_payload(array $payload): array
         $errors[] = 'Il componente deve essere collegato al relativo capo famiglia / capo gruppo.';
     }
 
-    $today = date('Y-m-d');
-    $yesterday = date('Y-m-d', strtotime('-1 day'));
     $arrivalDate = (string) ($payload['arrival_date'] ?? '');
-    $windowStatus = 'pronta';
-    if ($arrivalDate > $today) {
-        $windowStatus = 'bozza';
-    } elseif ($arrivalDate < $yesterday) {
-        $errors[] = 'Data arrivo fuori finestra Alloggiati (oggi o ieri).';
-        $windowStatus = 'errore';
-    }
+    $windowState = alloggiati_send_window_state($arrivalDate);
+    $windowStatus = $windowState === 'future' ? 'bozza' : 'pronta';
 
     if ($errors) {
         return [
@@ -385,6 +413,7 @@ function alloggiati_sync_record(PDO $pdo, int $recordId): array
         if ($existing && (string) ($existing['status'] ?? '') === 'inviata' && (string) ($existing['payload_hash'] ?? '') === $payloadHash) {
             $status = 'inviata';
             $sentAt = $existing['sent_at'] ?? null;
+            $validationErrors = null;
             $lastError = null;
         }
 
@@ -470,8 +499,13 @@ function alloggiati_attach_runtime_fields(array $row): array
     $row['trace_errors'] = $trace['errors'];
     $row['trace_length'] = strlen((string) $trace['record']);
     $status = (string) ($row['status'] ?? '');
+    $arrivalDate = (string) (($row['payload']['arrival_date'] ?? '') ?: ($row['arrival_date'] ?? ''));
+    $windowState = alloggiati_send_window_state($arrivalDate);
+    $row['send_window_state'] = $windowState;
+    $row['send_window_message'] = alloggiati_send_window_message($windowState);
+    $row['runtime_status'] = ($status === 'pronta' && $windowState === 'expired') ? 'storica' : $status;
     $row['can_generate_file'] = empty($trace['errors']) && alloggiati_is_exportable_status($status);
-    $row['can_send_ws'] = empty($trace['errors']) && alloggiati_is_ws_sendable_status($status);
+    $row['can_send_ws'] = empty($trace['errors']) && alloggiati_is_ws_sendable_status($status) && $windowState === 'sendable';
     return $row;
 }
 
@@ -520,12 +554,13 @@ function alloggiati_day_status_counts(array $schedine): array
         'total' => count($schedine),
         'bozza' => 0,
         'pronta' => 0,
+        'storica' => 0,
         'inviata' => 0,
         'errore' => 0,
     ];
 
     foreach ($schedine as $row) {
-        $status = (string) ($row['status'] ?? 'bozza');
+        $status = (string) ($row['runtime_status'] ?? ($row['status'] ?? 'bozza'));
         if (!isset($counts[$status])) {
             continue;
         }
@@ -540,6 +575,7 @@ function alloggiati_record_overall_status(array $counts): string
 {
     $errore = (int) ($counts['errore'] ?? 0);
     $pronta = (int) ($counts['pronta'] ?? 0);
+    $storica = (int) ($counts['storica'] ?? 0);
     $inviata = (int) ($counts['inviata'] ?? 0);
     $bozza = (int) ($counts['bozza'] ?? 0);
 
@@ -551,6 +587,12 @@ function alloggiati_record_overall_status(array $counts): string
     }
     if ($pronta > 0) {
         return 'pronta';
+    }
+    if ($storica > 0 && $inviata > 0) {
+        return 'mista';
+    }
+    if ($storica > 0) {
+        return 'storica';
     }
     if ($bozza > 0) {
         return 'bozza';
