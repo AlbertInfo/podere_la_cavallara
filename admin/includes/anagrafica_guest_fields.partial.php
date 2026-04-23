@@ -207,7 +207,11 @@ $residenceComuneOptions = $currentResidenceProvinceCode !== '' ? ($comuniOptions
                     <h4>Documento e dettaglio soggiorno</h4>
                     <p class="muted">Documento sempre raccolto anche per familiari e membri gruppo.</p>
                 </div>
+                <div class="anagrafica-subsection__actions">
+                    <button class="btn btn-light btn-sm anagrafica-ocr-trigger<?= !empty($documentOcrReady) ? '' : ' is-disabled' ?>" type="button" data-document-ocr-trigger<?= !empty($documentOcrReady) ? '' : ' disabled' ?>>Scansiona documento OCR</button>
+                </div>
             </div>
+            <div class="anagrafica-ocr-feedback" data-document-ocr-status hidden></div>
             <div class="anagrafica-grid">
                 <label class="anagrafica-field anagrafica-field--readonly">
                     <span>Tipologia alloggiato</span>
