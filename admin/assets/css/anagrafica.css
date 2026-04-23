@@ -1424,7 +1424,7 @@ body.is-modal-open {
   transition: opacity .18s ease;
 }
 
-.ross-record-row--booking::after {
+/* .ross-record-row--booking::after {
   content: 'Apri scheda';
   position: absolute;
   right: 1rem;
@@ -1440,7 +1440,7 @@ body.is-modal-open {
   transform: translateY(4px);
   transition: opacity .18s ease, transform .18s ease;
   pointer-events: none;
-}
+} */
 
 .ross-record-row--booking:hover::before,
 .ross-record-row--booking:focus-visible::before,
