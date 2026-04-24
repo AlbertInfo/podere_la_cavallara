@@ -165,7 +165,7 @@ $fileRecordId = create_imported_pdf_record($pdo, [
     'uploaded_by_admin_id' => (int) ($currentAdmin['id'] ?? 0) ?: null,
 ]);
 
-$pythonBin = '/usr/bin/python3';
+$pythonBin = '/home/u881781553/domains/poderelacavallara.it/public_html/venv/bin/python3';
 $parserScript = realpath(__DIR__ . '/../python/interhome_parser.py');
 
 if ($parserScript === false || !file_exists($parserScript)) {
