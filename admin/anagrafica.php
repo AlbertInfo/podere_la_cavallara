@@ -1699,8 +1699,21 @@ require_once __DIR__ . '/includes/header.php';
 <script type="application/json" id="anagraficaProvinceMap"><?= json_encode($provinceNameToCode, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?></script>
 <script type="application/json" id="anagraficaComuniByProvince"><?= json_encode($comuniByProvince, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?></script>
 <script type="application/json" id="anagraficaComuniByProvinceOptions"><?= json_encode($comuniOptionsByProvince, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?></script>
+<?php
+$documentOcrEnabled = array_key_exists('enabled', $documentOcrConfig) ? !empty($documentOcrConfig['enabled']) : true;
+$documentOcrHasEndpoint = trim((string) ($documentOcrConfig['endpoint'] ?? '')) !== '';
+$documentOcrCredentialsPath = trim((string) ($documentOcrConfig['credentials_path'] ?? ''));
+$documentOcrHasBearerToken = trim((string) ($documentOcrConfig['bearer_token'] ?? '')) !== '';
+$documentOcrHasCredentials = $documentOcrHasBearerToken || $documentOcrCredentialsPath !== '';
+$documentOcrReady = $documentOcrEnabled && $documentOcrHasEndpoint;
+$documentOcrServerReady = $documentOcrReady && $documentOcrHasCredentials;
+?>
+
 <script type="application/json" id="documentOcrConfig"><?= json_encode([
-    'enabled' => $documentOcrReady,
+    'enabled' => $documentOcrEnabled,
+    'ready' => $documentOcrServerReady,
+    'hasEndpoint' => $documentOcrHasEndpoint,
+    'hasCredentials' => $documentOcrHasCredentials,
     'processUrl' => admin_url('actions/process-document-ocr.php'),
     'maxFileSize' => (int) ($documentOcrConfig['max_file_size_bytes'] ?? 0),
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?></script>
