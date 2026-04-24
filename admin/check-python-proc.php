@@ -5,7 +5,7 @@ require_admin();
 
 header('Content-Type: text/plain; charset=UTF-8');
 
-$pythonBin = '/usr/bin/python3'; // se which python3 restituisce un path diverso, metti quello
+$pythonBin = '/home/u881781553/domains/poderelacavallara.it/public_html/venv/bin/python3'; // se which python3 restituisce un path diverso, metti quello
 $script = __DIR__ . '/python/test_parser.py';
 
 echo "pythonBin: $pythonBin\n";

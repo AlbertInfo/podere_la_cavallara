@@ -184,7 +184,7 @@ $descriptorspec = [
 ];
 
 $process = proc_open(
-    ['/usr/bin/python3', $pythonScript, '--stdin-json'],
+    ['/home/u881781553/domains/poderelacavallara.it/public_html/venv/bin/python3', $pythonScript, '--stdin-json'],
     $descriptorspec,
     $pipes,
     dirname(__DIR__)
