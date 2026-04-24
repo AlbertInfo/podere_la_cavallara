@@ -178,7 +178,7 @@ $stdinPayload = [
 ];
 
 $descriptorspec = [
-    0 => ['pipe', 'w'],
+    0 => ['pipe', 'r'],
     1 => ['pipe', 'w'],
     2 => ['pipe', 'w'],
 ];
