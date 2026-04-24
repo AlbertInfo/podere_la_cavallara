@@ -328,25 +328,82 @@ def normalize_lines(lines: List[str]) -> List[str]:
     return [normalize(line) for line in lines]
 
 
-def find_after_labels(lines_norm: List[str], labels: List[str], allow_same_line: bool = True) -> str:
+GENERIC_LABEL_TOKENS = {
+    "COGNOME", "SURNAME", "NOME", "NAME", "GIVEN", "GIVENNAME", "GIVENNAMES",
+    "PRENOM", "PRENOMS", "NOM", "SESSO", "SEX", "DATA", "DATE", "BIRTH", "NASCITA", "PLACE",
+    "LUOGO", "COMUNE", "CITY", "TOWN", "STATO", "COUNTRY", "RESIDENZA", "RESIDENCE", "ADDRESS",
+    "ADRESSE", "NATIONALITY", "NAZIONALITA", "CITTADINANZA", "DOCUMENT", "DOCUMENTO",
+    "NUMBER", "NUMERO", "NO", "RILASCIO", "RILASCIATO", "RILASCIATA", "AUTHORITY", "AUTORITA",
+    "AUTORITE", "ISSUED", "ISSUING", "EXPIRY", "SCADENZA", "VALID", "VALIDITA", "DELIVERY",
+    "IDENTITY", "CARD", "CARTE", "PATENTE", "GUIDA", "DRIVING", "LICENCE", "LICENSE", "PERMIS",
+    "PLACEOFBIRTH", "DATEOFBIRTH", "PLACEOFRESIDENCE", "ISSUEDBY", "PLACEOFISSUE",
+    "1", "2", "3", "4A", "4B", "4C", "4D", "5", "6", "7", "8", "9", "10", "11", "12"
+}
+
+
+def is_placeholder_value(value: str, label_norms: Optional[List[str]] = None) -> bool:
+    normalized = normalize(value)
+    if not normalized:
+        return True
+
+    blocked = set(GENERIC_LABEL_TOKENS)
+    if label_norms:
+        blocked.update(label_norms)
+
+    if normalized in blocked or normalized.replace(" ", "") in blocked:
+        return True
+
+    tokens = [tok for tok in normalized.split() if tok]
+    return bool(tokens) and all(tok in blocked for tok in tokens)
+
+
+def collect_after_labels(lines_norm: List[str], labels: List[str], allow_same_line: bool = True, max_values: int = 4) -> List[str]:
     label_norms = [normalize(label) for label in labels if normalize(label)]
+    if not label_norms:
+        return []
+
+    collected: List[str] = []
+    seen = set()
+
     for idx, line in enumerate(lines_norm):
         for label in label_norms:
-            if line == label:
-                for nxt in lines_norm[idx + 1: idx + 4]:
-                    if nxt and nxt not in label_norms:
-                        return nxt
-            if allow_same_line and line.startswith(label + " "):
-                tail = line[len(label):].strip(" :-")
-                if tail:
-                    return tail
-            if allow_same_line and label in line:
+            if not line:
+                continue
+
+            matched = line == label
+            inline_tail = ""
+
+            if allow_same_line and not matched and label in line:
                 tail = line.split(label, 1)[1].strip(" :-")
                 if tail:
-                    return tail
-    return ""
+                    inline_tail = tail
+                matched = True
+
+            if not matched:
+                continue
+
+            if inline_tail and not is_placeholder_value(inline_tail, label_norms):
+                if inline_tail not in seen:
+                    collected.append(inline_tail)
+                    seen.add(inline_tail)
+                if len(collected) >= max_values:
+                    return collected
+
+            for nxt in lines_norm[idx + 1: idx + 1 + max_values]:
+                candidate = nxt.strip()
+                if not candidate or is_placeholder_value(candidate, label_norms) or candidate in seen:
+                    continue
+                collected.append(candidate)
+                seen.add(candidate)
+                if len(collected) >= max_values:
+                    return collected
+
+    return collected
 
 
+def find_after_labels(lines_norm: List[str], labels: List[str], allow_same_line: bool = True) -> str:
+    values = collect_after_labels(lines_norm, labels, allow_same_line=allow_same_line, max_values=4)
+    return values[0] if values else ""
 def first_match(patterns: List[str], text: str) -> str:
     for pattern in patterns:
         m = re.search(pattern, text, re.IGNORECASE)
@@ -503,45 +560,63 @@ def pick_document_number(text_norm: str, doc_type: str) -> str:
 
 
 def infer_birth_place(lines_norm: List[str]) -> str:
-    value = find_after_labels(lines_norm, [
+    candidates = collect_after_labels(lines_norm, [
         "LUOGO DI NASCITA",
         "PLACE OF BIRTH",
         "COMUNE DI NASCITA",
+        "BIRTH PLACE",
         "3 DATA E LUOGO DI NASCITA",
-    ])
-    if value:
-        m = re.search(r"(\d{2}[./-]?\d{2}[./-]?\d{4}|\d{8})", value)
+        "3",
+    ], allow_same_line=True, max_values=6)
+    for value in candidates:
+        cleaned = value
+        m = re.search(r"(\d{2}[./-]?\d{2}[./-]?\d{4}|\d{8})", cleaned)
         if m:
-            value = value.replace(m.group(0), " ")
-        value = re.sub(r"\bDATA E LUOGO DI NASCITA\b", " ", value)
-        value = re.sub(r"\bLUOGO DI NASCITA\b", " ", value)
-        value = re.sub(r"\bPLACE OF BIRTH\b", " ", value)
-    return value.strip(" :-")
+            cleaned = cleaned.replace(m.group(0), " ")
+        cleaned = re.sub(r"(DATA E LUOGO DI NASCITA|DATE OF BIRTH|PLACE OF BIRTH|LUOGO DI NASCITA|BIRTH PLACE)", " ", cleaned)
+        cleaned = re.sub(r"\s+", " ", cleaned).strip(" :-")
+        if cleaned and not is_placeholder_value(cleaned):
+            return cleaned
+    return ""
 
 
 def infer_residence_place(lines_norm: List[str]) -> str:
-    return find_after_labels(lines_norm, [
+    candidates = collect_after_labels(lines_norm, [
         "COMUNE DI RESIDENZA",
         "RESIDENZA",
         "RESIDENCE",
         "ADDRESS",
-        "COMUNE RESIDENZA",
-    ])
+        "INDIRIZZO",
+        "ADDRESS OF RESIDENCE",
+        "8 RESIDENZA",
+        "8 ADDRESS",
+        "8",
+    ], allow_same_line=True, max_values=6)
+    for value in candidates:
+        if value and not is_placeholder_value(value):
+            return value
+    return ""
 
 
 def infer_issue_place(lines_norm: List[str]) -> str:
-    value = find_after_labels(lines_norm, [
+    candidates = collect_after_labels(lines_norm, [
         "COMUNE DI RILASCIO",
         "LUOGO DI RILASCIO",
         "RILASCIATO DA",
+        "RILASCIATA DA",
         "AUTORITA",
         "AUTHORITY",
+        "ISSUED BY",
+        "ISSUING AUTHORITY",
+        "PLACE OF ISSUE",
         "4C",
-    ])
-    value = re.sub(r"\bMINISTERO DELLE INFRASTRUTTURE E DEI TRASPORTI\b", " ", value)
-    return value.strip(" :-")
-
-
+    ], allow_same_line=True, max_values=6)
+    for value in candidates:
+        cleaned = re.sub(r"MINISTERO DELLE INFRASTRUTTURE E DEI TRASPORTI", " ", value)
+        cleaned = re.sub(r"\s+", " ", cleaned).strip(" :-")
+        if cleaned and not is_placeholder_value(cleaned):
+            return cleaned
+    return ""
 def resolve_birth_place(raw_place: str, countries: List[Country], comuni: List[Comune]) -> Dict[str, str]:
     raw_place = str(raw_place or "").strip()
     if not raw_place:
@@ -652,15 +727,15 @@ def map_document(payload: dict, data_dir: Path) -> dict:
     if not doc_type:
         doc_type = "CARTA DI IDENTITA'" if "REPUBBLICA ITALIANA" in text_norm or "IDENTITY CARD" in text_norm else ""
 
-    last_name = clean_name_value(find_after_labels(lines_norm, ["COGNOME", "SURNAME", "1 COGNOME"], True) or mrz.get("last_name", ""))
-    first_name = clean_name_value(find_after_labels(lines_norm, ["NOME", "GIVEN NAMES", "NAME", "2 NOME"], True) or mrz.get("first_name", ""))
+    last_name = clean_name_value(find_after_labels(lines_norm, ["COGNOME", "SURNAME", "FAMILY NAME", "NOM", "1 COGNOME", "1 SURNAME"], True) or mrz.get("last_name", ""))
+    first_name = clean_name_value(find_after_labels(lines_norm, ["NOME", "GIVEN NAMES", "GIVEN NAME", "NAME", "PRENOM", "2 NOME", "2 NAME"], True) or mrz.get("first_name", ""))
 
     gender = parse_gender(find_after_labels(lines_norm, ["SESSO", "SEX"], True) or mrz.get("gender", ""))
 
-    birth_date_raw = find_after_labels(lines_norm, ["DATA DI NASCITA", "DATE OF BIRTH", "3 DATA E LUOGO DI NASCITA"], True)
+    birth_date_raw = find_after_labels(lines_norm, ["DATA DI NASCITA", "DATE OF BIRTH", "BIRTH DATE", "3 DATA E LUOGO DI NASCITA", "3"], True)
     birth_date = parse_date(birth_date_raw) or mrz_birth_to_iso(mrz.get("birth_date_mrz", ""))
 
-    citizenship_raw = find_after_labels(lines_norm, ["CITTADINANZA", "NATIONALITY", "NAZIONALITA"], True)
+    citizenship_raw = find_after_labels(lines_norm, ["CITTADINANZA", "NATIONALITY", "NAZIONALITA", "NATIONALITE", "COUNTRY"], True)
     citizenship = find_country(countries, citizenship_raw) if citizenship_raw else None
     if not citizenship and mrz.get("citizenship_alpha3"):
         citizenship = alpha3_to_country(countries, mrz.get("citizenship_alpha3", ""))
@@ -669,17 +744,39 @@ def map_document(payload: dict, data_dir: Path) -> dict:
         warnings.append("Cittadinanza dedotta dal tipo di documento italiano: verifica prima del salvataggio.")
 
     birth_place_raw = infer_birth_place(lines_norm)
-    birth_place_map = resolve_birth_place(birth_place_raw, countries, comuni)
 
     residence_state_raw = find_after_labels(lines_norm, ["STATO DI RESIDENZA", "COUNTRY OF RESIDENCE"], True)
     residence_state = find_country(countries, residence_state_raw) if residence_state_raw else None
     residence_place_raw = infer_residence_place(lines_norm)
-    residence_map = resolve_residence_place(residence_place_raw, countries, comuni, residence_state)
 
     issue_place_raw = infer_issue_place(lines_norm)
-    issue_place_code = resolve_issue_place(issue_place_raw, countries, comuni)
 
     document_number = mrz.get("document_number", "") or pick_document_number(text_norm, doc_type)
+    if not birth_date:
+        birth_date = parse_date(first_match([
+            r"\b(\d{2}[./-]\d{2}[./-]\d{4})\b",
+            r"\b(\d{8})\b",
+        ], text_norm))
+
+    if not birth_place_raw:
+        birth_place_raw = first_match([
+            r"(?:PLACE OF BIRTH|LUOGO DI NASCITA|COMUNE DI NASCITA)\s+([A-Z' ]+(?:\([A-Z]{2}\))?)",
+            r"\bNAT[OA] A\s+([A-Z' ]+(?:\([A-Z]{2}\))?)",
+        ], text_norm)
+
+    if not residence_place_raw:
+        residence_place_raw = first_match([
+            r"(?:RESIDENZA|RESIDENCE|ADDRESS|INDIRIZZO)\s+([A-Z0-9' .,/-]+)",
+        ], text_norm)
+
+    if not issue_place_raw:
+        issue_place_raw = first_match([
+            r"(?:RILASCIAT[OA] DA|AUTORITA|AUTHORITY|ISSUED BY|4C)\s+([A-Z0-9' .-]+)",
+        ], text_norm)
+
+    birth_place_map = resolve_birth_place(birth_place_raw, countries, comuni)
+    residence_map = resolve_residence_place(residence_place_raw, countries, comuni, residence_state)
+    issue_place_code = resolve_issue_place(issue_place_raw, countries, comuni)
 
     if first_name:
         extracted["first_name"] = first_name
@@ -733,6 +830,10 @@ def map_document(payload: dict, data_dir: Path) -> dict:
         warnings.append("Residenza rilevata ma non riconosciuta automaticamente: completa il comune/località manualmente.")
     if not birth_place_map and birth_place_raw:
         warnings.append("Luogo di nascita rilevato ma non riconosciuto automaticamente: completa provincia/comune o stato manualmente.")
+    if not first_name or not last_name:
+        warnings.append("Nome e/o cognome non rilevati con sicurezza: verifica i campi dati persona.")
+    if not birth_date:
+        warnings.append("Data di nascita non rilevata con sicurezza.")
     if not doc_type:
         warnings.append("Tipo documento non riconosciuto con certezza: selezionalo manualmente.")
     if not document_number:

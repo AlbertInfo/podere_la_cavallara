@@ -68,6 +68,43 @@ function create_imported_pdf_record(PDO $pdo, array $payload): ?int
     }
 }
 
+
+function decode_parser_json_output(string $output): ?array
+{
+    $trimmed = trim($output);
+    if ($trimmed === '') {
+        return null;
+    }
+
+    $decoded = json_decode($trimmed, true);
+    if (is_array($decoded)) {
+        return $decoded;
+    }
+
+    $startCandidates = [];
+    foreach (['{', '['] as $char) {
+        $pos = strpos($trimmed, $char);
+        if ($pos !== false) {
+            $startCandidates[] = $pos;
+        }
+    }
+
+    if (!$startCandidates) {
+        return null;
+    }
+
+    $start = min($startCandidates);
+    for ($end = strlen($trimmed); $end > $start; $end--) {
+        $candidate = substr($trimmed, $start, $end - $start);
+        $decoded = json_decode($candidate, true);
+        if (is_array($decoded)) {
+            return $decoded;
+        }
+    }
+
+    return null;
+}
+
 function update_imported_pdf_record(PDO $pdo, ?int $recordId, array $payload): void
 {
     if (!$recordId || !imported_pdfs_table_ready($pdo)) {
@@ -230,20 +267,21 @@ if ($exitCode !== 0) {
         'parser_exit_code' => $exitCode,
         'parser_error' => trim($stderr) !== '' ? trim($stderr) : 'Il parser Python ha restituito un errore.',
     ]);
-    set_flash('error', 'Il parser Python ha restituito un errore.');
+    $userError = trim($stderr) !== '' ? trim($stderr) : 'Il parser Python ha restituito un errore.';
+    set_flash('error', $userError);
     header('Location: ' . admin_url('import-interhome-pdf.php'));
     exit;
 }
 
-$data = json_decode($stdout, true);
+$data = decode_parser_json_output((string) $stdout);
 
 if (!is_array($data) || empty($data['ok']) || !isset($data['rows']) || !is_array($data['rows'])) {
     update_imported_pdf_record($pdo, $fileRecordId, [
         'parser_status' => 'failed',
         'parser_exit_code' => $exitCode,
-        'parser_error' => 'Output parser non valido.',
+        'parser_error' => 'Output parser non valido. ' . substr(trim((string) $stdout), 0, 500),
     ]);
-    set_flash('error', 'Output parser non valido.');
+    set_flash('error', 'Output parser non valido. Controlla il log del parser.');
     header('Location: ' . admin_url('import-interhome-pdf.php'));
     exit;
 }
