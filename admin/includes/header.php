@@ -11,6 +11,10 @@ function admin_nav_active(array $targets, string $currentPath): string
 
 function admin_mobile_nav_key(string $currentPath): string
 {
+    if ($currentPath === 'anagrafica.php' && !empty($_GET['mobile_documents'])) {
+        return 'documenti';
+    }
+
     $map = [
         'index.php' => 'home',
         'clienti.php' => 'clienti',
@@ -27,6 +31,10 @@ function admin_mobile_nav_key(string $currentPath): string
 
 function admin_mobile_page_kicker(string $currentPath): string
 {
+    if ($currentPath === 'anagrafica.php' && !empty($_GET['mobile_documents'])) {
+        return 'Documenti';
+    }
+
     $map = [
         'index.php' => 'Area amministrazione',
         'clienti.php' => 'Archivio ospiti',
@@ -82,7 +90,7 @@ $mobilePageKicker = admin_mobile_page_kicker($currentPath);
     <link rel="stylesheet" href="/admin/assets/css/admin-mobile.css?v=200">
     <link rel="stylesheet" href="/admin/assets/css/interhome-import.css?v=95">
     <?php if ($currentPath === 'anagrafica.php'): ?>
-        <link rel="stylesheet" href="<?= e(admin_url('assets/css/anagrafica.css')) ?>?v=82">
+        <link rel="stylesheet" href="<?= e(admin_url('assets/css/anagrafica.css')) ?>?v=83">
     <?php endif; ?>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

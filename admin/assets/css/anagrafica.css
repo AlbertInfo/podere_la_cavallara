@@ -1933,3 +1933,240 @@ body.is-modal-open {
   border-radius: 12px;
   font-size: 0.9rem;
 }
+
+
+@media (max-width: 768px) {
+  .anagrafica-hero {
+    gap: .9rem;
+  }
+
+  .anagrafica-hero .muted {
+    font-size: .96rem;
+    line-height: 1.48;
+  }
+
+  .ross-month-card,
+  .ross-day-detail,
+  .anagrafica-form-card {
+    border-radius: 24px;
+  }
+
+  .ross-month-toolbar {
+    gap: .85rem;
+    margin-bottom: .8rem;
+    padding: 1rem;
+  }
+
+  .ross-month-toolbar__title p,
+  .ross-month-quick-export {
+    display: none;
+  }
+
+  .ross-month-toolbar__title h2 {
+    margin: 0;
+    font-size: 2rem;
+    line-height: 1.05;
+  }
+
+  .ross-month-toolbar__meta {
+    margin-top: .65rem;
+    gap: .45rem;
+  }
+
+  .ross-month-toolbar__meta span {
+    padding: .38rem .68rem;
+    font-size: .74rem;
+  }
+
+  .ross-month-toolbar__controls {
+    gap: .75rem;
+  }
+
+  .ross-month-picker {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) 40px;
+    align-items: end;
+    gap: .6rem;
+  }
+
+  .ross-month-picker__field {
+    width: 100%;
+  }
+
+  .ross-month-picker .btn {
+    min-width: 40px;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 14px;
+  }
+
+  .ross-month-toolbar__actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: .6rem;
+  }
+
+  .ross-month-toolbar__actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .ross-day-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .75rem;
+  }
+
+  .ross-day-stat {
+    min-height: 122px;
+    padding: 1rem .95rem;
+  }
+
+  .ross-day-stat strong {
+    font-size: 1.8rem;
+    line-height: 1.02;
+  }
+
+  .ross-day-detail__head {
+    padding: 1rem;
+    gap: .8rem;
+  }
+
+  .ross-day-detail__head p {
+    margin-top: .2rem;
+    font-size: .92rem;
+  }
+
+  .ross-day-detail__head-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .ross-month-overview-modal .anagrafica-modal__dialog,
+  .ross-month-modal .anagrafica-modal__dialog {
+    width: min(96vw, 720px);
+    max-height: calc(100vh - 1rem);
+  }
+
+  .ross-month-overview__legend {
+    gap: .45rem;
+  }
+
+  .ross-month-overview__legend span {
+    font-size: .78rem;
+  }
+
+  .ross-month-overview__weekdays {
+    display: none;
+  }
+
+  .ross-month-overview__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .65rem;
+  }
+
+  .ross-month-overview__day {
+    min-height: 132px;
+    padding: .85rem .8rem;
+  }
+
+  .ross-month-overview__day-top {
+    margin-bottom: .55rem;
+  }
+
+  .ross-month-overview__day dl {
+    gap: .4rem;
+  }
+
+  .ross-month-overview__day dl div {
+    padding: .45rem .5rem;
+  }
+
+  .anagrafica-shell--mobile-documents {
+    gap: 1rem;
+  }
+
+  .anagrafica-shell--mobile-documents .anagrafica-hero {
+    padding: 1rem;
+    align-items: stretch;
+  }
+
+  .anagrafica-shell--mobile-documents .anagrafica-hero__actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: .6rem;
+  }
+
+  .anagrafica-shell--mobile-documents .anagrafica-hero__actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .anagrafica-shell--mobile-documents .anagrafica-form-card {
+    margin-top: 0;
+  }
+
+  .anagrafica-shell--mobile-documents .anagrafica-form-card .section-title {
+    gap: .45rem;
+  }
+
+  .anagrafica-shell--mobile-documents .anagrafica-guide {
+    display: none;
+  }
+
+  .anagrafica-shell--mobile-documents .anagrafica-form {
+    gap: .9rem;
+  }
+
+  .anagrafica-shell--mobile-documents .anagrafica-section,
+  .anagrafica-shell--mobile-documents .anagrafica-subsection {
+    padding: 0;
+  }
+
+  .anagrafica-shell--mobile-documents .anagrafica-section__header,
+  .anagrafica-shell--mobile-documents .anagrafica-subsection__header,
+  .anagrafica-subsection__header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: .65rem;
+  }
+
+  .anagrafica-shell--mobile-documents .anagrafica-subsection__actions,
+  .anagrafica-subsection__actions {
+    display: grid;
+    width: 100%;
+  }
+
+  .anagrafica-shell--mobile-documents .anagrafica-ocr-trigger,
+  .anagrafica-ocr-trigger {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .anagrafica-shell--mobile-documents .anagrafica-actions {
+    position: sticky;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 76px);
+    z-index: 6;
+    padding: .65rem;
+    border-radius: 18px;
+    background: rgba(255,255,255,.92);
+    border: 1px solid rgba(226,232,240,.9);
+    box-shadow: 0 12px 24px rgba(15,23,42,.08);
+    backdrop-filter: blur(10px);
+  }
+
+  .anagrafica-shell--mobile-documents .anagrafica-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 420px) {
+  .ross-day-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .ross-month-overview__grid {
+    grid-template-columns: 1fr;
+  }
+}

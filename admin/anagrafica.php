@@ -13,9 +13,10 @@ require_once __DIR__ . '/includes/alloggiati-ws.php';
 require_once __DIR__ . '/includes/prenotazioni-anagrafica-sync.php';
 $documentOcrConfig = require __DIR__ . '/includes/document-ocr-config.php';
 $documentOcrReady = !empty($documentOcrConfig['enabled']) && trim((string) ($documentOcrConfig['endpoint'] ?? '')) !== '';
+$mobileDocumentsMode = !empty($_GET['mobile_documents']);
 require_admin();
 
-$pageTitle = 'Sezione anagrafica';
+$pageTitle = $mobileDocumentsMode ? 'Documenti · Nuova anagrafica' : 'Sezione anagrafica';
 
 function anagrafica_form_date(?string $value): string
 {
@@ -447,8 +448,9 @@ if (!$bookingModalGuests) {
 $bookingModalLeaderGuest = $bookingModalGuests[0] ?? [];
 $bookingModalAdditionalGuests = $bookingModalGuests ? array_slice($bookingModalGuests, 1) : [];
 
-$forceOpenForm = isset($_GET['new']) || $formIsEdit || (bool) $oldFormData;
+$forceOpenForm = isset($_GET['new']) || $formIsEdit || (bool) $oldFormData || $mobileDocumentsMode;
 $basePageUrl = admin_url('anagrafica.php?month=' . rawurlencode($selectedMonth) . '&day=' . rawurlencode($selectedDay));
+$mobileDocumentsUrl = admin_url('anagrafica.php?month=' . rawurlencode($selectedMonth) . '&day=' . rawurlencode($selectedDay) . '&new=1&mobile_documents=1');
 $newPageUrl = admin_url('anagrafica.php?month=' . rawurlencode($selectedMonth) . '&day=' . rawurlencode($selectedDay) . '&new=1');
 $prevMonthStart = $monthStart->modify('-1 month');
 $nextMonthStart = $monthStart->modify('+1 month');
@@ -488,16 +490,27 @@ require_once __DIR__ . '/includes/header.php';
 <?php if ($pendingDownload): ?>
     <div id="pendingBrowserDownload" hidden data-content="<?= e((string) ($pendingDownload['content_base64'] ?? '')) ?>" data-filename="<?= e((string) ($pendingDownload['filename'] ?? 'download.txt')) ?>" data-mime="<?= e((string) ($pendingDownload['mime'] ?? 'application/octet-stream')) ?>"></div>
 <?php endif; ?>
-<div class="booking-page anagrafica-shell">
-    <section class="booking-hero anagrafica-hero">
+<div class="booking-page anagrafica-shell<?= $mobileDocumentsMode ? ' anagrafica-shell--mobile-documents' : '' ?>">
+    <section class="booking-hero anagrafica-hero<?= $mobileDocumentsMode ? ' anagrafica-hero--mobile-documents' : '' ?>">
         <div class="booking-hero-copy">
-            <span class="eyebrow">Sezione anagrafica</span>
-            <h1>Pianificazione giornaliera ROSS1000 - AlloggiatiWeb</h1>
-            <p class="muted">Seleziona il mese, controlla il calendario orizzontale e chiudi la giornata quando il dato è definitivo. L’XML ROSS1000 viene generato come fotografia completa del giorno, in linea con il tracciato e con l’import gestionale di ROSS1000.<?php /* docs cite in response */ ?></p>
+            <?php if ($mobileDocumentsMode): ?>
+                <span class="eyebrow">Documenti</span>
+                <h1>Nuova anagrafica da documento</h1>
+                <p class="muted">Usa la scansione OCR su ciascun ospite per compilare rapidamente i dati anagrafici. Il salvataggio segue la stessa logica della pianificazione giornaliera e genera anagrafiche, schedine ed export come nel flusso standard.</p>
+            <?php else: ?>
+                <span class="eyebrow">Sezione anagrafica</span>
+                <h1>Pianificazione giornaliera ROSS1000 - AlloggiatiWeb</h1>
+                <p class="muted">Seleziona il mese, controlla il calendario orizzontale e chiudi la giornata quando il dato è definitivo. L’XML ROSS1000 viene generato come fotografia completa del giorno, in linea con il tracciato e con l’import gestionale di ROSS1000.<?php /* docs cite in response */ ?></p>
+            <?php endif; ?>
         </div>
         <div class="toolbar anagrafica-hero__actions">
-            <a class="btn btn-primary" href="<?= e($newPageUrl) ?>" data-anagrafica-open-link>Nuova anagrafica</a>
-            <a class="btn btn-light" href="<?= e(admin_url('index.php#registered-bookings')) ?>">Torna alle prenotazioni</a>
+            <?php if ($mobileDocumentsMode): ?>
+                <a class="btn btn-primary" href="#anagraficaFormCard">Compila documento</a>
+                <a class="btn btn-light" href="<?= e($basePageUrl) ?>">Torna alla pianificazione</a>
+            <?php else: ?>
+                <a class="btn btn-primary" href="<?= e($newPageUrl) ?>" data-anagrafica-open-link>Nuova anagrafica</a>
+                <a class="btn btn-light" href="<?= e(admin_url('index.php#registered-bookings')) ?>">Torna alle prenotazioni</a>
+            <?php endif; ?>
         </div>
     </section>
 
@@ -516,6 +529,7 @@ require_once __DIR__ . '/includes/header.php';
         </section>
     <?php endif; ?>
 
+    <?php if (!$mobileDocumentsMode): ?>
     <section class="card ross-month-card">
         <div class="ross-month-toolbar ross-surface">
             <div class="ross-month-toolbar__title">
@@ -757,7 +771,10 @@ require_once __DIR__ . '/includes/header.php';
     </div>
 </div>
 
-    <section class="card ross-day-detail">
+    </section>
+    <?php endif; ?>
+
+    <section class="card ross-day-detail"<?= $mobileDocumentsMode ? ' hidden' : '' ?>>
         <div class="ross-day-detail__head ross-surface">
             <div>
                 <span class="eyebrow">Giorno selezionato</span>
@@ -1469,13 +1486,13 @@ require_once __DIR__ . '/includes/header.php';
         </div>
     </div>
 
-<section class="card anagrafica-form-card<?= $forceOpenForm ? ' is-open' : '' ?>" id="anagraficaFormCard"<?= $forceOpenForm ? '' : ' hidden' ?> data-force-open="<?= $forceOpenForm ? '1' : '0' ?>" data-base-url="<?= e($basePageUrl) ?>" data-selected-day="<?= e($selectedDay) ?>">
+<section class="card anagrafica-form-card<?= $forceOpenForm ? ' is-open' : '' ?><?= $mobileDocumentsMode ? ' is-mobile-documents' : '' ?>" id="anagraficaFormCard"<?= $forceOpenForm ? '' : ' hidden' ?> data-force-open="<?= $forceOpenForm ? '1' : '0' ?>" data-base-url="<?= e($mobileDocumentsMode ? $basePageUrl : $basePageUrl) ?>" data-selected-day="<?= e($selectedDay) ?>">
         <div class="section-title section-title--split">
             <div>
-                <h2><?= $formIsEdit ? 'Modifica anagrafica' : 'Nuova anagrafica' ?></h2>
-                <p class="muted"><?= $formIsEdit ? 'Aggiorna il record selezionato e ricalcola le giornate coinvolte.' : 'Compila il form solo quando devi registrare una nuova anagrafica o prenotazione.' ?></p>
+                <h2><?= $mobileDocumentsMode ? 'Documenti e nuova anagrafica' : ($formIsEdit ? 'Modifica anagrafica' : 'Nuova anagrafica') ?></h2>
+                <p class="muted"><?= $mobileDocumentsMode ? 'Versione ottimizzata per mobile: scansiona il documento in alto su ogni ospite, verifica i dati e salva l&#39;anagrafica.' : ($formIsEdit ? 'Aggiorna il record selezionato e ricalcola le giornate coinvolte.' : 'Compila il form solo quando devi registrare una nuova anagrafica o prenotazione.') ?></p>
             </div>
-            <button class="btn btn-light" type="button" id="closeAnagraficaForm">Chiudi modulo</button>
+            <button class="btn btn-light" type="button" id="closeAnagraficaForm"><?= $mobileDocumentsMode ? 'Torna alla pianificazione' : 'Chiudi modulo' ?></button>
         </div>
 
         <form class="anagrafica-form" method="post" action="<?= e(admin_url('actions/create-anagrafica.php')) ?>" id="anagraficaForm" novalidate data-guided-form="main">
