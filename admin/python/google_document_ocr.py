@@ -11,7 +11,7 @@ import time
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 from urllib.parse import urlencode
 
 import requests
@@ -21,6 +21,45 @@ from cryptography.hazmat.primitives.asymmetric import padding
 
 TOKEN_SCOPE = "https://www.googleapis.com/auth/cloud-platform"
 DEFAULT_TOKEN_URI = "https://oauth2.googleapis.com/token"
+ITALY_CODE = "100000100"
+
+MONTHS = {
+    "JAN": 1, "JANUARY": 1, "GEN": 1, "GENNAIO": 1, "JANVIER": 1,
+    "FEB": 2, "FEBRUARY": 2, "FEBBRAIO": 2, "FEV": 2, "FEVR": 2, "FEVRIER": 2,
+    "MAR": 3, "MARCH": 3, "MARZO": 3, "MARS": 3,
+    "APR": 4, "APRIL": 4, "APRILE": 4, "AVR": 4, "AVRIL": 4,
+    "MAY": 5, "MAG": 5, "MAGGIO": 5, "MAI": 5,
+    "JUN": 6, "JUNE": 6, "GIU": 6, "GIUGNO": 6, "JUIN": 6,
+    "JUL": 7, "JULY": 7, "LUG": 7, "LUGLIO": 7, "JUIL": 7, "JUILLET": 7,
+    "AUG": 8, "AUGUST": 8, "AGO": 8, "AGOSTO": 8, "AOUT": 8,
+    "SEP": 9, "SEPT": 9, "SEPTEMBER": 9, "SET": 9, "SETTEMBRE": 9,
+    "OCT": 10, "OCTOBER": 10, "OTT": 10, "OTTOBRE": 10, "OCTOBRE": 10,
+    "NOV": 11, "NOVEMBER": 11, "NOVEMBRE": 11,
+    "DEC": 12, "DECEMBER": 12, "DIC": 12, "DICEMBRE": 12, "DECEMBRE": 12,
+}
+
+LABEL_STOPWORDS = {
+    "SURNAME", "COGNOME", "NOME", "NAME", "GIVEN", "GIVEN NAMES", "FIRST AND MIDDLE NAMES",
+    "PRENOMS", "PRENOMS", "PRENOM", "VORNAMEN", "ETTERNAVN", "FORNAVN", "FIRST", "MIDDLE",
+    "DATE OF BIRTH", "DATA DI NASCITA", "LUOGO DI NASCITA", "PLACE OF BIRTH", "GEBURTSORT", "GEBURTSTAG",
+    "SESSO", "SEX", "SEXE", "NATIONALITY", "NAZIONALITA", "NATIONALITE", "CITTADINANZA",
+    "RESIDENCE", "ADDRESS", "INDIRIZZO DI RESIDENZA", "COMUNE DI RESIDENZA", "COMUNE RESIDENZA",
+    "EMISSIONE", "ISSUING", "AUTHORITY", "ISSUING AUTHORITY", "AUTORITA", "HEIGHT", "STATURA",
+    "EXPIRY", "DATE OF EXPIRY", "DATE D EXPIRY", "EXPIRY DATE", "CAN",
+}
+
+ADDRESS_WORDS = {
+    "VIA", "VIALE", "PIAZZA", "CORSO", "LARGO", "STRADA", "LOC", "LOCALITA", "TRAVERSA",
+    "RUE", "AVENUE", "BOULEVARD", "STREET", "ROAD", "RD", "DRIVE", "RESIDENTIE", "RESIDENCE",
+    "N", "NO", "NR", "HOUSE", "APT", "UNIT", "CALLE",
+}
+
+DOC_PROFILE_TO_COUNTRY = {
+    "it_cie": "ITALIA",
+    "fr_id": "FRANCIA",
+    "de_id": "GERMANIA",
+    "no_passport": "NORVEGIA",
+}
 
 
 class OcrError(Exception):
@@ -52,7 +91,7 @@ def normalize(value: str) -> str:
     value = unicodedata.normalize("NFD", value)
     value = "".join(ch for ch in value if unicodedata.category(ch) != "Mn")
     value = value.upper()
-    value = re.sub(r"[’'`.,;:/\\\-_()\[\]{}\"]", " ", value)
+    value = re.sub(r"[’'`.,;:/\\\-_()\[\]{}\"°º]", " ", value)
     value = re.sub(r"\s+", " ", value)
     return value.strip()
 
@@ -61,9 +100,10 @@ def title_case(value: str) -> str:
     value = re.sub(r"\s+", " ", str(value or "").strip())
     if not value:
         return ""
-    lowered = value.lower()
-    titled = lowered.title()
+    titled = value.lower().title()
     titled = re.sub(r"\bD([A-Z])\b", lambda m: "D'" + m.group(1), titled)
+    titled = titled.replace("'S", "'s")
+    titled = re.sub(r"\bMc([A-Z])", lambda m: "Mc" + m.group(1), titled)
     return titled
 
 
@@ -122,13 +162,30 @@ def find_country(countries: List[Country], value: str) -> Optional[Country]:
         "ITALIANA": "ITALIA",
         "ITALIAN": "ITALIA",
         "ITALY": "ITALIA",
+        "ITA": "ITALIA",
         "ROMANIA": "ROMANIA",
-        "UNITED STATES": "STATI UNITI D'AMERICA",
+        "ROU": "ROMANIA",
+        "FRA": "FRANCIA",
+        "FRANCE": "FRANCIA",
+        "FRANCAISE": "FRANCIA",
+        "FRENCH": "FRANCIA",
+        "DEU": "GERMANIA",
+        "GERMANY": "GERMANIA",
+        "DEUTSCHLAND": "GERMANIA",
+        "DEUTSCH": "GERMANIA",
+        "NOR": "NORVEGIA",
+        "NORWAY": "NORVEGIA",
+        "NORGE": "NORVEGIA",
+        "NOREG": "NORVEGIA",
+        "NORSK": "NORVEGIA",
         "USA": "STATI UNITI D'AMERICA",
         "U S A": "STATI UNITI D'AMERICA",
-        "UNITED KINGDOM": "REGNO UNITO",
-        "GREAT BRITAIN": "REGNO UNITO",
+        "UNITED STATES": "STATI UNITI D'AMERICA",
+        "UNITED STATES OF AMERICA": "STATI UNITI D'AMERICA",
+        "GBR": "REGNO UNITO",
         "UK": "REGNO UNITO",
+        "GREAT BRITAIN": "REGNO UNITO",
+        "UNITED KINGDOM": "REGNO UNITO",
     }
 
     normalized = normalize(value)
@@ -162,7 +219,6 @@ def find_comune(comuni: List[Comune], value: str, province: str = "") -> Optiona
                 matches.append(comune)
 
     if not matches:
-        # try stripping province markers or common prefixes
         m = re.match(r"^(.+?)\s*\(([A-Z]{2})\)$", value.strip())
         if m:
             return find_comune(comuni, m.group(1), m.group(2))
@@ -328,82 +384,6 @@ def normalize_lines(lines: List[str]) -> List[str]:
     return [normalize(line) for line in lines]
 
 
-GENERIC_LABEL_TOKENS = {
-    "COGNOME", "SURNAME", "NOME", "NAME", "GIVEN", "GIVENNAME", "GIVENNAMES",
-    "PRENOM", "PRENOMS", "NOM", "SESSO", "SEX", "DATA", "DATE", "BIRTH", "NASCITA", "PLACE",
-    "LUOGO", "COMUNE", "CITY", "TOWN", "STATO", "COUNTRY", "RESIDENZA", "RESIDENCE", "ADDRESS",
-    "ADRESSE", "NATIONALITY", "NAZIONALITA", "CITTADINANZA", "DOCUMENT", "DOCUMENTO",
-    "NUMBER", "NUMERO", "NO", "RILASCIO", "RILASCIATO", "RILASCIATA", "AUTHORITY", "AUTORITA",
-    "AUTORITE", "ISSUED", "ISSUING", "EXPIRY", "SCADENZA", "VALID", "VALIDITA", "DELIVERY",
-    "IDENTITY", "CARD", "CARTE", "PATENTE", "GUIDA", "DRIVING", "LICENCE", "LICENSE", "PERMIS",
-    "PLACEOFBIRTH", "DATEOFBIRTH", "PLACEOFRESIDENCE", "ISSUEDBY", "PLACEOFISSUE",
-    "1", "2", "3", "4A", "4B", "4C", "4D", "5", "6", "7", "8", "9", "10", "11", "12"
-}
-
-
-def is_placeholder_value(value: str, label_norms: Optional[List[str]] = None) -> bool:
-    normalized = normalize(value)
-    if not normalized:
-        return True
-
-    blocked = set(GENERIC_LABEL_TOKENS)
-    if label_norms:
-        blocked.update(label_norms)
-
-    if normalized in blocked or normalized.replace(" ", "") in blocked:
-        return True
-
-    tokens = [tok for tok in normalized.split() if tok]
-    return bool(tokens) and all(tok in blocked for tok in tokens)
-
-
-def collect_after_labels(lines_norm: List[str], labels: List[str], allow_same_line: bool = True, max_values: int = 4) -> List[str]:
-    label_norms = [normalize(label) for label in labels if normalize(label)]
-    if not label_norms:
-        return []
-
-    collected: List[str] = []
-    seen = set()
-
-    for idx, line in enumerate(lines_norm):
-        for label in label_norms:
-            if not line:
-                continue
-
-            matched = line == label
-            inline_tail = ""
-
-            if allow_same_line and not matched and label in line:
-                tail = line.split(label, 1)[1].strip(" :-")
-                if tail:
-                    inline_tail = tail
-                matched = True
-
-            if not matched:
-                continue
-
-            if inline_tail and not is_placeholder_value(inline_tail, label_norms):
-                if inline_tail not in seen:
-                    collected.append(inline_tail)
-                    seen.add(inline_tail)
-                if len(collected) >= max_values:
-                    return collected
-
-            for nxt in lines_norm[idx + 1: idx + 1 + max_values]:
-                candidate = nxt.strip()
-                if not candidate or is_placeholder_value(candidate, label_norms) or candidate in seen:
-                    continue
-                collected.append(candidate)
-                seen.add(candidate)
-                if len(collected) >= max_values:
-                    return collected
-
-    return collected
-
-
-def find_after_labels(lines_norm: List[str], labels: List[str], allow_same_line: bool = True) -> str:
-    values = collect_after_labels(lines_norm, labels, allow_same_line=allow_same_line, max_values=4)
-    return values[0] if values else ""
 def first_match(patterns: List[str], text: str) -> str:
     for pattern in patterns:
         m = re.search(pattern, text, re.IGNORECASE)
@@ -420,11 +400,26 @@ def parse_date(value: str) -> str:
     if not value:
         return ""
 
-    normalized = value.replace(".", "/").replace("-", "/")
-    normalized = re.sub(r"\s+", "", normalized)
+    normalized = normalize(value)
+    normalized = normalized.replace(".", "/").replace("-", "/")
+    normalized = re.sub(r"\s+", " ", normalized).strip()
 
+    month_pat = "|".join(sorted(MONTHS.keys(), key=len, reverse=True))
+    textual = re.search(rf"\b(\d{{1,2}})\s+({month_pat})\s+(\d{{2,4}})\b", normalized)
+    if textual:
+        dd = int(textual.group(1))
+        mm = MONTHS.get(textual.group(2), 0)
+        yy = textual.group(3)
+        if mm:
+            year = int(yy)
+            if len(yy) == 2:
+                current_two = int(time.strftime("%y"))
+                year = 1900 + year if year > current_two else 2000 + year
+            return f"{year:04d}-{mm:02d}-{dd:02d}"
+
+    compact = normalized.replace(" ", "")
     for pattern in [r"(\d{2})/(\d{2})/(\d{4})", r"(\d{2})(\d{2})(\d{4})", r"(\d{4})/(\d{2})/(\d{2})", r"(\d{4})(\d{2})(\d{2})"]:
-        m = re.search(pattern, normalized)
+        m = re.search(pattern, compact)
         if not m:
             continue
         if len(m.group(1)) == 4:
@@ -442,16 +437,23 @@ def parse_gender(value: str) -> str:
     normalized = normalize(value)
     if not normalized:
         return ""
-    if normalized.startswith("M") or "MASCH" in normalized:
+    if normalized in {"M", "MALE", "MASCHIO", "MANNLICH"} or normalized.startswith("M ") or " MASCH" in normalized:
         return "M"
-    if normalized.startswith("F") or "FEMM" in normalized:
+    if normalized in {"F", "FEMALE", "FEMMINA", "WEIBLICH"} or normalized.startswith("F ") or " FEMM" in normalized:
         return "F"
     return ""
 
 
 def clean_name_value(value: str) -> str:
     value = normalize(value)
-    value = re.sub(r"\b(SURNAME|COGNOME|NAME|NOME|GIVEN NAMES|GIVENNAME|PRENOM|PRNOM)\b", " ", value)
+    if not value:
+        return ""
+    value = re.sub(r"^\s*\[[A-Z]\]\s*", "", value)
+    value = re.sub(r"^\s*\d+[A-Z]?\s+", "", value)
+    for stop in sorted(LABEL_STOPWORDS, key=len, reverse=True):
+        value = re.sub(rf"\b{re.escape(stop)}\b", " ", value)
+    value = re.sub(r"\bSPECIMEN\b", " ", value)
+    value = re.sub(r"[^A-ZÀ-ÿ'\- ]", " ", value)
     value = re.sub(r"\s+", " ", value).strip()
     return title_case(value)
 
@@ -460,7 +462,6 @@ def parse_mrz(lines: List[str]) -> Dict[str, str]:
     mrz_lines = [re.sub(r"\s+", "", line.upper()) for line in lines if "<" in line]
     mrz_lines = [line for line in mrz_lines if len(line) >= 25]
     if len(mrz_lines) >= 2:
-        # TD3 passport style
         for i in range(len(mrz_lines) - 1):
             l1, l2 = mrz_lines[i], mrz_lines[i + 1]
             if len(l1) >= 40 and len(l2) >= 40 and l1.startswith("P<"):
@@ -480,7 +481,6 @@ def parse_mrz(lines: List[str]) -> Dict[str, str]:
                     "first_name": given,
                 }
     if len(mrz_lines) >= 3:
-        # TD1 identity card style
         for i in range(len(mrz_lines) - 2):
             l1, l2, l3 = mrz_lines[i], mrz_lines[i + 1], mrz_lines[i + 2]
             if len(l1) >= 30 and len(l2) >= 30 and len(l3) >= 30 and l1[:1] in {"I", "C", "A"}:
@@ -525,6 +525,7 @@ def alpha3_to_country(countries: List[Country], alpha3: str) -> Optional[Country
         "ESP": "SPAGNA",
         "POL": "POLONIA",
         "CZE": "CECHIA",
+        "NOR": "NORVEGIA",
     }
     target = mapping.get((alpha3 or "").upper())
     return find_country(countries, target or "") if target else None
@@ -533,92 +534,292 @@ def alpha3_to_country(countries: List[Country], alpha3: str) -> Optional[Country
 def detect_document_type(text_norm: str) -> str:
     if "PATENTE DI GUIDA" in text_norm or re.search(r"\b4D\b", text_norm):
         return "PATENTE DI GUIDA"
-    if "PASSAPORTO" in text_norm or text_norm.startswith("P<"):
+    if "PASSAPORTO" in text_norm or "PASSPORT" in text_norm or text_norm.startswith("P<"):
         return "PASSAPORTO ORDINARIO"
-    if "CARTA DI IDENTITA" in text_norm or "IDENTITY CARD" in text_norm or "CARTA IDENTITA ELETTRONICA" in text_norm:
+    if "CARTA DI IDENTITA" in text_norm or "IDENTITY CARD" in text_norm or "PERSONALAUSWEIS" in text_norm or "IDENTIFICATION CARD" in text_norm:
         return "CARTA DI IDENTITA'"
     return ""
 
 
+def detect_document_profile(text_norm: str) -> str:
+    if "REPUBBLICA ITALIANA" in text_norm and ("CARTA DI IDENTITA" in text_norm or "IDENTITY CARD" in text_norm):
+        return "it_cie"
+    if "REPUBLIQUE FRANCAISE" in text_norm and ("CARTE NATIONALE D IDENTITE" in text_norm or "IDENTITY CARD" in text_norm):
+        return "fr_id"
+    if "PERSONALAUSWEIS" in text_norm or "BUNDESREPUBLIK DEUTSCHLAND" in text_norm:
+        return "de_id"
+    if "PASSPORT" in text_norm and ("P NOR" in text_norm or "NORGE" in text_norm or "NORWAY" in text_norm):
+        return "no_passport"
+    if "IDENTIFICATION CARD" in text_norm:
+        return "generic_id"
+    return "generic"
+
+
+def strip_leading_markers(value: str) -> str:
+    value = re.sub(r"^\s*\[[A-Z]\]\s*", "", value)
+    value = re.sub(r"^\s*\d+[A-Z]?\s+", "", value)
+    value = re.sub(r"^\s*[-:–]+\s*", "", value)
+    return value.strip()
+
+
+def remove_label_tokens(value: str, labels: List[str], stop_labels: Optional[List[str]] = None) -> str:
+    candidate = normalize(value)
+    for label in sorted({normalize(x) for x in (labels + (stop_labels or [])) if normalize(x)}, key=len, reverse=True):
+        candidate = re.sub(rf"\b{re.escape(label)}\b", " ", candidate)
+    candidate = strip_leading_markers(candidate)
+    candidate = re.sub(r"\s+", " ", candidate).strip(" :-/")
+    return candidate.strip()
+
+
+def looks_like_field_header(value: str) -> bool:
+    value = normalize(value)
+    if not value:
+        return False
+    if '<' in value or value.count('<') >= 2:
+        return True
+    if '/' in value and any(token in value for token in LABEL_STOPWORDS):
+        return True
+    token_hits = sum(1 for token in LABEL_STOPWORDS if f" {token} " in f" {value} ")
+    if token_hits >= 2:
+        return True
+    if token_hits >= 1 and len(value.split()) <= 6:
+        return True
+    return False
+
+
+def is_noise_candidate(value: str, stop_labels: Optional[List[str]] = None, allow_date: bool = False) -> bool:
+    value = normalize(value)
+    if not value:
+        return True
+    if value in LABEL_STOPWORDS or looks_like_field_header(value):
+        return True
+    if stop_labels:
+        stop_norms = {normalize(x) for x in stop_labels if normalize(x)}
+        if value in stop_norms:
+            return True
+        if any(f" {stop} " in f" {value} " for stop in stop_norms if len(stop) > 2):
+            return True
+    if re.fullmatch(r"\d{1,3}\s*CM", value):
+        return True
+    if not allow_date and parse_date(value):
+        return True
+    if re.fullmatch(r"[A-Z]{1,3}\d{0,2}", value):
+        return True
+    return False
+
+
+def extract_value_by_labels(lines_norm: List[str], labels: List[str], stop_labels: Optional[List[str]] = None, lookahead: int = 1, allow_date: bool = False) -> str:
+    label_norms = [normalize(label) for label in labels if normalize(label)]
+    stop_norms = [normalize(label) for label in (stop_labels or []) if normalize(label)]
+    all_stops = sorted(set(label_norms + stop_norms), key=len, reverse=True)
+    for index, line in enumerate(lines_norm):
+        if not line:
+            continue
+        matched = False
+        for label in label_norms:
+            if line == label or line.startswith(label + " ") or f" {label} " in f" {line} ":
+                matched = True
+                break
+        if not matched:
+            continue
+
+        inline = remove_label_tokens(line, labels, stop_labels)
+        if inline and not is_noise_candidate(inline, all_stops, allow_date=allow_date):
+            return inline
+
+        for next_line in lines_norm[index + 1:index + 1 + lookahead]:
+            if not next_line:
+                continue
+            if any(next_line == stop or next_line.startswith(stop + " ") for stop in all_stops):
+                break
+            next_clean = strip_leading_markers(next_line)
+            if looks_like_field_header(next_clean):
+                break
+            if '<' in next_clean:
+                break
+            if is_noise_candidate(next_clean, all_stops, allow_date=allow_date):
+                continue
+            return next_clean
+    return ""
+
+
+def split_place_and_date(value: str) -> Dict[str, str]:
+    raw = normalize(value)
+    if not raw:
+        return {"place": "", "date": ""}
+    date = parse_date(raw)
+    place = raw
+    if date:
+        for patt in [r"\b\d{2}[./-]\d{2}[./-]\d{4}\b", r"\b\d{1,2}\s+\d{1,2}\s+\d{4}\b", r"\b\d{1,2}\s+[A-Z]{3,9}\s+\d{2,4}\b", r"\b\d{8}\b"]:
+            m = re.search(patt, raw)
+            if m:
+                place = (raw[:m.start()] + " " + raw[m.end():]).strip()
+                break
+    place = re.sub(r"\b(DATE OF BIRTH|DATA DI NASCITA|PLACE OF BIRTH|LUOGO DI NASCITA|GEBURTSTAG|GEBURTSORT)\b", " ", place)
+    place = re.sub(r"\b(HEIGHT|STATURA|SEX|SESSO|NATIONALITY|CITTADINANZA|EMISSIONE|ISSUING)\b.*$", " ", place)
+    place = re.sub(r"\s+", " ", place).strip(" :-/")
+    return {"place": place, "date": date}
+
+
+def sanitize_place_value(value: str) -> str:
+    value = normalize(value)
+    if not value:
+        return ""
+    value = strip_leading_markers(value)
+    if re.fullmatch(r"\d{1,3}\s*CM", value):
+        return ""
+    value = re.sub(r"\b(HEIGHT|STATURA|SEX|SESSO|EMISSIONE|ISSUING|NATIONALITY|CITTADINANZA|DOCUMENT NO|DOCUMENT NUMBER|AUTHORITY|ISSUING AUTHORITY)\b.*$", " ", value)
+    value = re.sub(r"\s+", " ", value).strip(" :-/")
+    value = re.sub(r"\b(ITALY|ITALIA|NORWAY|NORVEGIA|GERMANIA|GERMANY|FRANCE|FRANCIA)$", lambda m: m.group(0), value)
+    if parse_date(value):
+        return ""
+    return value
+
+
+def maybe_attach_province(value: str) -> str:
+    value = sanitize_place_value(value)
+    if not value:
+        return ""
+    m = re.match(r"^(.+?)\s+([A-Z]{2})$", value)
+    if m and len(m.group(1).strip()) > 2:
+        return f"{m.group(1).strip()} ({m.group(2)})"
+    return value
+
+
 def pick_document_number(text_norm: str, doc_type: str) -> str:
-    labeled = find_after_labels(
-        prepare_lines(text_norm),
-        ["NUMERO", "DOCUMENT NO", "DOCUMENT NUMBER", "NO DOCUMENTO", "N. DOCUMENTO", "4D", "NUMERO PATENTE"],
-    )
-    candidate_text = labeled or text_norm
     patterns = []
     if doc_type == "CARTA DI IDENTITA'":
-        patterns = [r"\b([A-Z]{2}\d{3,6}[A-Z]{1,2})\b"]
+        patterns = [
+            r"\b([A-Z]{2}\d{5}[A-Z]{2})\b",
+            r"\b([A-Z]{2}\d{5,6}[A-Z]{1,2})\b",
+            r"\b([A-Z]\d[A-Z0-9]{7})\b",
+        ]
     elif doc_type == "PATENTE DI GUIDA":
         patterns = [r"\b([A-Z]{1,3}\d{5,8}[A-Z]{0,2})\b"]
     elif doc_type == "PASSAPORTO ORDINARIO":
-        patterns = [r"\b([A-Z0-9]{7,9})\b"]
+        patterns = [r"\b([A-Z0-9]{8,9})\b", r"\b([A-Z0-9]{7})\b"]
     else:
         patterns = [r"\b([A-Z0-9]{6,12})\b"]
-    value = first_match(patterns, candidate_text)
+    value = first_match(patterns, text_norm)
     return value.replace(" ", "")
 
 
-def infer_birth_place(lines_norm: List[str]) -> str:
-    candidates = collect_after_labels(lines_norm, [
-        "LUOGO DI NASCITA",
-        "PLACE OF BIRTH",
-        "COMUNE DI NASCITA",
-        "BIRTH PLACE",
-        "3 DATA E LUOGO DI NASCITA",
-        "3",
-    ], allow_same_line=True, max_values=6)
-    for value in candidates:
-        cleaned = value
-        m = re.search(r"(\d{2}[./-]?\d{2}[./-]?\d{4}|\d{8})", cleaned)
-        if m:
-            cleaned = cleaned.replace(m.group(0), " ")
-        cleaned = re.sub(r"(DATA E LUOGO DI NASCITA|DATE OF BIRTH|PLACE OF BIRTH|LUOGO DI NASCITA|BIRTH PLACE)", " ", cleaned)
-        cleaned = re.sub(r"\s+", " ", cleaned).strip(" :-")
-        if cleaned and not is_placeholder_value(cleaned):
-            return cleaned
+def country_from_profile(countries: List[Country], profile: str) -> Optional[Country]:
+    name = DOC_PROFILE_TO_COUNTRY.get(profile, "")
+    return find_country(countries, name) if name else None
+
+
+def looks_like_address(value: str) -> bool:
+    v = normalize(value)
+    if not v:
+        return False
+    if any(word in v.split() for word in ADDRESS_WORDS):
+        return True
+    if "," in value or re.search(r"\b\d{1,4}[A-Z]?\b", v):
+        return True
+    return False
+
+
+def generic_document_number(lines_norm: List[str], profile: str) -> str:
+    for line in lines_norm[:8]:
+        if profile == "de_id":
+            m = re.search(r"\b([A-Z0-9]{9})\b", line)
+            if m:
+                return m.group(1)
+        if profile == "generic_id":
+            m = re.search(r"\b([A-Z0-9]{6,12})\b", line)
+            if m:
+                return m.group(1)
     return ""
 
 
-def infer_residence_place(lines_norm: List[str]) -> str:
-    candidates = collect_after_labels(lines_norm, [
-        "COMUNE DI RESIDENZA",
-        "RESIDENZA",
-        "RESIDENCE",
-        "ADDRESS",
-        "INDIRIZZO",
-        "ADDRESS OF RESIDENCE",
-        "8 RESIDENZA",
-        "8 ADDRESS",
-        "8",
-    ], allow_same_line=True, max_values=6)
-    for value in candidates:
-        if value and not is_placeholder_value(value):
-            return value
-    return ""
+def collect_profile_fields(front_lines: List[str], back_lines: List[str], mrz: Dict[str, str], profile: str, countries: List[Country]) -> Dict[str, str]:
+    front_norm = normalize_lines(front_lines)
+    back_norm = normalize_lines(back_lines)
+    combined_norm = front_norm + back_norm
+    out: Dict[str, str] = {}
+
+    if profile == "it_cie":
+        birth_combo = extract_value_by_labels(front_norm, [
+            "LUOGO E DATA DI NASCITA", "PLACE AND DATE OF BIRTH", "LUOGO DI NASCITA", "PLACE OF BIRTH"
+        ], lookahead=1, allow_date=True)
+        split = split_place_and_date(birth_combo)
+        out.update({
+            "doc_type": "CARTA DI IDENTITA'",
+            "last_name": clean_name_value(extract_value_by_labels(front_norm, ["COGNOME SURNAME", "COGNOME", "SURNAME"], lookahead=2) or mrz.get("last_name", "")),
+            "first_name": clean_name_value(extract_value_by_labels(front_norm, ["NOME NAME", "NOME", "NAME"], lookahead=2) or mrz.get("first_name", "")),
+            "gender": parse_gender(extract_value_by_labels(front_norm, ["SESSO SEX", "SESSO", "SEX"], lookahead=1) or mrz.get("gender", "")),
+            "birth_date": parse_date(birth_combo) or mrz_birth_to_iso(mrz.get("birth_date_mrz", "")),
+            "birth_place_raw": maybe_attach_province(split.get("place", "")),
+            "citizenship_raw": extract_value_by_labels(front_norm, ["CITTADINANZA NATIONALITY", "CITTADINANZA", "NATIONALITY"], lookahead=1) or "ITALIA",
+            "issue_place_raw": extract_value_by_labels(front_norm, ["COMUNE DI MUNICIPALITY", "COMUNE DI", "MUNICIPALITY"], lookahead=2),
+            "residence_raw": extract_value_by_labels(back_norm, ["INDIRIZZO DI RESIDENZA RESIDENCE", "INDIRIZZO DI RESIDENZA", "RESIDENCE"], lookahead=2),
+            "document_number": mrz.get("document_number", "") or extract_value_by_labels(front_norm, ["DOCUMENT NUMBER", "N DOCUMENTO", "NO DOCUMENTO", "NUMERO DOCUMENTO"], lookahead=1),
+        })
+    elif profile == "fr_id":
+        out.update({
+            "doc_type": "CARTA DI IDENTITA'",
+            "last_name": clean_name_value(extract_value_by_labels(front_norm, ["NOM SURNAME", "SURNAME", "NOM"], lookahead=2)),
+            "first_name": clean_name_value(extract_value_by_labels(front_norm, ["PRENOMS GIVEN NAMES", "GIVEN NAMES", "PRENOMS"], lookahead=2)),
+            "gender": parse_gender(extract_value_by_labels(front_norm, ["SEXE SEX", "SEX", "SEXE"], lookahead=1)),
+            "birth_date": parse_date(extract_value_by_labels(front_norm, ["DATE DE NAISS DATE OF BIRTH", "DATE OF BIRTH", "DATE DE NAISS"], lookahead=1, allow_date=True)),
+            "birth_place_raw": sanitize_place_value(extract_value_by_labels(front_norm, ["LIEU DE NAISSANCE PLACE OF BIRTH", "PLACE OF BIRTH", "LIEU DE NAISSANCE"], lookahead=1)),
+            "citizenship_raw": extract_value_by_labels(front_norm, ["NATIONALITE NATIONALITY", "NATIONALITY", "NATIONALITE"], lookahead=1) or "FRANCIA",
+            "document_number": extract_value_by_labels(front_norm, ["N DU DOCUMENT DOCUMENT NO", "DOCUMENT NO", "N DU DOCUMENT"], lookahead=1),
+        })
+    elif profile == "de_id":
+        out.update({
+            "doc_type": "CARTA DI IDENTITA'",
+            "last_name": clean_name_value(extract_value_by_labels(front_norm, ["A NAME SURNAME NOM", "NAME SURNAME NOM", "SURNAME", "NAME SURNAME"], lookahead=2)),
+            "birth_name": clean_name_value(extract_value_by_labels(front_norm, ["B GEBURTSNAME NAME AT BIRTH NOM DE NAISSANCE", "NAME AT BIRTH", "GEBURTSNAME"], lookahead=2)),
+            "first_name": clean_name_value(extract_value_by_labels(front_norm, ["VORNAMEN GIVEN NAMES PRENOMS", "GIVEN NAMES", "VORNAMEN"], lookahead=2)),
+            "birth_date": parse_date(extract_value_by_labels(front_norm, ["GEBURTSTAG DATE OF BIRTH DATE DE NAISSANCE", "DATE OF BIRTH", "GEBURTSTAG"], lookahead=1, allow_date=True)),
+            "birth_place_raw": sanitize_place_value(extract_value_by_labels(front_norm, ["GEBURTSORT PLACE OF BIRTH LIEU DE NAISSANCE", "PLACE OF BIRTH", "GEBURTSORT"], lookahead=1)),
+            "citizenship_raw": extract_value_by_labels(front_norm, ["STAATSANGEHORIGKEIT NATIONALITY NATIONALITE", "NATIONALITY", "STAATSANGEHORIGKEIT"], lookahead=1) or "GERMANIA",
+            "document_number": generic_document_number(front_norm, profile),
+        })
+    elif profile == "no_passport":
+        birth_combo = extract_value_by_labels(front_norm, ["FODSELSDATO DATE OF BIRTH", "DATE OF BIRTH", "FODSELSDATO"], lookahead=1, allow_date=True)
+        out.update({
+            "doc_type": "PASSAPORTO ORDINARIO",
+            "last_name": clean_name_value(extract_value_by_labels(front_norm, ["ETTERNAVN SURNAME", "SURNAME", "ETTERNAVN"], lookahead=2) or mrz.get("last_name", "")),
+            "first_name": clean_name_value(extract_value_by_labels(front_norm, ["FORNAVN FIRST AND MIDDLE NAMES", "FIRST AND MIDDLE NAMES", "FORNAVN"], lookahead=2) or mrz.get("first_name", "")),
+            "gender": parse_gender(extract_value_by_labels(front_norm, ["KJONN SEX", "SEX", "KJONN"], lookahead=1) or mrz.get("gender", "")),
+            "birth_date": parse_date(birth_combo) or mrz_birth_to_iso(mrz.get("birth_date_mrz", "")),
+            "birth_place_raw": sanitize_place_value(extract_value_by_labels(front_norm, ["FODESTED PLACE OF BIRTH", "PLACE OF BIRTH", "FODESTED"], lookahead=1)),
+            "citizenship_raw": extract_value_by_labels(front_norm, ["NASJONALITET NATIONALITY", "NATIONALITY", "NASJONALITET"], lookahead=1) or mrz.get("citizenship_alpha3", "") or "NORVEGIA",
+            "issue_place_raw": sanitize_place_value(extract_value_by_labels(front_norm, ["UTSTEDENDE MYNDIGHHET ISSUING AUTHORITY", "ISSUING AUTHORITY", "UTSTEDENDE MYNDIGHHET", "UTSTEDENDE MYNDIGHET"], lookahead=2)),
+            "document_number": mrz.get("document_number", "") or extract_value_by_labels(front_norm, ["PASSNUMMER PASSPORT NUMBER", "PASSPORT NUMBER", "PASSNUMMER"], lookahead=1),
+        })
+    elif profile == "generic_id":
+        out.update({
+            "doc_type": "CARTA DI IDENTITA'",
+            "full_name": clean_name_value(extract_value_by_labels(front_norm, ["FULL NAME NOMBRE COMPLETO", "FULL NAME", "NOMBRE COMPLETO"], lookahead=2)),
+            "birth_date": parse_date(extract_value_by_labels(front_norm, ["DOB", "DATE OF BIRTH", "BIRTH"], lookahead=1, allow_date=True)),
+            "gender": parse_gender(extract_value_by_labels(front_norm, ["GENDER", "SEXO", "SEX"], lookahead=1)),
+            "citizenship_raw": extract_value_by_labels(front_norm, ["COUNTRY", "NATIONALITY", "PAIS"], lookahead=1),
+            "residence_raw": extract_value_by_labels(front_norm, ["RESIDENCE ADDRESS", "ADDRESS", "RESIDENCE"], lookahead=2),
+            "document_number": generic_document_number(front_norm, profile),
+        })
+    else:
+        out.update({
+            "doc_type": detect_document_type("\n".join(combined_norm)),
+            "last_name": clean_name_value(extract_value_by_labels(combined_norm, ["COGNOME SURNAME", "NOM SURNAME", "SURNAME", "COGNOME", "ETTERNAVN SURNAME", "ETTERNAVN"], lookahead=2) or mrz.get("last_name", "")),
+            "first_name": clean_name_value(extract_value_by_labels(combined_norm, ["NOME NAME", "PRENOMS GIVEN NAMES", "GIVEN NAMES", "FIRST AND MIDDLE NAMES", "VORNAMEN GIVEN NAMES PRENOMS", "FORNAVN FIRST AND MIDDLE NAMES", "NAME", "NOME", "PRENOMS", "FORNAVN", "VORNAMEN"], lookahead=2) or mrz.get("first_name", "")),
+            "gender": parse_gender(extract_value_by_labels(combined_norm, ["SESSO SEX", "SEXE SEX", "SEX", "KJONN SEX", "SESSO", "SEXE", "KJONN"], lookahead=1) or mrz.get("gender", "")),
+            "birth_date": parse_date(extract_value_by_labels(combined_norm, ["DATE OF BIRTH", "DATA DI NASCITA", "DATE DE NAISS", "GEBURTSTAG", "FODSELSDATO"], lookahead=1, allow_date=True)) or mrz_birth_to_iso(mrz.get("birth_date_mrz", "")),
+            "birth_place_raw": sanitize_place_value(extract_value_by_labels(combined_norm, ["PLACE OF BIRTH", "LUOGO DI NASCITA", "LIEU DE NAISSANCE", "GEBURTSORT", "FODESTED"], lookahead=2)),
+            "citizenship_raw": extract_value_by_labels(combined_norm, ["NATIONALITY", "CITTADINANZA", "NATIONALITE", "STAATSANGEHORIGKEIT", "NASJONALITET"], lookahead=1) or mrz.get("citizenship_alpha3", ""),
+            "residence_raw": extract_value_by_labels(combined_norm, ["INDIRIZZO DI RESIDENZA", "RESIDENCE ADDRESS", "RESIDENCE", "ADDRESS"], lookahead=2),
+            "issue_place_raw": sanitize_place_value(extract_value_by_labels(combined_norm, ["COMUNE DI MUNICIPALITY", "MUNICIPALITY", "ISSUING AUTHORITY", "AUTORITA", "AUTHORITY", "COMUNE DI RILASCIO"], lookahead=2)),
+            "document_number": mrz.get("document_number", "") or pick_document_number("\n".join(combined_norm), detect_document_type("\n".join(combined_norm))),
+        })
+
+    return {k: v for k, v in out.items() if v}
 
 
-def infer_issue_place(lines_norm: List[str]) -> str:
-    candidates = collect_after_labels(lines_norm, [
-        "COMUNE DI RILASCIO",
-        "LUOGO DI RILASCIO",
-        "RILASCIATO DA",
-        "RILASCIATA DA",
-        "AUTORITA",
-        "AUTHORITY",
-        "ISSUED BY",
-        "ISSUING AUTHORITY",
-        "PLACE OF ISSUE",
-        "4C",
-    ], allow_same_line=True, max_values=6)
-    for value in candidates:
-        cleaned = re.sub(r"MINISTERO DELLE INFRASTRUTTURE E DEI TRASPORTI", " ", value)
-        cleaned = re.sub(r"\s+", " ", cleaned).strip(" :-")
-        if cleaned and not is_placeholder_value(cleaned):
-            return cleaned
-    return ""
-def resolve_birth_place(raw_place: str, countries: List[Country], comuni: List[Comune]) -> Dict[str, str]:
-    raw_place = str(raw_place or "").strip()
+def resolve_birth_place(raw_place: str, countries: List[Country], comuni: List[Comune], explicit_country: Optional[Country] = None) -> Dict[str, str]:
+    raw_place = maybe_attach_province(str(raw_place or "").strip())
     if not raw_place:
         return {}
 
@@ -628,21 +829,22 @@ def resolve_birth_place(raw_place: str, countries: List[Country], comuni: List[C
     comune = find_comune(comuni, comune_value, province)
     if comune:
         return {
-            "birth_state_label": "100000100",
+            "birth_state_label": ITALY_CODE,
             "birth_province": comune.province,
             "birth_place_label": comune.code,
             "birth_city_code": comune.code,
         }
 
-    country = find_country(countries, raw_place)
+    country = find_country(countries, raw_place) or explicit_country
     if country:
-        return {
+        payload = {
             "birth_state_label": country.code,
             "birth_province": "",
-            "birth_place_label": "",
             "birth_city_code": "",
         }
-
+        if country.code != ITALY_CODE:
+            payload["birth_place_label"] = raw_place
+        return payload
     return {}
 
 
@@ -651,19 +853,20 @@ def resolve_residence_place(raw_place: str, countries: List[Country], comuni: Li
     if not raw_place:
         return {}
 
-    m = re.match(r"^(.+?)\s*\(([A-Z]{2})\)$", raw_place.strip(), re.IGNORECASE)
+    candidate = maybe_attach_province(raw_place)
+    m = re.match(r"^(.+?)\s*\(([A-Z]{2})\)$", candidate.strip(), re.IGNORECASE)
     province = m.group(2).upper() if m else ""
-    comune_value = m.group(1).strip() if m else raw_place
+    comune_value = m.group(1).strip() if m else candidate
     comune = find_comune(comuni, comune_value, province)
     if comune:
         return {
-            "residence_state_label": "100000100",
+            "residence_state_label": ITALY_CODE,
             "residence_province": comune.province,
             "residence_place_label": comune.code,
             "residence_place_code": comune.code,
         }
 
-    if explicit_state and explicit_state.code != "100000100":
+    if explicit_state and explicit_state.code != ITALY_CODE:
         return {
             "residence_state_label": explicit_state.code,
             "residence_province": "",
@@ -672,7 +875,7 @@ def resolve_residence_place(raw_place: str, countries: List[Country], comuni: Li
         }
 
     country = find_country(countries, raw_place)
-    if country and country.code != "100000100":
+    if country and country.code != ITALY_CODE:
         return {
             "residence_state_label": country.code,
             "residence_province": "",
@@ -684,7 +887,7 @@ def resolve_residence_place(raw_place: str, countries: List[Country], comuni: Li
 
 
 def resolve_issue_place(raw_place: str, countries: List[Country], comuni: List[Comune]) -> str:
-    raw_place = str(raw_place or "").strip()
+    raw_place = maybe_attach_province(str(raw_place or "").strip())
     if not raw_place:
         return ""
     m = re.match(r"^(.+?)\s*\(([A-Z]{2})\)$", raw_place.strip(), re.IGNORECASE)
@@ -696,7 +899,13 @@ def resolve_issue_place(raw_place: str, countries: List[Country], comuni: List[C
     country = find_country(countries, raw_place)
     if country:
         return country.description
-    return ""
+    return title_case(raw_place)
+
+
+def merge_missing(target: Dict[str, str], source: Dict[str, str]) -> None:
+    for key, value in source.items():
+        if value and not target.get(key):
+            target[key] = value
 
 
 def map_document(payload: dict, data_dir: Path) -> dict:
@@ -706,8 +915,11 @@ def map_document(payload: dict, data_dir: Path) -> dict:
     front = payload.get("front") or {}
     back = payload.get("back") or {}
     docs = [front, back]
-    texts = [extract_document_text(doc) for doc in docs if doc]
-    combined_text = "\n".join(texts)
+    front_text = extract_document_text(front) if front else ""
+    back_text = extract_document_text(back) if back else ""
+    combined_text = "\n".join([part for part in [front_text, back_text] if part])
+    front_lines = prepare_lines(front_text)
+    back_lines = prepare_lines(back_text)
     lines = prepare_lines(combined_text)
     lines_norm = normalize_lines(lines)
     text_norm = "\n".join(lines_norm)
@@ -722,61 +934,61 @@ def map_document(payload: dict, data_dir: Path) -> dict:
     display: Dict[str, str] = {}
 
     mrz = parse_mrz(lines)
+    profile = detect_document_profile(text_norm)
+    profile_country = country_from_profile(countries, profile)
 
-    doc_type = detect_document_type(text_norm)
-    if not doc_type:
-        doc_type = "CARTA DI IDENTITA'" if "REPUBBLICA ITALIANA" in text_norm or "IDENTITY CARD" in text_norm else ""
+    profile_fields = collect_profile_fields(front_lines, back_lines, mrz, profile, countries)
+    fallback_fields = collect_profile_fields(front_lines, back_lines, mrz, "generic", countries)
+    fields: Dict[str, str] = {}
+    merge_missing(fields, profile_fields)
+    merge_missing(fields, fallback_fields)
 
-    last_name = clean_name_value(find_after_labels(lines_norm, ["COGNOME", "SURNAME", "FAMILY NAME", "NOM", "1 COGNOME", "1 SURNAME"], True) or mrz.get("last_name", ""))
-    first_name = clean_name_value(find_after_labels(lines_norm, ["NOME", "GIVEN NAMES", "GIVEN NAME", "NAME", "PRENOM", "2 NOME", "2 NAME"], True) or mrz.get("first_name", ""))
+    doc_type = fields.get("doc_type") or detect_document_type(text_norm)
+    if not doc_type and profile in {"it_cie", "fr_id", "de_id", "generic_id"}:
+        doc_type = "CARTA DI IDENTITA'"
+    if not doc_type and profile == "no_passport":
+        doc_type = "PASSAPORTO ORDINARIO"
 
-    gender = parse_gender(find_after_labels(lines_norm, ["SESSO", "SEX"], True) or mrz.get("gender", ""))
+    last_name = fields.get("last_name", "")
+    first_name = fields.get("first_name", "")
+    if fields.get("full_name") and (not last_name or not first_name):
+        parts = [p for p in re.split(r"\s+", fields["full_name"].strip()) if p]
+        if len(parts) >= 2:
+            last_name = last_name or parts[-1]
+            first_name = first_name or " ".join(parts[:-1])
+    if mrz.get("last_name") and mrz.get("first_name") and (not last_name or not first_name or normalize(first_name) == normalize(last_name)):
+        last_name = last_name or mrz.get("last_name", "")
+        first_name = mrz.get("first_name", "") if (not first_name or normalize(first_name) == normalize(last_name)) else first_name
+    if normalize(first_name) == normalize(last_name):
+        alt_first = clean_name_value(extract_value_by_labels(normalize_lines(front_lines + back_lines), ["PRENOMS GIVEN NAMES", "GIVEN NAMES", "VORNAMEN GIVEN NAMES PRENOMS", "FORNAVN FIRST AND MIDDLE NAMES", "NOME NAME", "NOME", "NAME"], lookahead=2))
+        if alt_first and normalize(alt_first) != normalize(last_name):
+            first_name = alt_first
 
-    birth_date_raw = find_after_labels(lines_norm, ["DATA DI NASCITA", "DATE OF BIRTH", "BIRTH DATE", "3 DATA E LUOGO DI NASCITA", "3"], True)
-    birth_date = parse_date(birth_date_raw) or mrz_birth_to_iso(mrz.get("birth_date_mrz", ""))
+    gender = fields.get("gender", "") or parse_gender(mrz.get("gender", ""))
+    birth_date = fields.get("birth_date", "") or mrz_birth_to_iso(mrz.get("birth_date_mrz", ""))
 
-    citizenship_raw = find_after_labels(lines_norm, ["CITTADINANZA", "NATIONALITY", "NAZIONALITA", "NATIONALITE", "COUNTRY"], True)
+    citizenship_raw = fields.get("citizenship_raw", "")
     citizenship = find_country(countries, citizenship_raw) if citizenship_raw else None
     if not citizenship and mrz.get("citizenship_alpha3"):
         citizenship = alpha3_to_country(countries, mrz.get("citizenship_alpha3", ""))
-    if not citizenship and doc_type in {"CARTA DI IDENTITA'", "PATENTE DI GUIDA"} and "REPUBBLICA ITALIANA" in text_norm:
-        citizenship = find_country(countries, "ITALIA")
-        warnings.append("Cittadinanza dedotta dal tipo di documento italiano: verifica prima del salvataggio.")
+    if not citizenship and profile_country:
+        citizenship = profile_country
+        warnings.append("Cittadinanza dedotta dal tipo/paese del documento: verifica prima del salvataggio.")
 
-    birth_place_raw = infer_birth_place(lines_norm)
+    birth_place_raw = sanitize_place_value(fields.get("birth_place_raw", ""))
+    birth_place_map = resolve_birth_place(birth_place_raw, countries, comuni, citizenship or profile_country)
 
-    residence_state_raw = find_after_labels(lines_norm, ["STATO DI RESIDENZA", "COUNTRY OF RESIDENCE"], True)
+    residence_raw = fields.get("residence_raw", "")
+    residence_state_raw = fields.get("residence_state_raw", "")
     residence_state = find_country(countries, residence_state_raw) if residence_state_raw else None
-    residence_place_raw = infer_residence_place(lines_norm)
+    residence_map = {}
+    if residence_raw and not looks_like_address(residence_raw):
+        residence_map = resolve_residence_place(residence_raw, countries, comuni, residence_state or profile_country)
 
-    issue_place_raw = infer_issue_place(lines_norm)
-
-    document_number = mrz.get("document_number", "") or pick_document_number(text_norm, doc_type)
-    if not birth_date:
-        birth_date = parse_date(first_match([
-            r"\b(\d{2}[./-]\d{2}[./-]\d{4})\b",
-            r"\b(\d{8})\b",
-        ], text_norm))
-
-    if not birth_place_raw:
-        birth_place_raw = first_match([
-            r"(?:PLACE OF BIRTH|LUOGO DI NASCITA|COMUNE DI NASCITA)\s+([A-Z' ]+(?:\([A-Z]{2}\))?)",
-            r"\bNAT[OA] A\s+([A-Z' ]+(?:\([A-Z]{2}\))?)",
-        ], text_norm)
-
-    if not residence_place_raw:
-        residence_place_raw = first_match([
-            r"(?:RESIDENZA|RESIDENCE|ADDRESS|INDIRIZZO)\s+([A-Z0-9' .,/-]+)",
-        ], text_norm)
-
-    if not issue_place_raw:
-        issue_place_raw = first_match([
-            r"(?:RILASCIAT[OA] DA|AUTORITA|AUTHORITY|ISSUED BY|4C)\s+([A-Z0-9' .-]+)",
-        ], text_norm)
-
-    birth_place_map = resolve_birth_place(birth_place_raw, countries, comuni)
-    residence_map = resolve_residence_place(residence_place_raw, countries, comuni, residence_state)
+    issue_place_raw = sanitize_place_value(fields.get("issue_place_raw", ""))
     issue_place_code = resolve_issue_place(issue_place_raw, countries, comuni)
+
+    document_number = fields.get("document_number", "") or mrz.get("document_number", "") or pick_document_number(text_norm, doc_type)
 
     if first_name:
         extracted["first_name"] = first_name
@@ -808,17 +1020,18 @@ def map_document(payload: dict, data_dir: Path) -> dict:
         if comune:
             display["Comune nascita"] = comune.label
     elif birth_place_raw:
-        display["Luogo nascita"] = birth_place_raw
+        display["Luogo nascita"] = title_case(birth_place_raw)
 
     extracted.update({k: v for k, v in residence_map.items() if v})
     if residence_map.get("residence_province"):
         display["Provincia residenza"] = residence_map["residence_province"]
-    if residence_map.get("residence_place_code") and residence_map.get("residence_state_label") == "100000100":
+    if residence_map.get("residence_place_code") and residence_map.get("residence_state_label") == ITALY_CODE:
         comune = find_comune(comuni, residence_map["residence_place_code"])
         if comune:
             display["Comune residenza"] = comune.label
-    elif residence_place_raw:
-        display["Residenza"] = residence_place_raw
+    elif residence_raw:
+        label = "Indirizzo residenza" if looks_like_address(residence_raw) else "Residenza"
+        display[label] = title_case(residence_raw)
 
     if issue_place_code:
         extracted["document_issue_place"] = issue_place_code
@@ -826,28 +1039,32 @@ def map_document(payload: dict, data_dir: Path) -> dict:
     elif issue_place_raw:
         warnings.append("Luogo di rilascio documento trovato ma non riconosciuto automaticamente: verifica il campo manualmente.")
 
-    if not residence_map and residence_place_raw:
-        warnings.append("Residenza rilevata ma non riconosciuta automaticamente: completa il comune/località manualmente.")
+    if residence_raw and not residence_map:
+        if looks_like_address(residence_raw):
+            warnings.append("Residenza rilevata come indirizzo completo: verifica manualmente comune/località nel form.")
+        else:
+            warnings.append("Residenza rilevata ma non riconosciuta automaticamente: completa il comune/località manualmente.")
     if not birth_place_map and birth_place_raw:
         warnings.append("Luogo di nascita rilevato ma non riconosciuto automaticamente: completa provincia/comune o stato manualmente.")
-    if not first_name or not last_name:
-        warnings.append("Nome e/o cognome non rilevati con sicurezza: verifica i campi dati persona.")
-    if not birth_date:
-        warnings.append("Data di nascita non rilevata con sicurezza.")
     if not doc_type:
         warnings.append("Tipo documento non riconosciuto con certezza: selezionalo manualmente.")
     if not document_number:
         warnings.append("Numero documento non rilevato con sicurezza.")
+    if normalize(first_name) == normalize(last_name) and first_name:
+        warnings.append("Nome e cognome risultano uguali: verifica i campi estratti dal documento.")
 
     return {
+        "profile": profile,
         "form_payload": extracted,
         "display_payload": display,
         "warnings": warnings,
         "raw": {
             "birth_place": birth_place_raw,
-            "residence_place": residence_place_raw,
+            "residence_place": residence_raw,
             "issue_place": issue_place_raw,
             "citizenship": citizenship_raw,
+            "fields": fields,
+            "entities": entities,
         },
         "documents": [
             {
