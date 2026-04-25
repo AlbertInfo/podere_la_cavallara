@@ -470,15 +470,29 @@ def split_custom_birth(value: str) -> Dict[str, str]:
     raw = str(value or "").strip()
     if not raw:
         return {"place": "", "date": ""}
+
     date = parse_date(raw)
     place = raw
     if date:
-        m = re.search(r"(\d{2}[./-]\d{2}[./-]\d{4}|\d{4}[./-]\d{2}[./-]\d{2}|\d{8}|\d{1,2}\s+[A-Z]{3,9}\s+\d{2,4})", normalize(raw))
-        if m:
-            source_norm = normalize(raw)
-            place_norm = (source_norm[:m.start()] + " " + source_norm[m.end():]).strip()
-            place = title_case(place_norm)
+        raw_clean = re.sub(r"\s+", " ", raw).strip()
+        date_patterns = [
+            r"\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b",
+            r"\b\d{4}[./-]\d{1,2}[./-]\d{1,2}\b",
+            r"\b\d{1,2}\s+\d{1,2}\s+\d{4}\b",
+            r"\b\d{8}\b",
+            r"\b\d{1,2}\s+[A-Z]{3,9}\s+\d{2,4}\b",
+        ]
+        for patt in date_patterns:
+            m = re.search(patt, normalize(raw_clean))
+            if m:
+                norm_raw = normalize(raw_clean)
+                place_norm = (norm_raw[:m.start()] + " " + norm_raw[m.end():]).strip()
+                place = title_case(place_norm)
+                break
+
     place = sanitize_place_value(place)
+    place = re.sub(r"\b(\d{1,2}\s+\d{1,2}\s+\d{4}|\d{1,2}[./-]\d{1,2}[./-]\d{4}|\d{8})\b", " ", place)
+    place = re.sub(r"\s+", " ", place).strip(" ,-/")
     return {"place": maybe_attach_province(place), "date": date}
 
 
@@ -573,33 +587,47 @@ def parse_date(value: str) -> str:
     normalized = normalized.replace('.', '/').replace('-', '/').replace('\\', '/')
     normalized = re.sub(r"\s+", " ", normalized).strip()
 
-    # yyyy/mm/dd or yyyy-mm-dd
-    m = re.search(r"\b(\d{4})[/-](\d{2})[/-](\d{2})\b", normalized)
-    if m:
-        yyyy, mm, dd = int(m.group(1)), int(m.group(2)), int(m.group(3))
-        if 1 <= mm <= 12 and 1 <= dd <= 31:
+    def _fmt(dd: int, mm: int, yyyy: int) -> str:
+        if 1 <= mm <= 12 and 1 <= dd <= 31 and 1900 <= yyyy <= 2100:
             return f"{dd:02d}/{mm:02d}/{yyyy:04d}"
+        return ""
 
-    # dd/mm/yyyy or dd-mm-yyyy
-    m = re.search(r"\b(\d{2})[/-](\d{2})[/-](\d{4})\b", normalized)
+    # yyyy/mm/dd
+    m = re.search(r"\b(\d{4})[/-](\d{1,2})[/-](\d{1,2})\b", normalized)
     if m:
-        dd, mm, yyyy = int(m.group(1)), int(m.group(2)), int(m.group(3))
-        if 1 <= mm <= 12 and 1 <= dd <= 31:
-            return f"{dd:02d}/{mm:02d}/{yyyy:04d}"
+        out = _fmt(int(m.group(3)), int(m.group(2)), int(m.group(1)))
+        if out:
+            return out
+
+    # dd/mm/yyyy
+    m = re.search(r"\b(\d{1,2})[/-](\d{1,2})[/-](\d{4})\b", normalized)
+    if m:
+        out = _fmt(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        if out:
+            return out
+
+    # dd mm yyyy with spaces
+    m = re.search(r"\b(\d{1,2})\s+(\d{1,2})\s+(\d{4})\b", normalized)
+    if m:
+        out = _fmt(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        if out:
+            return out
+
+    compact = normalized.replace(' ', '')
 
     # compact yyyymmdd
-    m = re.search(r"\b(\d{4})(\d{2})(\d{2})\b", normalized.replace(' ', ''))
+    m = re.search(r"\b(\d{4})(\d{2})(\d{2})\b", compact)
     if m:
-        yyyy, mm, dd = int(m.group(1)), int(m.group(2)), int(m.group(3))
-        if 1 <= mm <= 12 and 1 <= dd <= 31:
-            return f"{dd:02d}/{mm:02d}/{yyyy:04d}"
+        out = _fmt(int(m.group(3)), int(m.group(2)), int(m.group(1)))
+        if out:
+            return out
 
     # compact ddmmyyyy
-    m = re.search(r"\b(\d{2})(\d{2})(\d{4})\b", normalized.replace(' ', ''))
+    m = re.search(r"\b(\d{2})(\d{2})(\d{4})\b", compact)
     if m:
-        dd, mm, yyyy = int(m.group(1)), int(m.group(2)), int(m.group(3))
-        if 1 <= mm <= 12 and 1 <= dd <= 31:
-            return f"{dd:02d}/{mm:02d}/{yyyy:04d}"
+        out = _fmt(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        if out:
+            return out
 
     month_pat = "|".join(sorted(MONTHS.keys(), key=len, reverse=True))
     m = re.search(rf"\b(\d{{1,2}})\s+({month_pat})\s+(\d{{2,4}})\b", normalized)
@@ -612,7 +640,9 @@ def parse_date(value: str) -> str:
             if len(yy) == 2:
                 current_two = int(time.strftime("%y"))
                 year = 1900 + year if year > current_two else 2000 + year
-            return f"{dd:02d}/{mm:02d}/{year:04d}"
+            out = _fmt(dd, mm, year)
+            if out:
+                return out
 
     return ""
 
