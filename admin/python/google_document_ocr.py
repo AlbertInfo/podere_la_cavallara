@@ -444,6 +444,19 @@ def parse_gender(value: str) -> str:
     return ""
 
 
+def looks_like_document_code_fragment(value: str) -> bool:
+    v = normalize(value)
+    if not v:
+        return False
+    compact = v.replace(' ', '')
+    if re.fullmatch(r"[A-Z]{1,3}\d{4,8}[A-Z0-9]{0,3}", compact):
+        return True
+    tokens = [t for t in compact.split() if t]
+    if len(tokens) >= 2 and all(len(t) <= 2 for t in tokens):
+        return True
+    return False
+
+
 def clean_name_value(value: str) -> str:
     value = normalize(value)
     if not value:
@@ -451,12 +464,18 @@ def clean_name_value(value: str) -> str:
     value = re.sub(r"^\s*\[[A-Z]\]\s*", "", value)
     value = re.sub(r"^\s*\d+[A-Z]?\s+", "", value)
     for stop in sorted(LABEL_STOPWORDS, key=len, reverse=True):
-        value = re.sub(rf"\b{re.escape(stop)}\b", " ", value)
-    value = re.sub(r"\bSPECIMEN\b", " ", value)
+        value = re.sub(rf"{re.escape(stop)}", " ", value)
+    value = re.sub(r"SPECIMEN", " ", value)
     value = re.sub(r"[^A-ZÀ-ÿ'\- ]", " ", value)
     value = re.sub(r"\s+", " ", value).strip()
+    if not value:
+        return ""
+    tokens = [t for t in value.split() if t]
+    if len(tokens) >= 2 and all(len(t) <= 2 for t in tokens):
+        return ""
+    if looks_like_document_code_fragment(value):
+        return ""
     return title_case(value)
-
 
 def parse_mrz(lines: List[str]) -> Dict[str, str]:
     mrz_lines = [re.sub(r"\s+", "", line.upper()) for line in lines if "<" in line]
@@ -542,7 +561,7 @@ def detect_document_type(text_norm: str) -> str:
 
 
 def detect_document_profile(text_norm: str) -> str:
-    if "REPUBBLICA ITALIANA" in text_norm and ("CARTA DI IDENTITA" in text_norm or "IDENTITY CARD" in text_norm):
+    if "REPUBBLICA ITALIANA" in text_norm and ("CARTA DI IDENTITA" in text_norm or "IDENTITY CARD" in text_norm or "MINISTERO DELL INTERNO" in text_norm):
         return "it_cie"
     if "REPUBLIQUE FRANCAISE" in text_norm and ("CARTE NATIONALE D IDENTITE" in text_norm or "IDENTITY CARD" in text_norm):
         return "fr_id"
@@ -608,7 +627,7 @@ def is_noise_candidate(value: str, stop_labels: Optional[List[str]] = None, allo
     return False
 
 
-def extract_value_by_labels(lines_norm: List[str], labels: List[str], stop_labels: Optional[List[str]] = None, lookahead: int = 1, allow_date: bool = False) -> str:
+def extract_value_by_labels(lines_norm: List[str], labels: List[str], stop_labels: Optional[List[str]] = None, lookahead: int = 1, allow_date: bool = False, join_lines: bool = False) -> str:
     label_norms = [normalize(label) for label in labels if normalize(label)]
     stop_norms = [normalize(label) for label in (stop_labels or []) if normalize(label)]
     all_stops = sorted(set(label_norms + stop_norms), key=len, reverse=True)
@@ -627,10 +646,11 @@ def extract_value_by_labels(lines_norm: List[str], labels: List[str], stop_label
         if inline and not is_noise_candidate(inline, all_stops, allow_date=allow_date):
             return inline
 
+        collected: List[str] = []
         for next_line in lines_norm[index + 1:index + 1 + lookahead]:
             if not next_line:
                 continue
-            if any(next_line == stop or next_line.startswith(stop + " ") for stop in all_stops):
+            if any(next_line == stop or next_line.startswith(stop + " ") or f" {stop} " in f" {next_line} " for stop in all_stops):
                 break
             next_clean = strip_leading_markers(next_line)
             if looks_like_field_header(next_clean):
@@ -639,8 +659,84 @@ def extract_value_by_labels(lines_norm: List[str], labels: List[str], stop_label
                 break
             if is_noise_candidate(next_clean, all_stops, allow_date=allow_date):
                 continue
-            return next_clean
+            collected.append(next_clean)
+            if not join_lines:
+                return next_clean
+        if collected:
+            return " ".join(collected)
     return ""
+
+def extract_inline_or_following_block(lines_norm: List[str], labels: List[str], stop_labels: Optional[List[str]] = None, lookahead: int = 3, allow_date: bool = False) -> str:
+    value = extract_value_by_labels(lines_norm, labels, stop_labels=stop_labels, lookahead=lookahead, allow_date=allow_date, join_lines=True)
+    value = re.sub(r"\s+", " ", value).strip()
+    return value
+
+
+def looks_like_street_address(value: str) -> bool:
+    v = normalize(value)
+    if not v:
+        return False
+    if any(token in v.split() for token in ADDRESS_WORDS):
+        return True
+    return bool(re.search(r"\d{1,4}[A-Z]?", v))
+
+
+def extract_it_cie_issue_place(front_norm: List[str]) -> str:
+    stop = [
+        "COGNOME SURNAME", "NOME NAME", "LUOGO E DATA DI NASCITA", "SESSO SEX",
+        "CITTADINANZA NATIONALITY", "STATURA HEIGHT", "DATE OF EXPIRY"
+    ]
+    value = extract_inline_or_following_block(front_norm, ["COMUNE DI MUNICIPALITY", "COMUNE DI", "MUNICIPALITY"], stop_labels=stop, lookahead=2)
+    value = sanitize_place_value(value)
+    return maybe_attach_province(value)
+
+
+def extract_it_cie_birth_combo(front_norm: List[str]) -> str:
+    stop = [
+        "SESSO SEX", "STATURA HEIGHT", "CITTADINANZA NATIONALITY", "EMISSIONE ISSUING", "DATE OF EXPIRY"
+    ]
+    value = extract_inline_or_following_block(front_norm, [
+        "LUOGO E DATA DI NASCITA PLACE AND DATE OF BIRTH", "PLACE AND DATE OF BIRTH", "LUOGO E DATA DI NASCITA", "PLACE OF BIRTH", "LUOGO DI NASCITA"
+    ], stop_labels=stop, lookahead=2, allow_date=True)
+    if value:
+        return value
+    joined = " | ".join(front_norm)
+    m = re.search(r"(?:LUOGO E DATA DI NASCITA|PLACE AND DATE OF BIRTH|LUOGO DI NASCITA|PLACE OF BIRTH)\s+(.+?)\s+(\d{1,2}[./]\d{1,2}[./]\d{4}|\d{1,2}\s+[A-Z]{3,9}\s+\d{2,4})", joined)
+    if m:
+        return f"{m.group(1)} {m.group(2)}"
+    return ""
+
+
+def extract_it_cie_residence(back_norm: List[str]) -> str:
+    stop = [
+        "ESTREMI ATTO DI NASCITA", "CODICE FISCALE", "FISCAL CODE", "EMISSIONE ISSUING",
+        "DATE OF EXPIRY", "LUOGO E DATA DI NASCITA", "COMUNE DI MUNICIPALITY"
+    ]
+    value = extract_inline_or_following_block(back_norm, [
+        "INDIRIZZO DI RESIDENZA RESIDENCE", "INDIRIZZO DI RESIDENZA", "RESIDENCE ADDRESS", "RESIDENCE"
+    ], stop_labels=stop, lookahead=2)
+    value = value.strip()
+    if normalize(value) in {"RESIDENCE", "ADDRESS", "EMISSIONE", "ISSUING"}:
+        return ""
+    if re.search(r"(EMISSIONE|ISSUING|ESTREMI|FISCAL CODE|CODICE FISCALE)", normalize(value)):
+        return ""
+    return value
+
+
+def split_address_and_locality(value: str) -> Dict[str, str]:
+    raw = re.sub(r"\s+", " ", str(value or "")).strip(" ,")
+    if not raw:
+        return {"address": "", "locality": ""}
+    parts = [part.strip() for part in re.split(r",| - ", raw) if part.strip()]
+    locality = ""
+    address = raw
+    if parts:
+        for part in reversed(parts):
+            if re.search(r"\([A-Z]{2}\)", part) or (not looks_like_street_address(part) and len(part.split()) <= 5 and not re.search(r"\d", part)):
+                locality = part
+                address = raw.replace(part, "").strip(" ,-")
+                break
+    return {"address": address, "locality": locality}
 
 
 def split_place_and_date(value: str) -> Dict[str, str]:
@@ -740,21 +836,21 @@ def collect_profile_fields(front_lines: List[str], back_lines: List[str], mrz: D
     out: Dict[str, str] = {}
 
     if profile == "it_cie":
-        birth_combo = extract_value_by_labels(front_norm, [
-            "LUOGO E DATA DI NASCITA", "PLACE AND DATE OF BIRTH", "LUOGO DI NASCITA", "PLACE OF BIRTH"
-        ], lookahead=1, allow_date=True)
+        birth_combo = extract_it_cie_birth_combo(front_norm)
         split = split_place_and_date(birth_combo)
+        issue_place = extract_it_cie_issue_place(front_norm)
+        residence_value = extract_it_cie_residence(back_norm)
         out.update({
             "doc_type": "CARTA DI IDENTITA'",
-            "last_name": clean_name_value(extract_value_by_labels(front_norm, ["COGNOME SURNAME", "COGNOME", "SURNAME"], lookahead=2) or mrz.get("last_name", "")),
-            "first_name": clean_name_value(extract_value_by_labels(front_norm, ["NOME NAME", "NOME", "NAME"], lookahead=2) or mrz.get("first_name", "")),
+            "last_name": clean_name_value(mrz.get("last_name", "") or extract_value_by_labels(front_norm, ["COGNOME SURNAME", "COGNOME", "SURNAME"], lookahead=2)),
+            "first_name": clean_name_value(mrz.get("first_name", "") or extract_value_by_labels(front_norm, ["NOME NAME", "NOME", "NAME"], lookahead=2)),
             "gender": parse_gender(extract_value_by_labels(front_norm, ["SESSO SEX", "SESSO", "SEX"], lookahead=1) or mrz.get("gender", "")),
             "birth_date": parse_date(birth_combo) or mrz_birth_to_iso(mrz.get("birth_date_mrz", "")),
             "birth_place_raw": maybe_attach_province(split.get("place", "")),
             "citizenship_raw": extract_value_by_labels(front_norm, ["CITTADINANZA NATIONALITY", "CITTADINANZA", "NATIONALITY"], lookahead=1) or "ITALIA",
-            "issue_place_raw": extract_value_by_labels(front_norm, ["COMUNE DI MUNICIPALITY", "COMUNE DI", "MUNICIPALITY"], lookahead=2),
-            "residence_raw": extract_value_by_labels(back_norm, ["INDIRIZZO DI RESIDENZA RESIDENCE", "INDIRIZZO DI RESIDENZA", "RESIDENCE"], lookahead=2),
-            "document_number": mrz.get("document_number", "") or extract_value_by_labels(front_norm, ["DOCUMENT NUMBER", "N DOCUMENTO", "NO DOCUMENTO", "NUMERO DOCUMENTO"], lookahead=1),
+            "issue_place_raw": issue_place,
+            "residence_raw": residence_value,
+            "document_number": mrz.get("document_number", "") or pick_document_number("\n".join(front_norm + back_norm), "CARTA DI IDENTITA'"),
         })
     elif profile == "fr_id":
         out.update({
@@ -979,13 +1075,17 @@ def map_document(payload: dict, data_dir: Path) -> dict:
     birth_place_map = resolve_birth_place(birth_place_raw, countries, comuni, citizenship or profile_country)
 
     residence_raw = fields.get("residence_raw", "")
+    residence_parts = split_address_and_locality(residence_raw)
     residence_state_raw = fields.get("residence_state_raw", "")
     residence_state = find_country(countries, residence_state_raw) if residence_state_raw else None
+    residence_lookup_value = residence_parts.get("locality") or residence_raw
     residence_map = {}
-    if residence_raw and not looks_like_address(residence_raw):
-        residence_map = resolve_residence_place(residence_raw, countries, comuni, residence_state or profile_country)
+    if residence_lookup_value and not looks_like_address(residence_lookup_value):
+        residence_map = resolve_residence_place(residence_lookup_value, countries, comuni, residence_state or profile_country)
 
     issue_place_raw = sanitize_place_value(fields.get("issue_place_raw", ""))
+    if profile == "it_cie" and issue_place_raw and (not residence_map) and residence_raw and looks_like_street_address(residence_raw):
+        residence_map = resolve_residence_place(issue_place_raw, countries, comuni, residence_state or profile_country)
     issue_place_code = resolve_issue_place(issue_place_raw, countries, comuni)
 
     document_number = fields.get("document_number", "") or mrz.get("document_number", "") or pick_document_number(text_norm, doc_type)
@@ -1030,8 +1130,10 @@ def map_document(payload: dict, data_dir: Path) -> dict:
         if comune:
             display["Comune residenza"] = comune.label
     elif residence_raw:
-        label = "Indirizzo residenza" if looks_like_address(residence_raw) else "Residenza"
+        label = "Indirizzo residenza" if looks_like_street_address(residence_raw) else "Residenza"
         display[label] = title_case(residence_raw)
+    if residence_parts.get("address") and residence_parts.get("address") != residence_raw:
+        display["Indirizzo residenza"] = title_case(residence_parts["address"])
 
     if issue_place_code:
         extracted["document_issue_place"] = issue_place_code
@@ -1040,7 +1142,7 @@ def map_document(payload: dict, data_dir: Path) -> dict:
         warnings.append("Luogo di rilascio documento trovato ma non riconosciuto automaticamente: verifica il campo manualmente.")
 
     if residence_raw and not residence_map:
-        if looks_like_address(residence_raw):
+        if looks_like_street_address(residence_raw):
             warnings.append("Residenza rilevata come indirizzo completo: verifica manualmente comune/località nel form.")
         else:
             warnings.append("Residenza rilevata ma non riconosciuta automaticamente: completa il comune/località manualmente.")
