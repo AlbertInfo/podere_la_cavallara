@@ -371,6 +371,174 @@ def extract_entities(document_response: dict) -> Dict[str, List[str]]:
     return out
 
 
+def normalize_entity_key(value: str) -> str:
+    return re.sub(r"[^A-Z0-9]", "", normalize(value))
+
+
+def _extract_entity_mention(entity: dict, full_text: str) -> str:
+    mention = str(entity.get("mentionText") or "").strip()
+    if mention:
+        return mention
+    normalized = entity.get("normalizedValue") or {}
+    if isinstance(normalized, dict):
+        for key in ("text", "dateValue", "moneyValue", "datetimeValue"):
+            val = normalized.get(key)
+            if isinstance(val, str) and val.strip():
+                return val.strip()
+            if isinstance(val, dict):
+                if key == "dateValue":
+                    y = str(val.get("year") or "").strip()
+                    m = str(val.get("month") or "").strip()
+                    d = str(val.get("day") or "").strip()
+                    if y and m and d:
+                        return f"{int(d):02d}/{int(m):02d}/{int(y):04d}"
+        text_val = normalized.get("text")
+        if isinstance(text_val, str) and text_val.strip():
+            return text_val.strip()
+    text_anchor = ((entity.get("textAnchor") or {}).get("textSegments") or [])
+    parts = []
+    for seg in text_anchor:
+        try:
+            start = int(seg.get("startIndex", 0))
+            end = int(seg.get("endIndex", 0))
+        except Exception:
+            continue
+        if end > start >= 0:
+            parts.append(full_text[start:end])
+    return " ".join(p for p in parts if p).strip()
+
+
+def extract_entities_detailed(document_response: dict) -> List[dict]:
+    document = document_response.get("document") or {}
+    entities = document.get("entities") or []
+    text = str(document.get("text") or "")
+    out: List[dict] = []
+
+    def walk(entity: dict, parent: str = "") -> None:
+        if not isinstance(entity, dict):
+            return
+        etype = str(entity.get("type") or "").strip()
+        mention = _extract_entity_mention(entity, text)
+        key = normalize_entity_key(etype or mention)
+        if key and mention:
+            out.append({
+                "type": etype,
+                "key": key,
+                "value": mention,
+                "confidence": entity.get("confidence"),
+                "parent": parent,
+            })
+        for prop in entity.get("properties") or []:
+            walk(prop, etype or parent)
+
+    for entity in entities:
+        walk(entity)
+    return out
+
+
+def group_entity_values(entities: List[dict]) -> Dict[str, List[str]]:
+    grouped: Dict[str, List[str]] = {}
+    for entity in entities:
+        key = entity.get("key") or ""
+        value = str(entity.get("value") or "").strip()
+        if not key or not value:
+            continue
+        grouped.setdefault(key, []).append(value)
+    return grouped
+
+
+def entity_first(grouped: Dict[str, List[str]], *aliases: str) -> str:
+    alias_keys = [normalize_entity_key(a) for a in aliases if normalize_entity_key(a)]
+    for alias in alias_keys:
+        values = grouped.get(alias) or []
+        for value in values:
+            value = str(value or "").strip()
+            if value:
+                return value
+    # fallback fuzzy contains
+    for key, values in grouped.items():
+        for alias in alias_keys:
+            if alias and (alias in key or key in alias):
+                for value in values:
+                    value = str(value or "").strip()
+                    if value:
+                        return value
+    return ""
+
+
+def split_custom_birth(value: str) -> Dict[str, str]:
+    raw = str(value or "").strip()
+    if not raw:
+        return {"place": "", "date": ""}
+    date = parse_date(raw)
+    place = raw
+    if date:
+        m = re.search(r"(\d{2}[./-]\d{2}[./-]\d{4}|\d{4}[./-]\d{2}[./-]\d{2}|\d{8}|\d{1,2}\s+[A-Z]{3,9}\s+\d{2,4})", normalize(raw))
+        if m:
+            source_norm = normalize(raw)
+            place_norm = (source_norm[:m.start()] + " " + source_norm[m.end():]).strip()
+            place = title_case(place_norm)
+    place = sanitize_place_value(place)
+    return {"place": maybe_attach_province(place), "date": date}
+
+
+def collect_custom_processor_fields(front_grouped: Dict[str, List[str]], back_grouped: Dict[str, List[str]]) -> Dict[str, str]:
+    municipality = entity_first(front_grouped, "COMUNEDIMUNICIPALITY", "COMUNE DI MUNICIPALITY", "MUNICIPALITY", "COMUNE")
+    surname = entity_first(front_grouped, "COGNOME", "SURNAME", "LAST_NAME", "LASTNAME")
+    name = entity_first(front_grouped, "NOME", "NAME", "FIRST_NAME", "FIRSTNAME")
+    birth_combo = entity_first(front_grouped, "LUOGOEDATADINASCITA", "LUOGO E DATA DI NASCITA", "PLACEANDDATEOFBIRTH", "PLACE OF BIRTH")
+    citizenship = entity_first(front_grouped, "CITTADINANZA", "NATIONALITY", "CITIZENSHIP")
+    sex = entity_first(front_grouped, "SESSO", "SEX", "GENDER")
+    doc_type = entity_first(front_grouped, "TIPODOCUMENTO", "TIPO_DOCUMENTO", "DOCUMENTTYPE", "DOCUMENT_TYPE")
+    doc_number = entity_first(front_grouped, "NUMERODOCUMENTO", "NUMERO_DOCUMENTO", "DOCUMENTNUMBER", "DOCUMENT_NUMBER", "PASSNUMMER")
+    issue_date = entity_first(front_grouped, "EMISSIONE", "ISSUING", "ISSUE_DATE", "DOCUMENTISSUEDATE")
+    expiry_date = entity_first(front_grouped, "SCADENZA", "EXPIRY", "EXPIRYDATE", "DOCUMENTEXPIRYDATE")
+    tax_code = entity_first(back_grouped, "CODICEFISCALE", "FISCALCODE", "FISCAL_CODE")
+    residence_address = entity_first(back_grouped, "INDIRIZZODIRESIDENZA", "INDIRIZZORESIDENZA", "RESIDENCEADDRESS", "RESIDENCE_ADDRESS")
+    birth_parts = split_custom_birth(birth_combo)
+
+    out: Dict[str, str] = {}
+    if surname:
+        out["last_name"] = clean_name_value(surname)
+    if name:
+        out["first_name"] = clean_name_value(name)
+    if sex:
+        out["gender"] = parse_gender(sex)
+    if birth_parts.get("date"):
+        out["birth_date"] = birth_parts["date"]
+    if birth_parts.get("place"):
+        out["birth_place_raw"] = birth_parts["place"]
+    if citizenship:
+        out["citizenship_raw"] = citizenship
+    if doc_type:
+        detected_type = detect_document_type(normalize(doc_type))
+        if detected_type:
+            out["doc_type"] = detected_type
+        else:
+            normalized_doc_type = normalize(doc_type)
+            if "IDENTITY CARD" in normalized_doc_type or "CARTA DI IDENTITA" in normalized_doc_type:
+                out["doc_type"] = "CARTA DI IDENTITA'"
+            else:
+                out["doc_type"] = title_case(doc_type)
+    if doc_number:
+        out["document_number"] = re.sub(r"[^A-Z0-9]", "", normalize(doc_number))
+    if municipality:
+        municipality = maybe_attach_province(municipality)
+        out["issue_place_raw"] = municipality
+        # On Italian CIE the issuing municipality is typically also the municipality of residence
+        out["residence_lookup_raw"] = municipality
+        out.setdefault("residence_state_raw", "ITALIA")
+    if residence_address:
+        out["residence_raw"] = residence_address
+    if issue_date:
+        out["document_issue_date"] = parse_date(issue_date) or issue_date
+    if expiry_date:
+        out["document_expiry_date"] = parse_date(expiry_date) or expiry_date
+    if tax_code:
+        out["tax_code"] = normalize(tax_code).replace(' ', '')
+    return {k: v for k, v in out.items() if v}
+
+
 def prepare_lines(text: str) -> List[str]:
     lines = []
     for raw in re.split(r"\r?\n", text or ""):
@@ -395,67 +563,57 @@ def first_match(patterns: List[str], text: str) -> str:
     return ""
 
 
-def format_date_ddmmyyyy(year: int, month: int, day: int) -> str:
-    try:
-        if year < 100:
-            current_two = int(time.strftime("%y"))
-            year = 1900 + year if year > current_two else 2000 + year
-        if not (1 <= month <= 12 and 1 <= day <= 31 and year >= 1900):
-            return ""
-        return f"{day:02d}/{month:02d}/{year:04d}"
-    except Exception:
-        return ""
-
-
 def parse_date(value: str) -> str:
     value = str(value or "").strip()
     if not value:
         return ""
 
-    iso_match = re.search(r"(19\d{2}|20\d{2})[-/.](\d{2})[-/.](\d{2})", value)
-    if iso_match:
-        return format_date_ddmmyyyy(int(iso_match.group(1)), int(iso_match.group(2)), int(iso_match.group(3)))
-
-    dmy_match = re.search(r"(\d{2})[-/.](\d{2})[-/.](19\d{2}|20\d{2})", value)
-    if dmy_match:
-        return format_date_ddmmyyyy(int(dmy_match.group(3)), int(dmy_match.group(2)), int(dmy_match.group(1)))
-
-    normalized = normalize(value)
-    normalized = normalized.replace(".", "/").replace("-", "/")
+    raw = value.strip()
+    normalized = normalize(raw)
+    normalized = normalized.replace('.', '/').replace('-', '/').replace('\\', '/')
     normalized = re.sub(r"\s+", " ", normalized).strip()
 
-    month_pat = "|".join(sorted(MONTHS.keys(), key=len, reverse=True))
-    textual = re.search(rf"(\d{{1,2}})\s+({month_pat})\s+(\d{{2,4}})", normalized)
-    if textual:
-        dd = int(textual.group(1))
-        mm = MONTHS.get(textual.group(2), 0)
-        yy = textual.group(3)
-        if mm:
-            return format_date_ddmmyyyy(int(yy), mm, dd)
+    # yyyy/mm/dd or yyyy-mm-dd
+    m = re.search(r"\b(\d{4})[/-](\d{2})[/-](\d{2})\b", normalized)
+    if m:
+        yyyy, mm, dd = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        if 1 <= mm <= 12 and 1 <= dd <= 31:
+            return f"{dd:02d}/{mm:02d}/{yyyy:04d}"
 
-    compact = re.sub(r"\s+", "", normalized)
-    patterns = [
-        (r"(\d{2})/(\d{2})/(\d{4})", "dmy"),
-        (r"(\d{2})(\d{2})(\d{4})", "dmy"),
-        (r"(\d{4})/(\d{2})/(\d{2})", "ymd"),
-        (r"(\d{4})(\d{2})(\d{2})", "ymd"),
-        (r"(\d{2})/(\d{2})/(\d{2})", "dmy2"),
-        (r"(\d{2})(\d{2})(\d{2})", "dmy2"),
-    ]
-    for pattern, kind in patterns:
-        m = re.search(pattern, compact)
-        if not m:
-            continue
-        try:
-            if kind == "ymd":
-                year, month, day = int(m.group(1)), int(m.group(2)), int(m.group(3))
-            else:
-                day, month, year = int(m.group(1)), int(m.group(2)), int(m.group(3))
-            formatted = format_date_ddmmyyyy(year, month, day)
-            if formatted:
-                return formatted
-        except Exception:
-            pass
+    # dd/mm/yyyy or dd-mm-yyyy
+    m = re.search(r"\b(\d{2})[/-](\d{2})[/-](\d{4})\b", normalized)
+    if m:
+        dd, mm, yyyy = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        if 1 <= mm <= 12 and 1 <= dd <= 31:
+            return f"{dd:02d}/{mm:02d}/{yyyy:04d}"
+
+    # compact yyyymmdd
+    m = re.search(r"\b(\d{4})(\d{2})(\d{2})\b", normalized.replace(' ', ''))
+    if m:
+        yyyy, mm, dd = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        if 1 <= mm <= 12 and 1 <= dd <= 31:
+            return f"{dd:02d}/{mm:02d}/{yyyy:04d}"
+
+    # compact ddmmyyyy
+    m = re.search(r"\b(\d{2})(\d{2})(\d{4})\b", normalized.replace(' ', ''))
+    if m:
+        dd, mm, yyyy = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        if 1 <= mm <= 12 and 1 <= dd <= 31:
+            return f"{dd:02d}/{mm:02d}/{yyyy:04d}"
+
+    month_pat = "|".join(sorted(MONTHS.keys(), key=len, reverse=True))
+    m = re.search(rf"\b(\d{{1,2}})\s+({month_pat})\s+(\d{{2,4}})\b", normalized)
+    if m:
+        dd = int(m.group(1))
+        mm = MONTHS.get(m.group(2), 0)
+        yy = m.group(3)
+        if mm:
+            year = int(yy)
+            if len(yy) == 2:
+                current_two = int(time.strftime("%y"))
+                year = 1900 + year if year > current_two else 2000 + year
+            return f"{dd:02d}/{mm:02d}/{year:04d}"
+
     return ""
 
 def parse_gender(value: str) -> str:
@@ -552,7 +710,9 @@ def mrz_birth_to_iso(value: str) -> str:
     yy = int(value[0:2])
     mm = int(value[2:4])
     dd = int(value[4:6])
-    return format_date_ddmmyyyy(yy, mm, dd)
+    current_two = int(time.strftime("%y"))
+    year = 1900 + yy if yy > current_two else 2000 + yy
+    return f"{dd:02d}/{mm:02d}/{year:04d}"
 
 def alpha3_to_country(countries: List[Country], alpha3: str) -> Optional[Country]:
     mapping = {
@@ -1041,11 +1201,14 @@ def map_document(payload: dict, data_dir: Path) -> dict:
     lines = prepare_lines(combined_text)
     lines_norm = normalize_lines(lines)
     text_norm = "\n".join(lines_norm)
+    front_entities_detailed = extract_entities_detailed(front) if front else []
+    back_entities_detailed = extract_entities_detailed(back) if back else []
+    front_entities_grouped = group_entity_values(front_entities_detailed)
+    back_entities_grouped = group_entity_values(back_entities_detailed)
     entities = {}
-    for doc in docs:
-        if doc:
-            for key, values in extract_entities(doc).items():
-                entities.setdefault(key, []).extend(values)
+    for grouped in (front_entities_grouped, back_entities_grouped):
+        for key, values in grouped.items():
+            entities.setdefault(key, []).extend(values)
 
     warnings: List[str] = []
     extracted: Dict[str, str] = {}
@@ -1055,9 +1218,11 @@ def map_document(payload: dict, data_dir: Path) -> dict:
     profile = detect_document_profile(text_norm)
     profile_country = country_from_profile(countries, profile)
 
+    custom_fields = collect_custom_processor_fields(front_entities_grouped, back_entities_grouped)
     profile_fields = collect_profile_fields(front_lines, back_lines, mrz, profile, countries)
     fallback_fields = collect_profile_fields(front_lines, back_lines, mrz, "generic", countries)
     fields: Dict[str, str] = {}
+    merge_missing(fields, custom_fields)
     merge_missing(fields, profile_fields)
     merge_missing(fields, fallback_fields)
 
@@ -1100,7 +1265,7 @@ def map_document(payload: dict, data_dir: Path) -> dict:
     residence_parts = split_address_and_locality(residence_raw)
     residence_state_raw = fields.get("residence_state_raw", "")
     residence_state = find_country(countries, residence_state_raw) if residence_state_raw else None
-    residence_lookup_value = residence_parts.get("locality") or residence_raw
+    residence_lookup_value = fields.get("residence_lookup_raw", "") or residence_parts.get("locality") or residence_raw
     residence_map = {}
     if residence_lookup_value and not looks_like_address(residence_lookup_value):
         residence_map = resolve_residence_place(residence_lookup_value, countries, comuni, residence_state or profile_country)
@@ -1133,12 +1298,6 @@ def map_document(payload: dict, data_dir: Path) -> dict:
     if document_number:
         extracted["document_number"] = document_number
         display["Numero documento"] = document_number
-    if fields.get("issue_date"):
-        extracted["document_issue_date"] = fields["issue_date"]
-        display["Emissione"] = fields["issue_date"]
-    if fields.get("expiry_date"):
-        extracted["document_expiry_date"] = fields["expiry_date"]
-        display["Scadenza"] = fields["expiry_date"]
 
     extracted.update({k: v for k, v in birth_place_map.items() if v})
     if birth_place_map.get("birth_province"):
@@ -1160,7 +1319,7 @@ def map_document(payload: dict, data_dir: Path) -> dict:
     elif residence_raw:
         label = "Indirizzo residenza" if looks_like_street_address(residence_raw) else "Residenza"
         display[label] = title_case(residence_raw)
-    if residence_parts.get("address") and residence_parts.get("address") != residence_raw:
+    if residence_parts.get("address"):
         display["Indirizzo residenza"] = title_case(residence_parts["address"])
 
     if issue_place_code:
@@ -1168,6 +1327,13 @@ def map_document(payload: dict, data_dir: Path) -> dict:
         display["Luogo rilascio"] = issue_place_code
     elif issue_place_raw:
         warnings.append("Luogo di rilascio documento trovato ma non riconosciuto automaticamente: verifica il campo manualmente.")
+
+    if fields.get("document_issue_date"):
+        extracted["document_issue_date"] = fields.get("document_issue_date", "")
+    if fields.get("document_expiry_date"):
+        extracted["document_expiry_date"] = fields.get("document_expiry_date", "")
+    if fields.get("tax_code"):
+        extracted["tax_code"] = fields.get("tax_code", "")
 
     if residence_raw and not residence_map:
         if looks_like_street_address(residence_raw):
@@ -1195,6 +1361,8 @@ def map_document(payload: dict, data_dir: Path) -> dict:
             "citizenship": citizenship_raw,
             "fields": fields,
             "entities": entities,
+            "front_entities": front_entities_detailed,
+            "back_entities": back_entities_detailed,
         },
         "documents": [
             {
