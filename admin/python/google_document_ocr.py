@@ -343,6 +343,56 @@ def extract_document_text(document_response: dict) -> str:
     return str(text)
 
 
+def extract_entity_value(entity: dict, text: str) -> str:
+    def _append_unique(buf: List[str], value: str) -> None:
+        value = re.sub(r"\s+", " ", str(value or "")).strip()
+        if value and value not in buf:
+            buf.append(value)
+
+    values: List[str] = []
+    norm = entity.get("normalizedValue") or {}
+    if isinstance(norm, dict):
+        for key in ("text", "stringValue"):
+            _append_unique(values, norm.get(key) or "")
+        date_val = norm.get("dateValue") or {}
+        if isinstance(date_val, dict):
+            year = int(date_val.get("year") or 0)
+            month = int(date_val.get("month") or 0)
+            day = int(date_val.get("day") or 0)
+            if year and month and day:
+                _append_unique(values, f"{day:02d}.{month:02d}.{year:04d}")
+                _append_unique(values, f"{year:04d}-{month:02d}-{day:02d}")
+        addr = norm.get("addressValue") or {}
+        if isinstance(addr, dict):
+            lines = addr.get("addressLines")
+            if isinstance(lines, list):
+                _append_unique(values, ", ".join(str(x).strip() for x in lines if str(x).strip()))
+            parts = []
+            for key in ("addressLines", "postalCode", "locality", "administrativeArea", "regionCode"):
+                raw = addr.get(key)
+                if isinstance(raw, list):
+                    parts.extend(str(x).strip() for x in raw if str(x).strip())
+                elif raw:
+                    parts.append(str(raw).strip())
+            _append_unique(values, ", ".join(x for x in parts if x))
+    mention = str(entity.get("mentionText") or "").strip()
+    if mention:
+        _append_unique(values, mention)
+    if not values:
+        text_anchor = ((entity.get("textAnchor") or {}).get("textSegments") or [])
+        parts = []
+        for seg in text_anchor:
+            try:
+                start = int(seg.get("startIndex", 0))
+                end = int(seg.get("endIndex", 0))
+            except Exception:
+                continue
+            if end > start >= 0:
+                parts.append(text[start:end])
+        _append_unique(values, " ".join(p for p in parts if p).strip())
+    return values[0] if values else ""
+
+
 def extract_entities(document_response: dict) -> Dict[str, List[str]]:
     document = document_response.get("document") or {}
     entities = document.get("entities") or []
@@ -352,23 +402,98 @@ def extract_entities(document_response: dict) -> Dict[str, List[str]]:
         if not isinstance(entity, dict):
             continue
         etype = normalize(str(entity.get("type") or entity.get("mentionText") or ""))
-        mention = str(entity.get("mentionText") or "").strip()
-        if not mention:
-            text_anchor = ((entity.get("textAnchor") or {}).get("textSegments") or [])
-            parts = []
-            for seg in text_anchor:
-                try:
-                    start = int(seg.get("startIndex", 0))
-                    end = int(seg.get("endIndex", 0))
-                except Exception:
-                    continue
-                if end > start >= 0:
-                    parts.append(text[start:end])
-            mention = " ".join(p for p in parts if p).strip()
+        mention = extract_entity_value(entity, text)
         if not etype or not mention:
             continue
-        out.setdefault(etype, []).append(mention)
+        out.setdefault(etype, [])
+        if mention not in out[etype]:
+            out[etype].append(mention)
     return out
+
+
+def entity_key_variants(value: str) -> List[str]:
+    norm = normalize(value)
+    compact = re.sub(r"\s+", "", norm)
+    return [x for x in [norm, compact] if x]
+
+
+def entity_key_matches(key: str, aliases: List[str]) -> bool:
+    key_norm = normalize(key)
+    key_compact = re.sub(r"\s+", "", key_norm)
+    for alias in aliases:
+        for candidate in entity_key_variants(alias):
+            if not candidate:
+                continue
+            if key_norm == candidate or key_compact == candidate:
+                return True
+            if candidate in key_norm or candidate in key_compact:
+                return True
+    return False
+
+
+def get_entity_values(entities: Dict[str, List[str]], aliases: List[str]) -> List[str]:
+    out: List[str] = []
+    for key, values in entities.items():
+        if entity_key_matches(key, aliases):
+            for value in values:
+                value = re.sub(r"\s+", " ", str(value or "")).strip()
+                if value and value not in out:
+                    out.append(value)
+    return out
+
+
+def get_entity_first(entities: Dict[str, List[str]], aliases: List[str]) -> str:
+    values = get_entity_values(entities, aliases)
+    return values[0] if values else ""
+
+
+def normalize_doc_type_label(value: str) -> str:
+    normalized = normalize(value)
+    if not normalized:
+        return ""
+    if "PATENTE" in normalized or "DRIVING LICENCE" in normalized or "DRIVER" in normalized:
+        return "PATENTE DI GUIDA"
+    if "PASSAPORT" in normalized or "PASSPORT" in normalized:
+        return "PASSAPORTO ORDINARIO"
+    if "CARTA DI IDENTITA" in normalized or "IDENTITY CARD" in normalized or "PERSONALAUSWEIS" in normalized or "IDENTIFICATION CARD" in normalized:
+        return "CARTA DI IDENTITA'"
+    return title_case(value)
+
+
+def collect_custom_processor_fields(front_entities: Dict[str, List[str]], back_entities: Dict[str, List[str]]) -> Dict[str, str]:
+    out: Dict[str, str] = {}
+    birth_combo = get_entity_first(front_entities, [
+        "LUOGO E DATA DI NASCITA", "LUOGOEDATADINASCITA", "PLACE AND DATE OF BIRTH", "LUOGOEDATANASCITA"
+    ])
+    split = split_place_and_date(birth_combo)
+    residence_raw = get_entity_first(back_entities, [
+        "INDIRIZZO DI RESIDENZA", "INDIRIZZODIRESIDENZA", "RESIDENCE ADDRESS", "ADDRESS", "RESIDENZA"
+    ])
+    issue_place = get_entity_first(front_entities, [
+        "COMUNE DI MUNICIPALITY", "COMUNEDIMUNICIPALITY", "MUNICIPALITY", "COMUNE DI"
+    ])
+    doc_number = get_entity_first(front_entities, [
+        "NUMERO DOCUMENTO", "NUMERO_DOCUMENTO", "NUMERODOCUMENTO", "DOCUMENT NUMBER", "DOCUMENT NO", "NUMERO"
+    ])
+    doc_number = re.sub(r"[^A-Z0-9]", "", normalize(doc_number)) if doc_number else ""
+    out.update({
+        "doc_type": normalize_doc_type_label(get_entity_first(front_entities, [
+            "TIPO DOCUMENTO", "TIPO_DOCUMENTO", "TIPODOCUMENTO", "DOCUMENT TYPE", "TYPE"
+        ])),
+        "last_name": clean_name_value(get_entity_first(front_entities, ["COGNOME", "SURNAME"])),
+        "first_name": clean_name_value(get_entity_first(front_entities, ["NOME", "NAME", "GIVEN NAMES", "PRENOMS"])),
+        "gender": parse_gender(get_entity_first(front_entities, ["SESSO", "SEX", "SEXE"])),
+        "birth_date": parse_date(birth_combo),
+        "birth_place_raw": maybe_attach_province(split.get("place", "")),
+        "citizenship_raw": get_entity_first(front_entities, ["CITTADINANZA", "NATIONALITY", "CITIZENSHIP"]),
+        "issue_place_raw": sanitize_place_value(issue_place),
+        "issue_date": parse_date(get_entity_first(front_entities, ["EMISSIONE", "ISSUING", "DATE OF ISSUE"])),
+        "expiry_date": parse_date(get_entity_first(front_entities, ["SCADENZA", "EXPIRY", "DATE OF EXPIRY", "EXPIRY DATE"])),
+        "document_number": doc_number,
+        "residence_raw": residence_raw,
+        "fiscal_code": get_entity_first(back_entities, ["CODICE FISCALE", "CODICEFISCALE", "FISCAL CODE"]),
+    })
+    return {k: v for k, v in out.items() if v}
 
 
 def prepare_lines(text: str) -> List[str]:
@@ -1019,11 +1144,15 @@ def map_document(payload: dict, data_dir: Path) -> dict:
     lines = prepare_lines(combined_text)
     lines_norm = normalize_lines(lines)
     text_norm = "\n".join(lines_norm)
-    entities = {}
-    for doc in docs:
-        if doc:
-            for key, values in extract_entities(doc).items():
-                entities.setdefault(key, []).extend(values)
+    front_entities = extract_entities(front) if front else {}
+    back_entities = extract_entities(back) if back else {}
+    entities: Dict[str, List[str]] = {}
+    for source in (front_entities, back_entities):
+        for key, values in source.items():
+            entities.setdefault(key, [])
+            for value in values:
+                if value not in entities[key]:
+                    entities[key].append(value)
 
     warnings: List[str] = []
     extracted: Dict[str, str] = {}
@@ -1033,9 +1162,11 @@ def map_document(payload: dict, data_dir: Path) -> dict:
     profile = detect_document_profile(text_norm)
     profile_country = country_from_profile(countries, profile)
 
+    custom_fields = collect_custom_processor_fields(front_entities, back_entities)
     profile_fields = collect_profile_fields(front_lines, back_lines, mrz, profile, countries)
     fallback_fields = collect_profile_fields(front_lines, back_lines, mrz, "generic", countries)
     fields: Dict[str, str] = {}
+    merge_missing(fields, custom_fields)
     merge_missing(fields, profile_fields)
     merge_missing(fields, fallback_fields)
 
@@ -1111,6 +1242,13 @@ def map_document(payload: dict, data_dir: Path) -> dict:
     if document_number:
         extracted["document_number"] = document_number
         display["Numero documento"] = document_number
+
+    if fields.get("issue_date"):
+        display["Emissione"] = fields["issue_date"]
+    if fields.get("expiry_date"):
+        display["Scadenza"] = fields["expiry_date"]
+    if fields.get("fiscal_code"):
+        display["Codice fiscale"] = fields["fiscal_code"]
 
     extracted.update({k: v for k, v in birth_place_map.items() if v})
     if birth_place_map.get("birth_province"):
