@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 return [
-    'enabled' => true,
+    'enabled' => false,
     'endpoint' => 'https://eu-documentai.googleapis.com/v1/projects/104713903040/locations/eu/processors/a8d95c744dd5adb5:process',
     'credentials_path' => '/home/u881781553/domains/poderelacavallara.it/config/scandocuments-494116-c9617789be44.json',
     'bearer_token' => null,
